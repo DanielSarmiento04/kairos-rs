@@ -1,7 +1,12 @@
 version: 1
 
 routes:
-  - localhost:
+  localhost:
     domain: localhost
     port: 8080
     protocol: http
+    external_path:  /identity/register
+    internal_path: /api/identity/register
+    methods:
+      - POST
+      - GET

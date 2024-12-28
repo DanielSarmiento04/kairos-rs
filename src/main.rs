@@ -1,11 +1,34 @@
+// yaml configuration
+
 use serde::Deserialize;
 use serde_yaml;
 use std::fs;
+
+
+// Import the actix_web crate
+use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder, Result};
+
 
 #[derive(Debug, Deserialize)]
 struct Route {
     domain: String,  // The host
     port: u16,
+    protocol: String,
+    external_path: String,
+    internal_path: String,
+    methods: Vec<String>,
+}
+
+enum MethodsAvailable {
+    GET,
+    POST,
+    PUT,
+    DELETE,
+    PATCH,
+    OPTIONS,
+    HEAD,
+    CONNECT,
+    TRACE,
 }
 
 #[derive(Debug, Deserialize)]
@@ -15,6 +38,7 @@ struct Config {
 }
 
 
+// #[actix_web::main]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     
 
@@ -28,7 +52,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let routes = config.routes;
     for route in routes {
-        println!("Domain: {}, Port: {}", route.domain, route.port);
+
+        println!("Domain: {}", route.domain);
+        println!("Port: {}", route.port);
+        println!("Protocol: {}", route.protocol);
+        println!("External Path: {}", route.external_path);
+        println!("Internal Path: {}", route.internal_path);
+        println!("Methods: {:?}", route.methods);
+
+        
+        println!();
     }
 
 
