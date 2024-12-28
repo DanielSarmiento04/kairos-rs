@@ -1,15 +1,5 @@
 use reqwest;
-use reqwest::Method::{
-    GET,
-    POST,
-    PUT,
-    DELETE,
-    PATCH,
-    OPTIONS,
-    HEAD,
-    CONNECT,
-    TRACE
-};
+use reqwest::Method;
 
 pub fn format_route(
     domain: &str,
@@ -21,6 +11,8 @@ pub fn format_route(
        "{}://{}:{}{}", protocol, domain, port, internal_path
     )
 }
+
+// let mapt
 
 // make request and return the response
 pub fn make_request(
