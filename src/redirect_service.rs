@@ -1,4 +1,15 @@
-
+use reqwest;
+use reqwest::Method::{
+    GET,
+    POST,
+    PUT,
+    DELETE,
+    PATCH,
+    OPTIONS,
+    HEAD,
+    CONNECT,
+    TRACE
+};
 
 pub fn format_route(
     domain: &str,
@@ -9,4 +20,13 @@ pub fn format_route(
     format!(
        "{}://{}:{}{}", protocol, domain, port, internal_path
     )
+}
+
+// make request and return the response
+pub fn make_request(
+    url: &str,
+    method: &str
+) -> Result<String, reqwest::Error> {
+    // todo
+    Ok("".to_string())
 }
