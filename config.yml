@@ -10,3 +10,13 @@ routes:
     methods:
       - POST
       - GET
+
+  - google:
+    domain: google.com
+    port: 443
+    protocol: https
+    external_path:  /identity/register
+    internal_path: /api/identity/register
+    methods:
+      - POST
+      - GET

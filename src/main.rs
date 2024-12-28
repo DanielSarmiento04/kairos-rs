@@ -12,19 +12,20 @@ use redirect_service::format_route;
 // Import the actix_web crate
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder, Result};
 
+#[get("/")]
+async fn hello() -> impl Responder {
+    HttpResponse::Ok().body("200")
+}
 
 
-
-
-// #[actix_web::main]
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    
+#[actix_web::main]
+async fn main() -> std::io::Result<()>{
 
     // Read YAML file content
     let yaml_content = fs::read_to_string("config.yml")?;
     
     // Parse YAML into the Config struct
-    let config: Config = serde_yaml::from_str(&yaml_content)?;
+    let config: Config = serde_yaml::from_str(&yaml_content).unwrap();
 
     println!("Version: {}", config.version);
 
@@ -44,13 +45,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &route.protocol,
             &route.internal_path,
         );
-
-        println!("{}", formatted_route);
-
+        println!("Route formate {}", formatted_route);
         
         println!();
     }
 
+    HttpServer::new(|| {
+        App::new().service(
+            web::scope("/").service(hello)
+        )
+    })
+    .bind(("0.0.0.0", 8080))?
+    .run()
+    .await
 
-    Ok(())
+
 }
