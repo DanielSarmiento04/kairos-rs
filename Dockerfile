@@ -16,9 +16,10 @@ RUN apk add --no-cache clang lld musl-dev git pkgconfig openssl-dev
 
 # Set OpenSSL environment variables for static linking
 ENV OPENSSL_DIR=/usr
+ENV OPENSSL_LIB_DIR=/usr/lib
+ENV OPENSSL_INCLUDE_DIR=/usr/include
 ENV OPENSSL_STATIC=1
 
-# Build the application
 # Leverage caching for dependencies and bind mounts for source files
 RUN --mount=type=bind,source=src,target=src \
     --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
