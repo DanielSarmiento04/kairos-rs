@@ -1,15 +1,18 @@
 // yaml configuration
 mod yaml_config;
+mod redirect_service;
 
 use serde::Deserialize;
 use serde_yaml;
 use std::fs;
-
 use yaml_config::{Config, Route};
+use redirect_service::format_route;
 
 
 // Import the actix_web crate
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder, Result};
+
+
 
 
 
@@ -34,6 +37,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("External Path: {}", route.external_path);
         println!("Internal Path: {}", route.internal_path);
         println!("Methods: {:?}", route.methods);
+
+        let formatted_route = format_route(
+            &route.domain,
+            route.port,
+            &route.protocol,
+            &route.internal_path,
+        );
+
+        println!("{}", formatted_route);
 
         
         println!();
