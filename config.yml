@@ -1,6 +1,7 @@
-
 version: 1
 
 routes:
-  - domain: localhost
-  - port: 8080
+  - localhost:
+    domain: localhost
+    port: 8080
+    protocol: http

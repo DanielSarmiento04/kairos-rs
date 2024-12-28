@@ -3,11 +3,17 @@ use serde_yaml;
 use std::fs;
 
 #[derive(Debug, Deserialize)]
-struct Config {
-    app_name: String,
+struct Route {
+    domain: String,  // The host
     port: u16,
-    debug: bool,
 }
+
+#[derive(Debug, Deserialize)]
+struct Config {
+    version: String,
+    routes: Vec<Route>,
+}
+
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     
@@ -18,9 +24,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse YAML into the Config struct
     let config: Config = serde_yaml::from_str(&yaml_content)?;
 
-    println!("App Name: {}", config.app_name);
-    println!("Port: {}", config.port);
-    println!("Debug: {}", config.debug);
+    println!("Version: {}", config.version);
+
+    let routes = config.routes;
+    for route in routes {
+        println!("Domain: {}, Port: {}", route.domain, route.port);
+    }
+
 
     Ok(())
 }
