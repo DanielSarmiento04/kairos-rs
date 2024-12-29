@@ -36,30 +36,32 @@ fn configure_route(cfg: &mut web::ServiceConfig, routes: &[Route])
 
         let methods = route.methods.clone();
         for method in methods {
+
+
             match method.as_str() {
                 "GET" => {
-                    cfg.route(&formatted_route, web::get().to(hello_world));
+                    cfg.route(&route.external_path, web::get().to(hello_world));
                 },
                 "POST" => {
-                    cfg.route(&formatted_route, web::post().to(hello_world));
+                    cfg.route(&route.external_path, web::post().to(hello_world));
                 },
                 "PUT" => {
-                    cfg.route(&formatted_route, web::put().to(hello_world));
+                    cfg.route(&route.external_path, web::put().to(hello_world));
                 },
                 "DELETE" => {
-                    cfg.route(&formatted_route, web::delete().to(hello_world));
+                    cfg.route(&route.external_path, web::delete().to(hello_world));
                 },
                 "PATCH" => {
-                    cfg.route(&formatted_route, web::patch().to(hello_world));
+                    cfg.route(&route.external_path, web::patch().to(hello_world));
                 },
                 "HEAD" => {
-                    cfg.route(&formatted_route, web::head().to(hello_world));
+                    cfg.route(&route.external_path, web::head().to(hello_world));
                 },
                 "TRACE" => {
-                    cfg.route(&formatted_route, web::trace().to(hello_world));
+                    cfg.route(&route.external_path, web::trace().to(hello_world));
                 },
                 _ => {
-                    cfg.route(&formatted_route, web::get().to(hello_world));
+                    cfg.route(&route.external_path, web::get().to(hello_world));
                 }
             }
         }
