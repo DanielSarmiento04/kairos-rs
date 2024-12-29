@@ -2,6 +2,17 @@
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
+pub enum MethodsAvailable {
+    GET,
+    POST,
+    PUT,
+    DELETE,
+    PATCH,
+    HEAD,
+    TRACE,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Route {
     pub domain: String,  // The host
     pub port: u16,
@@ -11,17 +22,7 @@ pub struct Route {
     pub methods: Vec<String>,
 }
 
-enum MethodsAvailable {
-    GET,
-    POST,
-    PUT,
-    DELETE,
-    PATCH,
-    OPTIONS,
-    HEAD,
-    CONNECT,
-    TRACE,
-}
+
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
