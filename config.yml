@@ -8,15 +8,15 @@ routes:
     external_path:  /identity/register
     internal_path: /api/identity/register
     methods:
-      - POST
       - GET
+      - POST
 
   - google:
     domain: google.com
     port: 443
     protocol: https
-    external_path:  /identity/register
-    internal_path: /api/identity/register
+    external_path:  /identity/register/v2
+    internal_path: /api/identity/register/v2
     methods:
       - POST
       - GET
