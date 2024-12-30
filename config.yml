@@ -3,9 +3,9 @@ version: 1
 routes:
   - localhost:
     domain: localhost
-    port: 8080
+    port: 8000
     protocol: http
-    external_path:  /identity/register
+    external_path: /api/identity/register
     internal_path: /api/identity/register
     methods:
       - POST
@@ -15,7 +15,7 @@ routes:
     domain: google.com
     port: 443
     protocol: https
-    external_path:  /identity/register/v2
+    external_path: /identity/register/v2
     internal_path: /api/identity/register/v2
     methods:
       - POST
