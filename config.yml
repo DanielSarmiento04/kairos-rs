@@ -3,9 +3,9 @@ version: 1
 routes:
   - localhost:
     domain: localhost
-    port: 8000
+    port: 3000
     protocol: http
-    external_path: /api/identity/register
+    external_path: /api/identity/register/v3
     internal_path: /api/identity/register
     methods:
       - POST
