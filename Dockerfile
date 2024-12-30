@@ -9,6 +9,8 @@ FROM rust:${RUST_VERSION} AS build
 ARG APP_NAME
 WORKDIR /app
 
+COPY ./config.yml /app/config.yml
+
 RUN --mount=type=bind,source=src,target=src \
     --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
     --mount=type=bind,source=Cargo.lock,target=Cargo.lock \
@@ -19,6 +21,6 @@ RUN --mount=type=bind,source=src,target=src \
     cp ./target/release/$APP_NAME /bin/server
 
 
-EXPOSE 8000
+EXPOSE 5900
 
 CMD ["/bin/server"]

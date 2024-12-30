@@ -177,7 +177,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(actix_web::middleware::Compress::default())
             .configure(|cfg| configure_route(cfg, route_handler.clone()))
     })
-    .bind(("0.0.0.0", 8080))?
+    .bind(("0.0.0.0", 5900))?
     .run()
     .await
 }
