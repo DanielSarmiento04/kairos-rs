@@ -1,5 +1,5 @@
-use reqwest;
-use reqwest::Method;
+use reqwest::{Client, Method, Response, Error};
+use log::error;
 
 pub fn format_route(
     domain: &str,
@@ -12,13 +12,3 @@ pub fn format_route(
     )
 }
 
-// let mapt
-
-// make request and return the response
-pub fn make_request(
-    url: &str,
-    method: &str
-) -> Result<String, reqwest::Error> {
-    // todo
-    Ok("".to_string())
-}

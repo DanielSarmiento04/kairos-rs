@@ -1,124 +1,85 @@
-// yaml configuration
 mod yaml_config;
 mod redirect_service;
+mod error_handler;
 
-use serde::Deserialize;
+use actix_web::{
+    web, App, HttpRequest, HttpResponse, HttpServer,
+    http::{header, StatusCode}, 
+    Error as ActixError,
+};
 use serde_yaml;
 use std::fs;
+use std::{sync::Arc, collections::HashMap};
 use yaml_config::{Config, Route};
 use redirect_service::format_route;
-
-// Import the actix_web crate
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder, Result};
-
-// shared memory
-use std::sync::Arc;
-
-
+use log::{info, error};  // Add logging capabilities
+use futures::future::try_join_all;
+use tokio::time::{timeout, Duration};
+use reqwest::Client;
+use error_handler::GatewayError;
 
 async fn hello_world() -> &'static str {
     "Hello, world!"
 }
 
-async fn internal_function (internal_url: String) -> &'static str {
-    print!("Internal URL: {}", internal_url);
-    "Internal function"
+// Route handler structure
+#[derive(Clone)]
+struct RouteHandler {
+    client: Client,
+    routes: Arc<Vec<Route>>,
+    timeout_seconds: u64,
 }
 
-fn configure_route(cfg: &mut web::ServiceConfig, routes: &[Route])
-{
-    for route in routes {
-        let formatted_route = format_route(
-            &route.domain,
-            route.port,
-            &route.protocol,
-            &route.internal_path,
-        );
+impl RouteHandler {
+    fn new(routes: Arc<Vec<Route>>, timeout_seconds: u64) -> Self {
+        let client = Client::builder()
+            .pool_idle_timeout(Duration::from_secs(30))
+            .pool_max_idle_per_host(32)
+            .build()
+            .expect("Failed to create HTTP client");
 
-        for method in &route.methods {
-
-            println!("Method: {} formate_url {} ", method, formatted_route);
-
-            // handle the method use internal function and pass formatted_route
-            match method.as_str() {
-                "GET" => {
-                    cfg.app_data(web::Data::new(formatted_route.clone()))
-                        .service(
-                            web::resource(&route.external_path)
-                                .route(web::get().to(internal_function))
-                        );
-                }
-                "POST" => {
-                    cfg.app_data(web::Data::new(formatted_route.clone()))
-                        .service(
-                            web::resource(&route.external_path)
-                                .route(web::post().to(internal_function))
-                        );
-                }
-                "PUT" => {
-                    cfg.service(
-                        web::resource(&route.external_path)
-                            .route(web::put().to(hello_world))
-                    );
-                }
-                "DELETE" => {
-                    cfg.service(
-                        web::resource(&route.external_path)
-                            .route(web::delete().to(hello_world))
-                    );
-                }
-                "PATCH" => {
-                    cfg.service(
-                        web::resource(&route.external_path)
-                            .route(web::patch().to(hello_world))
-                    );
-                }
-                "HEAD" => {
-                    cfg.service(
-                        web::resource(&route.external_path)
-                            .route(web::head().to(hello_world))
-                    );
-                }
-                "TRACE" => {
-                    cfg.service(
-                        web::resource(&route.external_path)
-                            .route(web::trace().to(hello_world))
-                    );
-                }
-                _ => {
-                    cfg.service(
-                        web::resource(&route.external_path)
-                            .route(web::get().to(hello_world))
-                    );
-                }
-            }
+        Self {
+            client,
+            routes,
+            timeout_seconds,
         }
     }
+
+    
 }
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()>{
+async fn main() -> std::io::Result<()> {
+    // Initialize the logger
+    env_logger::init();
 
-    // Read YAML file content
-    let yaml_content = fs::read_to_string("config.yml").unwrap();
-    
+    // Read and parse config
+    let yaml_content = fs::read_to_string("config.yml")
+        .map_err(|e| {
+            error!("Failed to read config file: {}", e);
+            e
+        })?;
+
     // Parse YAML into the Config struct
-    let config: Config = serde_yaml::from_str(&yaml_content).unwrap();
+    let config: Config = serde_yaml::from_str(&yaml_content)
+        .map_err(|e| {
+            error!("Failed to parse config: {}", e);
+            std::io::Error::new(std::io::ErrorKind::InvalidData, e)
+        })?;
 
-    println!("Version: {}", config.version);
+    info!("Version: {}", config.version);
 
-    let routes = config.routes;
+    let routes = Arc::new(config.routes);
+    let route_handler = RouteHandler::new(routes, 30); // 30 second timeout
 
-    let shared_routes = Arc::new(routes);
-    
+    // Start the HTTP server
     HttpServer::new(move || {
         App::new()
-            .configure(|cfg| {
-                configure_route(cfg, &shared_routes)
-            })
+            .wrap(actix_web::middleware::Logger::default())
+            .wrap(actix_web::middleware::Compress::default())
+
     })
     .bind(("0.0.0.0", 8080))?
     .run()
     .await
-
 }

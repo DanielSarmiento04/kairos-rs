@@ -8,8 +8,8 @@ routes:
     external_path:  /identity/register
     internal_path: /api/identity/register
     methods:
-      - GET
       - POST
+      - GET
 
   - google:
     domain: google.com
