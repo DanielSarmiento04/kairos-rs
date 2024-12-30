@@ -1,4 +1,3 @@
-use std::fmt;
 use actix_web::HttpResponse;
 use serde_json::json;
 
@@ -20,22 +19,26 @@ impl actix_web::error::ResponseError for GatewayError {
         match self {
             GatewayError::Timeout => {
                 HttpResponse::GatewayTimeout().json(json!({
-                    "error": error_message
+                    "error": error_message,
+                    "type": "timeout"
                 }))
             }
             GatewayError::Internal(msg) => {
                 HttpResponse::InternalServerError().json(json!({
-                    "error": error_message
+                    "error": error_message,
+                    "type": "internal"
                 }))
             }
             GatewayError::Config(msg) => {
                 HttpResponse::BadGateway().json(json!({
-                    "error": error_message
+                    "error": error_message,
+                    "type": "config"
                 }))
             }
             GatewayError::Upstream(msg) => {
                 HttpResponse::BadGateway().json(json!({
-                    "error": error_message
+                    "error": error_message,
+                    "type": "upstream"
                 }))
             }
         }

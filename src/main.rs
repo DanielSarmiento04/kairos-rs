@@ -3,7 +3,7 @@ mod redirect_service;
 mod yaml_config;
 
 use actix_web::{
-    http::{header, Method as ActixMethod, StatusCode},
+    http::{Method as ActixMethod, StatusCode},
     web, App, Error as ActixError, HttpRequest, HttpResponse, HttpServer,
 };
 use error_handler::GatewayError;

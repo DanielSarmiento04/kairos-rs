@@ -1,5 +1,3 @@
-use reqwest::{Client, Method, Response, Error};
-use log::error;
 
 pub fn format_route(
     domain: &str,
