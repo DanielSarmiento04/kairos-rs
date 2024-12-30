@@ -187,5 +187,5 @@ This project is licensed under the MIT License. See `LICENSE` for details.
 
    - Ensure headers are correctly formatted in the request.
 
-For further assistance, contact support at `support@memo-gateway.com`.
+For further assistance, contact support at `josedanielsarmiento219@gmail.com`.
 
