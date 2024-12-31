@@ -4,6 +4,9 @@
 
 Memo is a lightweight, scalable API Gateway built using Rust and the Actix Web framework. It is designed to route incoming HTTP requests to the appropriate backend services, enforce configuration rules, and handle errors gracefully.
 
+
+![Ocelot Logo](./images/logo.png)
+
 ---
 
 ## Features
