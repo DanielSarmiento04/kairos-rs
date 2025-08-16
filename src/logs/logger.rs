@@ -99,7 +99,7 @@ pub fn configure_logger() {
                 buf,
                 "{}{} | {}{}| {}{}| {}{}",
                 prefix,
-                Local::now().format("%Y-%m-%d %H:%M:%S"),
+                Local::now().format("%b %d %y %I:%M:%S %p"),
                 level_display,
                 " ".repeat(level_padding),
                 file_line,
@@ -108,6 +108,10 @@ pub fn configure_logger() {
                 suffix,
             )
         })
-        .filter(None, LevelFilter::Info)
+        // Only show logs at Info level and above (Info, Warn, Error)
+        .filter_level(LevelFilter::Info)
         .init();
+
+    // Enforce the max log level globally in case other code attempts to lower/raise it
+    log::set_max_level(LevelFilter::Info);
 }
