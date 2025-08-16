@@ -5,7 +5,7 @@ use chrono::Local;
 use std::env;
 
 // Adjust these widths to control alignment
-const LEVEL_FIELD_WIDTH: usize = 10; // visible width for the '[LEVEL]' column including padding
+const LEVEL_FIELD_WIDTH: usize = 8; // visible width for the '[LEVEL]' column including padding
 const FILE_LINE_FIELD_WIDTH: usize = 22; // visible width for the 'file:line' column including padding
 
 // Compute visible length of a string while stripping simple ANSI escape sequences (\x1b[...m)
@@ -109,9 +109,9 @@ pub fn configure_logger() {
             )
         })
         // Only show logs at Info level and above (Info, Warn, Error)
-        .filter_level(LevelFilter::Info)
+        .filter_level(LevelFilter::Trace)
         .init();
 
     // Enforce the max log level globally in case other code attempts to lower/raise it
-    log::set_max_level(LevelFilter::Info);
+    log::set_max_level(LevelFilter::Trace);
 }
