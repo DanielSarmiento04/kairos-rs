@@ -30,14 +30,14 @@ pub fn format_route(
 
 // Route handler structure
 #[derive(Clone)]
-struct RouteHandler {
+pub struct RouteHandler {
     client: Client,
     route_map: Arc<HashMap<String, Router>>,
     timeout_seconds: u64,
 }
 
 impl RouteHandler {
-    fn new(routes: Vec<Router>, timeout_seconds: u64) -> Self {
+    pub fn new(routes: Vec<Router>, timeout_seconds: u64) -> Self {
         let client = Client::builder()
             .pool_idle_timeout(Duration::from_secs(30))
             .pool_max_idle_per_host(32)
@@ -58,7 +58,7 @@ impl RouteHandler {
         }
     }
 
-    async fn handle_request(
+    pub async fn handle_request(
         &self,
         req: HttpRequest,
         body: web::Bytes,
