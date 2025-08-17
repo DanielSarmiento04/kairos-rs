@@ -1,5 +1,5 @@
+use crate::models::protocol::Protocol;
 use serde::{Deserialize, Serialize};
-// use crate::models::::Router;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Router {
@@ -10,11 +10,15 @@ pub struct Router {
     pub methods: Vec<String>,
 }
 
+
 impl Router {
     pub fn validate(&self) -> Result<(), String> {
-        if !["http", "https"].contains(&self.host.as_str()) {
-            return Err(format!("Invalid host: {}", self.host));
-        }
+        
+        // print host, port, external_path, internal_path, methods
+        println!("Validating Router: host={}, port={}, external_path={}, internal_path={}, methods={:?}",
+            self.host, self.port, self.external_path, self.internal_path, self.methods);  
+
+        // if let Some
 
         if !self.external_path.starts_with('/') {
             return Err("External path must start with '/'".to_string());

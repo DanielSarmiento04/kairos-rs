@@ -109,7 +109,7 @@ pub fn configure_logger() {
             )
         })
         // Only show logs at Info level and above (Info, Warn, Error)
-        .filter_level(LevelFilter::Trace)
+        .filter_level(LevelFilter::Debug)
         .init();
 
     // Enforce the max log level globally in case other code attempts to lower/raise it

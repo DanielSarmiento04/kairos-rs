@@ -7,7 +7,6 @@ use crate::models::settings::{Settings};
 use crate::logs::logger::configure_logger;
 use crate::models::http::{RouteHandler, format_route};
 
-use serde_json::Result;
 
 // use env_logger;
 use log::{error, info, warn, trace, debug};
