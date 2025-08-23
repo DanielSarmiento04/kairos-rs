@@ -2,51 +2,63 @@ ARG RUST_VERSION=1.87.0
 ARG APP_NAME=ben
 
 ################################################################################
-# Create a stage for building the application.
+# Chef stage for optimal dependency caching
 
-FROM rust:${RUST_VERSION}-slim AS build
-ARG APP_NAME
+FROM rust:${RUST_VERSION}-slim AS chef
+RUN cargo install cargo-chef
 WORKDIR /app
 
-# Install only essential build dependencies
+FROM chef AS planner
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+RUN cargo chef prepare --recipe-path recipe.json
+
+################################################################################
+# Build dependencies stage
+
+FROM chef AS dependencies
+COPY --from=planner /app/recipe.json recipe.json
+
+# Install build dependencies
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency manifests first for better layer caching
-COPY Cargo.toml Cargo.lock ./
-
-# Create a dummy main.rs to build dependencies (cargo chef alternative)
-RUN mkdir src && echo "fn main() {}" > src/main.rs
-
-# Build dependencies only (cached layer if deps don't change)
+# Build dependencies (cached layer)
 RUN --mount=type=cache,target=/app/target/ \
     --mount=type=cache,target=/usr/local/cargo/git/db \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
-    cargo build --release && \
-    rm src/main.rs
+    cargo chef cook --release --recipe-path recipe.json
+
+################################################################################
+# Build application stage
+
+FROM dependencies AS build
+ARG APP_NAME
 
 # Copy source code
+COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 
-# Build the actual application
+# Build the application
 RUN --mount=type=cache,target=/app/target/ \
     --mount=type=cache,target=/usr/local/cargo/git/db \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
     cargo build --locked --release && \
     cp ./target/release/$APP_NAME /usr/local/bin/server
 
+# Strip binary to reduce size
+RUN strip /usr/local/bin/server
+
 ################################################################################
-# Create a minimal runtime stage using distroless
+# Runtime stage using distroless
 
 FROM gcr.io/distroless/cc-debian12:latest AS runtime
-ARG APP_NAME
 
-# Create a non-root user (distroless already provides nonroot user)
 # Copy CA certificates for HTTPS requests
-COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=dependencies /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Copy the compiled binary
 COPY --from=build /usr/local/bin/server /usr/local/bin/server
