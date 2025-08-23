@@ -1,12 +1,13 @@
 mod config;
 mod models;
 mod logs;
+mod routes;
 
 use crate::config::settings::load_settings;
 use crate::models::settings::{Settings};
 use crate::logs::logger::configure_logger;
 use crate::models::http::{RouteHandler, format_route};
-
+use crate::routes::http;
 
 // use env_logger;
 use log::{error, info, warn, trace, debug};
@@ -16,15 +17,6 @@ use actix_web::{
 };
 
 
-fn configure_route(cfg: &mut web::ServiceConfig, handler: RouteHandler) {
-    cfg.app_data(web::PayloadConfig::new(1024 * 1024 * 10)) // 10MB payload limit
-        .service(
-            web::resource("/{tail:.*}").to(move |req: HttpRequest, body: web::Bytes| {
-                let handler: RouteHandler = handler.clone();
-                async move { handler.handle_request(req, body).await }
-            }),
-        );
-}
 
 
 #[actix_web::main]
@@ -51,7 +43,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(actix_web::middleware::Logger::default())
             .wrap(actix_web::middleware::Compress::default())
-            .configure(|cfg| configure_route(cfg, route_handler.clone()))
+            .configure(|cfg| http::configure_route(cfg, route_handler.clone()))
     })
     .bind(("0.0.0.0", 5900))?
     .run()
