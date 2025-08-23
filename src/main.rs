@@ -6,14 +6,13 @@ mod routes;
 use crate::config::settings::load_settings;
 use crate::models::settings::{Settings};
 use crate::logs::logger::configure_logger;
-use crate::models::http::{RouteHandler, format_route};
+use crate::models::http::{RouteHandler};
 use crate::routes::http;
 
 // use env_logger;
 use log::{error, info, warn, trace, debug};
 use actix_web::{
-    http::{Method as ActixMethod, StatusCode},
-    web, App, Error as ActixError, HttpRequest, HttpResponse, HttpServer,
+    App, HttpServer,
 };
 
 

@@ -1,8 +1,7 @@
 use actix_web::{
-    http::{Method as ActixMethod, StatusCode},
-    web, App, Error as ActixError, HttpRequest, HttpResponse, HttpServer,
+    web, HttpRequest
 };
-use crate::models::http::{RouteHandler, format_route};
+use crate::models::http::RouteHandler;
 
 
 pub fn configure_route(cfg: &mut web::ServiceConfig, handler: RouteHandler) {
