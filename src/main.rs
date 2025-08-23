@@ -2,11 +2,12 @@ mod config;
 mod models;
 mod logs;
 mod routes;
+mod services;
 
 use crate::config::settings::load_settings;
 use crate::models::settings::{Settings};
 use crate::logs::logger::configure_logger;
-use crate::models::http::{RouteHandler};
+use crate::services::http::{RouteHandler};
 use crate::routes::http;
 
 // use env_logger;

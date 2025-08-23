@@ -1,7 +1,7 @@
 use actix_web::{
     web, HttpRequest
 };
-use crate::models::http::RouteHandler;
+use crate::services::http::RouteHandler;
 
 
 pub fn configure_route(cfg: &mut web::ServiceConfig, handler: RouteHandler) {
