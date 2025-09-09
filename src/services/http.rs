@@ -1,32 +1,18 @@
 use crate::models::error::GatewayError;
 use crate::models::router::Router;
+use crate::utils::path::{find_matching_route, format_route};
 
 use actix_web::{
     http::{Method as ActixMethod, StatusCode},
     web, Error as ActixError, HttpRequest, HttpResponse,
 };
+use log::log;
 use reqwest::{
-    header::HeaderMap as ReqwestHeaderMap, 
-    header::HeaderName, 
-    header::HeaderValue, 
-    Client, 
-    Method as ReqwestMethod
+    header::HeaderMap as ReqwestHeaderMap, header::HeaderName, header::HeaderValue, Client,
+    Method as ReqwestMethod,
 };
-use tokio::time::{timeout, Duration};
 use std::{collections::HashMap, sync::Arc};
-
-pub fn format_route(
-    host: &str,
-    port: &u16,
-    internal_path: &str
-) -> String {
-    format!(
-        "{}:{}{}",
-        host,
-        port,
-        internal_path
-    )
-}
+use tokio::time::{timeout, Duration};
 
 // Route handler structure
 #[derive(Clone)]
@@ -83,11 +69,23 @@ impl RouteHandler {
         // Convert headers
         let mut reqwest_headers = ReqwestHeaderMap::new();
         for (key, value) in req.headers() {
+        
+            if key.as_str().to_lowercase() == "host" || key.as_str().to_lowercase().starts_with("connection") {
+                continue;
+            }
+
             if let Ok(header_name) = HeaderName::from_bytes(key.as_ref()) {
                 if let Ok(header_value) = HeaderValue::from_bytes(value.as_bytes()) {
                     reqwest_headers.insert(header_name, header_value);
                 }
             }
+        }
+        // Ensure User-Agent header is set
+        if !reqwest_headers.contains_key("user-agent") {
+            reqwest_headers.insert(
+                HeaderName::from_static("user-agent"),
+                HeaderValue::from_static("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"),
+            );
         }
 
         // Find matching route
@@ -96,23 +94,47 @@ impl RouteHandler {
             .get(&path)
             .ok_or_else(|| GatewayError::Config(format!("No route found for path: {}", path)))?;
 
+        // let route = find_matching_route(&self.route_map, &path)
+        //     .ok_or_else(|| GatewayError::Config(format!("No route found for path: {}", path)))?;
+
         // Validate method is allowed
         if !route.methods.iter().any(|m| m == method.as_str()) {
             return Ok(HttpResponse::MethodNotAllowed().finish());
         }
 
-        let target_url = format_route(
-            &route.host,
-            &route.port,
-            &route.internal_path,
+        let target_url = format_route(&route.host, &route.port, &route.internal_path);
+
+        log!(log::Level::Info, "Forwarding request to: {}", target_url);
+        log!(
+            log::Level::Debug,
+            "Request details: method={}, path={}, headers={:?}",
+            method,
+            path,
+            reqwest_headers
+        );
+        // print route details
+        log!(
+            log::Level::Debug,
+            "Route details: host={}, port={}, external_path={}, internal_path={}, methods={:?}",
+            route.host,
+            route.port,
+            route.external_path,
+            route.internal_path,
+            route.methods
         );
 
         // Forward the request with converted method
         let forwarded_req = self
             .client
             .request(reqwest_method, &target_url)
-            .headers(reqwest_headers)
-            .body(body);
+            .headers(reqwest_headers);
+
+        // add body if method is different than GET or HEAD
+        let forwarded_req = if method != ActixMethod::GET && method != ActixMethod::HEAD {
+            forwarded_req.body(body.to_vec())
+        } else {
+            forwarded_req.body(vec![])
+        };
 
         // Execute request with timeout
         let response = match timeout(
@@ -148,4 +170,3 @@ impl RouteHandler {
         }
     }
 }
-
