@@ -7,7 +7,6 @@ pub enum Protocol {
     Https,
 }
 
-
 impl Protocol {
     /// Returns a list of all supported protocols
     pub fn all() -> &'static [Protocol] {
@@ -30,9 +29,4 @@ impl Protocol {
             Protocol::Https => "https",
         }
     }
-
-        
-
 }
-
-

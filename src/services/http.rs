@@ -99,7 +99,6 @@ impl RouteHandler {
             .request(reqwest_method, &target_url)
             .body(body.to_vec())
             .headers(reqwest_headers);
-        
 
         // Execute request with timeout
         let response = match timeout(

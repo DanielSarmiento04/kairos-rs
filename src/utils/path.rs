@@ -1,5 +1,5 @@
-use regex::Regex;
 use crate::models::router::Router;
+use regex::Regex;
 use std::collections::HashMap;
 
 /*
@@ -24,12 +24,7 @@ use std::collections::HashMap;
     },
 */
 
-
-pub fn format_route(
-    host: &str,
-    port: &u16,
-    internal_path: &str
-) -> String {
+pub fn format_route(host: &str, port: &u16, internal_path: &str) -> String {
     format!(
         "{}{}",
         host,
@@ -37,7 +32,6 @@ pub fn format_route(
         internal_path
     )
 }
-
 
 /*
     Find matching route paht
@@ -55,7 +49,7 @@ pub fn format_route(
 */
 pub fn find_matching_route<'a>(
     routes: &'a HashMap<String, Router>,
-    request_path: &str
+    request_path: &str,
 ) -> Option<&'a Router> {
     for (external_path, router) in routes.iter() {
         // Escape special regex characters in the external_path

@@ -1,4 +1,4 @@
-pub mod router;
 pub mod error;
-pub mod settings;
 pub mod protocol;
+pub mod router;
+pub mod settings;
