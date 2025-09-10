@@ -24,8 +24,8 @@
         {
             "host": "https://http.cat",
             "port": 443,
-            "external_path": "/cats/200",
-            "internal_path": "/200",
+            "external_path": "/cats/{id}",
+            "internal_path": "/{id}",
             "methods": [
                 "GET"
             ]

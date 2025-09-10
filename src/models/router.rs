@@ -1,7 +1,7 @@
 use crate::models::protocol::Protocol;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Router {
     pub host: String,
     pub port: u16,
