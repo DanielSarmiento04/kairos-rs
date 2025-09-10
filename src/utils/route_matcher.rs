@@ -1,7 +1,6 @@
 use crate::models::router::Router;
 use regex::Regex;
 use std::collections::HashMap;
-use std::sync::OnceLock;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -20,7 +19,6 @@ pub struct CompiledRoute {
     pub router: Router,
     pub regex: Regex,
     pub param_names: Vec<String>,
-    pub is_static: bool,
 }
 
 /// High-performance route matcher with compiled patterns
@@ -88,7 +86,6 @@ impl RouteMatcher {
             router: route,
             regex,
             param_names,
-            is_static: false,
         })
     }
 
@@ -183,48 +180,4 @@ impl RouteMatcher {
         
         result
     }
-
-    /// Returns the number of static routes
-    pub fn static_routes_count(&self) -> usize {
-        self.static_routes.len()
-    }
-
-    /// Returns the number of dynamic routes
-    pub fn dynamic_routes_count(&self) -> usize {
-        self.dynamic_routes.len()
-    }
-}
-
-// Global route matcher instance (lazy initialization)
-static ROUTE_MATCHER: OnceLock<RouteMatcher> = OnceLock::new();
-
-/// Initialize the global route matcher
-pub fn init_route_matcher(routes: Vec<Router>) -> Result<(), RouteMatchError> {
-    let matcher = RouteMatcher::new(routes)?;
-    ROUTE_MATCHER.set(matcher).map_err(|_| RouteMatchError::InvalidPattern {
-        pattern: "Failed to initialize global route matcher".to_string(),
-    })
-}
-
-/// Find a matching route using the global matcher
-pub fn find_matching_route(request_path: &str) -> Result<(Router, String), RouteMatchError> {
-    let matcher = ROUTE_MATCHER.get().ok_or_else(|| RouteMatchError::InvalidPattern {
-        pattern: "Route matcher not initialized".to_string(),
-    })?;
-    
-    matcher.find_match(request_path)
-}
-
-// Legacy compatibility function
-pub fn find_matching_route_legacy(
-    request_path: &str,
-    routes: &[Router],
-) -> Option<(Router, String)> {
-    // For backward compatibility, create a temporary matcher
-    let matcher = match RouteMatcher::new(routes.to_vec()) {
-        Ok(m) => m,
-        Err(_) => return None,
-    };
-    
-    matcher.find_match(request_path).ok()
 }

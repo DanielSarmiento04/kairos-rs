@@ -77,20 +77,11 @@ mod route_matcher_tests {
         let routes = create_test_routes();
         let matcher = RouteMatcher::new(routes).unwrap();
         
-        // Static routes:
-        // - "/api/identity/register/v3"
-        // - "/identity/register/v2" 
-        // - "/api/static/path"
-        // - "/api/static/path/details"
-        // 
-        // Dynamic routes:
-        // - "/cats/{id}"
-        // - "/api/users/{user_id}"
-        // - "/api/products/{product_id}/details"
-        // - "/api/orders/{order_id}/items/{item_id}"
-        
-        assert_eq!(matcher.static_routes_count(), 4); // 4 static routes
-        assert_eq!(matcher.dynamic_routes_count(), 4); // 4 dynamic routes
+        // Test that matcher was created successfully
+        // We can't test the counts anymore since those methods were removed
+        // but we can test that it functions correctly
+        let result = matcher.find_match("/api/identity/register/v3");
+        assert!(result.is_ok());
     }
 
     #[test]

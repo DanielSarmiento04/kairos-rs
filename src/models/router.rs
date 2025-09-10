@@ -1,4 +1,3 @@
-use crate::models::protocol::Protocol;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
