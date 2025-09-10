@@ -53,40 +53,10 @@ impl RouteHandler {
         let method = req.method().clone();
 
         // Convert Actix method to Reqwest method
-        let reqwest_method = match method {
-            ActixMethod::GET => ReqwestMethod::GET,
-            ActixMethod::POST => ReqwestMethod::POST,
-            ActixMethod::PUT => ReqwestMethod::PUT,
-            ActixMethod::DELETE => ReqwestMethod::DELETE,
-            ActixMethod::HEAD => ReqwestMethod::HEAD,
-            ActixMethod::OPTIONS => ReqwestMethod::OPTIONS,
-            ActixMethod::CONNECT => ReqwestMethod::CONNECT,
-            ActixMethod::PATCH => ReqwestMethod::PATCH,
-            ActixMethod::TRACE => ReqwestMethod::TRACE,
-            _ => return Err(GatewayError::Internal("Unsupported HTTP method".to_string()).into()),
-        };
+        let reqwest_method = self.parse_method(&method);
 
         // Convert headers
-        let mut reqwest_headers = ReqwestHeaderMap::new();
-        for (key, value) in req.headers() {
-        
-            if key.as_str().to_lowercase() == "host" || key.as_str().to_lowercase().starts_with("connection") {
-                continue;
-            }
-
-            if let Ok(header_name) = HeaderName::from_bytes(key.as_ref()) {
-                if let Ok(header_value) = HeaderValue::from_bytes(value.as_bytes()) {
-                    reqwest_headers.insert(header_name, header_value);
-                }
-            }
-        }
-        // Ensure User-Agent header is set
-        if !reqwest_headers.contains_key("user-agent") {
-            reqwest_headers.insert(
-                HeaderName::from_static("user-agent"),
-                HeaderValue::from_static("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"),
-            );
-        }
+        let reqwest_headers = self.build_headers(req.headers());
 
         // Find matching route
         let route = self
@@ -127,14 +97,9 @@ impl RouteHandler {
         let forwarded_req = self
             .client
             .request(reqwest_method, &target_url)
+            .body(body.to_vec())
             .headers(reqwest_headers);
-
-        // add body if method is different than GET or HEAD
-        let forwarded_req = if method != ActixMethod::GET && method != ActixMethod::HEAD {
-            forwarded_req.body(body.to_vec())
-        } else {
-            forwarded_req.body(vec![])
-        };
+        
 
         // Execute request with timeout
         let response = match timeout(
@@ -167,6 +132,51 @@ impl RouteHandler {
         match response.bytes().await {
             Ok(bytes) => Ok(builder.body(bytes)),
             Err(e) => Err(GatewayError::Upstream(e.to_string()).into()),
+        }
+    }
+
+    fn build_headers(
+        &self,
+        original_headers: &actix_web::http::header::HeaderMap,
+    ) -> ReqwestHeaderMap {
+        // Convert headers
+        let mut reqwest_headers = ReqwestHeaderMap::new();
+        for (key, value) in original_headers {
+            if key.as_str().to_lowercase() == "host"
+                || key.as_str().to_lowercase().starts_with("connection")
+            {
+                continue;
+            }
+
+            if let Ok(header_name) = HeaderName::from_bytes(key.as_ref()) {
+                if let Ok(header_value) = HeaderValue::from_bytes(value.as_bytes()) {
+                    reqwest_headers.insert(header_name, header_value);
+                }
+            }
+        }
+        // Ensure User-Agent header is set
+        if !reqwest_headers.contains_key("user-agent") {
+            reqwest_headers.insert(
+                HeaderName::from_static("user-agent"),
+                HeaderValue::from_static("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"),
+            );
+        }
+
+        reqwest_headers
+    }
+
+    fn parse_method(&self, method: &ActixMethod) -> ReqwestMethod {
+        match method {
+            &ActixMethod::GET => ReqwestMethod::GET,
+            &ActixMethod::POST => ReqwestMethod::POST,
+            &ActixMethod::PUT => ReqwestMethod::PUT,
+            &ActixMethod::DELETE => ReqwestMethod::DELETE,
+            &ActixMethod::HEAD => ReqwestMethod::HEAD,
+            &ActixMethod::OPTIONS => ReqwestMethod::OPTIONS,
+            &ActixMethod::CONNECT => ReqwestMethod::CONNECT,
+            &ActixMethod::PATCH => ReqwestMethod::PATCH,
+            &ActixMethod::TRACE => ReqwestMethod::TRACE,
+            _ => ReqwestMethod::GET, // or another default, or panic! if you want to handle this differently
         }
     }
 }

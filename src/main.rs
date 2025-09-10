@@ -3,6 +3,7 @@ mod models;
 mod logs;
 mod routes;
 mod services;
+mod utils;
 
 use crate::config::settings::load_settings;
 use crate::models::settings::{Settings};
@@ -15,8 +16,6 @@ use log::{error, info, warn, trace, debug};
 use actix_web::{
     App, HttpServer,
 };
-
-
 
 
 #[actix_web::main]
