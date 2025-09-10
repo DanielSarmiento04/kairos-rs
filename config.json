@@ -15,9 +15,18 @@
             "host": "https://google.com",
             "port": 443,
             "external_path": "/identity/register/v2",
-            "internal_path": "/api/identity/register/v2",
+            "internal_path": "/",
             "methods": [
                 "POST",
+                "GET"
+            ]
+        },
+        {
+            "host": "https://http.cat",
+            "port": 443,
+            "external_path": "/cats/{id}",
+            "internal_path": "/{id}",
+            "methods": [
                 "GET"
             ]
         }

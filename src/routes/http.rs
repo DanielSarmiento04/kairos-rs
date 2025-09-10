@@ -1,8 +1,5 @@
-use actix_web::{
-    web, HttpRequest
-};
 use crate::services::http::RouteHandler;
-
+use actix_web::{web, HttpRequest};
 
 pub fn configure_route(cfg: &mut web::ServiceConfig, handler: RouteHandler) {
     cfg.app_data(web::PayloadConfig::new(1024 * 1024 * 10)) // 10MB payload limit

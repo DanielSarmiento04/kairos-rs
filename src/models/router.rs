@@ -1,7 +1,6 @@
-use crate::models::protocol::Protocol;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Router {
     pub host: String,
     pub port: u16,
@@ -10,13 +9,13 @@ pub struct Router {
     pub methods: Vec<String>,
 }
 
-
 impl Router {
     pub fn validate(&self) -> Result<(), String> {
-        
         // print host, port, external_path, internal_path, methods
-        println!("Validating Router: host={}, port={}, external_path={}, internal_path={}, methods={:?}",
-            self.host, self.port, self.external_path, self.internal_path, self.methods);  
+        println!(
+            "Validating Router: host={}, port={}, external_path={}, internal_path={}, methods={:?}",
+            self.host, self.port, self.external_path, self.internal_path, self.methods
+        );
 
         // if let Some
 

@@ -1,8 +1,8 @@
-use std::io::Write;
+use chrono::Local;
 use env_logger::Builder;
 use log::LevelFilter;
-use chrono::Local;
 use std::env;
+use std::io::Write;
 
 // Adjust these widths to control alignment
 const LEVEL_FIELD_WIDTH: usize = 8; // visible width for the '[LEVEL]' column including padding
@@ -66,8 +66,8 @@ pub fn configure_logger() {
                 // Use color for the level but reset only the foreground (39) so bold remains
                 let colored = match level {
                     log::Level::Error => format!("\x1b[31m{}\x1b[39m", level_plain), // red
-                    log::Level::Warn  => format!("\x1b[33m{}\x1b[39m", level_plain), // yellow
-                    log::Level::Info  => format!("\x1b[32m{}\x1b[39m", level_plain), // green
+                    log::Level::Warn => format!("\x1b[33m{}\x1b[39m", level_plain),  // yellow
+                    log::Level::Info => format!("\x1b[32m{}\x1b[39m", level_plain),  // green
                     log::Level::Debug => format!("\x1b[34m{}\x1b[39m", level_plain), // blue
                     log::Level::Trace => format!("\x1b[35m{}\x1b[39m", level_plain), // magenta
                 };

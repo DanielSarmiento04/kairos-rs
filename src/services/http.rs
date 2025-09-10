@@ -1,38 +1,25 @@
 use crate::models::error::GatewayError;
 use crate::models::router::Router;
+use crate::utils::path::format_route;
+use crate::utils::route_matcher::RouteMatcher;
 
 use actix_web::{
     http::{Method as ActixMethod, StatusCode},
     web, Error as ActixError, HttpRequest, HttpResponse,
 };
+use log::log;
 use reqwest::{
-    header::HeaderMap as ReqwestHeaderMap, 
-    header::HeaderName, 
-    header::HeaderValue, 
-    Client, 
-    Method as ReqwestMethod
+    header::HeaderMap as ReqwestHeaderMap, header::HeaderName, header::HeaderValue, Client,
+    Method as ReqwestMethod,
 };
+use std::sync::Arc;
 use tokio::time::{timeout, Duration};
-use std::{collections::HashMap, sync::Arc};
-
-pub fn format_route(
-    host: &str,
-    port: &u16,
-    internal_path: &str
-) -> String {
-    format!(
-        "{}:{}{}",
-        host,
-        port,
-        internal_path
-    )
-}
 
 // Route handler structure
 #[derive(Clone)]
 pub struct RouteHandler {
     client: Client,
-    route_map: Arc<HashMap<String, Router>>,
+    route_matcher: Arc<RouteMatcher>,
     timeout_seconds: u64,
 }
 
@@ -44,16 +31,13 @@ impl RouteHandler {
             .build()
             .expect("Failed to create HTTP client");
 
-        let route_map = Arc::new(
-            routes
-                .into_iter()
-                .map(|route| (route.external_path.clone(), route))
-                .collect(),
+        let route_matcher = Arc::new(
+            RouteMatcher::new(routes).expect("Failed to create route matcher")
         );
 
         Self {
             client,
-            route_map,
+            route_matcher,
             timeout_seconds,
         }
     }
@@ -67,52 +51,47 @@ impl RouteHandler {
         let method = req.method().clone();
 
         // Convert Actix method to Reqwest method
-        let reqwest_method = match method {
-            ActixMethod::GET => ReqwestMethod::GET,
-            ActixMethod::POST => ReqwestMethod::POST,
-            ActixMethod::PUT => ReqwestMethod::PUT,
-            ActixMethod::DELETE => ReqwestMethod::DELETE,
-            ActixMethod::HEAD => ReqwestMethod::HEAD,
-            ActixMethod::OPTIONS => ReqwestMethod::OPTIONS,
-            ActixMethod::CONNECT => ReqwestMethod::CONNECT,
-            ActixMethod::PATCH => ReqwestMethod::PATCH,
-            ActixMethod::TRACE => ReqwestMethod::TRACE,
-            _ => return Err(GatewayError::Internal("Unsupported HTTP method".to_string()).into()),
-        };
+        let reqwest_method = self.parse_method(&method);
 
         // Convert headers
-        let mut reqwest_headers = ReqwestHeaderMap::new();
-        for (key, value) in req.headers() {
-            if let Ok(header_name) = HeaderName::from_bytes(key.as_ref()) {
-                if let Ok(header_value) = HeaderValue::from_bytes(value.as_bytes()) {
-                    reqwest_headers.insert(header_name, header_value);
-                }
-            }
-        }
+        let reqwest_headers = self.build_headers(req.headers());
 
-        // Find matching route
-        let route = self
-            .route_map
-            .get(&path)
-            .ok_or_else(|| GatewayError::Config(format!("No route found for path: {}", path)))?;
+        // Find matching route using the new pattern matching function
+        let (route, transformed_internal_path) = self.route_matcher.find_match(&path)
+            .map_err(|e| GatewayError::Config(format!("Route matching error: {}", e)))?;
 
         // Validate method is allowed
         if !route.methods.iter().any(|m| m == method.as_str()) {
             return Ok(HttpResponse::MethodNotAllowed().finish());
         }
 
-        let target_url = format_route(
-            &route.host,
-            &route.port,
-            &route.internal_path,
+        let target_url = format_route(&route.host, &route.port, &transformed_internal_path);
+
+        log!(log::Level::Info, "Forwarding request to: {}", target_url);
+        log!(
+            log::Level::Debug,
+            "Request details: method={}, path={}, headers={:?}",
+            method,
+            path,
+            reqwest_headers
+        );
+        // print route details
+        log!(
+            log::Level::Debug,
+            "Route details: host={}, port={}, external_path={}, internal_path={}, methods={:?}",
+            route.host,
+            route.port,
+            route.external_path,
+            route.internal_path,
+            route.methods
         );
 
         // Forward the request with converted method
         let forwarded_req = self
             .client
             .request(reqwest_method, &target_url)
-            .headers(reqwest_headers)
-            .body(body);
+            .body(body.to_vec())
+            .headers(reqwest_headers);
 
         // Execute request with timeout
         let response = match timeout(
@@ -147,5 +126,49 @@ impl RouteHandler {
             Err(e) => Err(GatewayError::Upstream(e.to_string()).into()),
         }
     }
-}
 
+    fn build_headers(
+        &self,
+        original_headers: &actix_web::http::header::HeaderMap,
+    ) -> ReqwestHeaderMap {
+        // Convert headers
+        let mut reqwest_headers = ReqwestHeaderMap::new();
+        for (key, value) in original_headers {
+            if key.as_str().to_lowercase() == "host"
+                || key.as_str().to_lowercase().starts_with("connection")
+            {
+                continue;
+            }
+
+            if let Ok(header_name) = HeaderName::from_bytes(key.as_ref()) {
+                if let Ok(header_value) = HeaderValue::from_bytes(value.as_bytes()) {
+                    reqwest_headers.insert(header_name, header_value);
+                }
+            }
+        }
+        // Ensure User-Agent header is set
+        if !reqwest_headers.contains_key("user-agent") {
+            reqwest_headers.insert(
+                HeaderName::from_static("user-agent"),
+                HeaderValue::from_static("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"),
+            );
+        }
+
+        reqwest_headers
+    }
+
+    fn parse_method(&self, method: &ActixMethod) -> ReqwestMethod {
+        match method {
+            &ActixMethod::GET => ReqwestMethod::GET,
+            &ActixMethod::POST => ReqwestMethod::POST,
+            &ActixMethod::PUT => ReqwestMethod::PUT,
+            &ActixMethod::DELETE => ReqwestMethod::DELETE,
+            &ActixMethod::HEAD => ReqwestMethod::HEAD,
+            &ActixMethod::OPTIONS => ReqwestMethod::OPTIONS,
+            &ActixMethod::CONNECT => ReqwestMethod::CONNECT,
+            &ActixMethod::PATCH => ReqwestMethod::PATCH,
+            &ActixMethod::TRACE => ReqwestMethod::TRACE,
+            _ => ReqwestMethod::GET, // or another default, or panic! if you want to handle this differently
+        }
+    }
+}

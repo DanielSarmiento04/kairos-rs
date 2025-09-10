@@ -1,23 +1,19 @@
 mod config;
-mod models;
 mod logs;
+mod models;
 mod routes;
 mod services;
+mod utils;
 
 use crate::config::settings::load_settings;
-use crate::models::settings::{Settings};
 use crate::logs::logger::configure_logger;
-use crate::services::http::{RouteHandler};
+use crate::models::settings::Settings;
 use crate::routes::http;
+use crate::services::http::RouteHandler;
 
 // use env_logger;
-use log::{error, info, warn, trace, debug};
-use actix_web::{
-    App, HttpServer,
-};
-
-
-
+use actix_web::{App, HttpServer};
+use log::{debug, error, info, trace, warn};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
