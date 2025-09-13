@@ -1,13 +1,13 @@
-# Ben 🚀
+# Kairos-rs ⚡
 
 <div align="center">
 
 [![Rust](https://img.shields.io/badge/rust-2021-orange.svg)](https://www.rust-lang.org/)
-[![Crates.io](https://img.shields.io/crates/v/ben?color=blue)](https://crates.io/crates/ben)
+[![Crates.io](https://img.shields.io/crates/v/kairos-rs?color=blue)](https://crates.io/crates/kairos-rs)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Build Status](https://img.shields.io/github/workflow/status/DanielSarmiento04/Ben/CI)](https://github.com/DanielSarmiento04/Ben/actions)
-[![Security audit](https://img.shields.io/badge/security-audit-success.svg)](https://github.com/DanielSarmiento04/Ben/security)
-[![codecov](https://codecov.io/gh/DanielSarmiento04/Ben/branch/main/graph/badge.svg)](https://codecov.io/gh/DanielSarmiento04/Ben)
+[![Build Status](https://img.shields.io/github/workflow/status/DanielSarmiento04/kairos-rs/CI)](https://github.com/DanielSarmiento04/kairos-rs/actions)
+[![Security audit](https://img.shields.io/badge/security-audit-success.svg)](https://github.com/DanielSarmiento04/kairos-rs/security)
+[![codecov](https://codecov.io/gh/DanielSarmiento04/kairos-rs/branch/main/graph/badge.svg)](https://codecov.io/gh/DanielSarmiento04/kairos-rs)
 
 </div>
 
@@ -25,9 +25,9 @@
 
 ## 🎯 Overview
 
-Ben is a production-ready HTTP gateway service that acts as an intelligent reverse proxy, providing advanced request routing capabilities with dynamic path parameter support. Built from the ground up with [Actix Web](https://actix.rs/) and [Reqwest](https://docs.rs/reqwest/), it delivers exceptional performance while maintaining simplicity and configurability.
+Kairos-rs is a production-ready HTTP gateway service that acts as an intelligent reverse proxy, providing advanced request routing capabilities with dynamic path parameter support. Built from the ground up with [Actix Web](https://actix.rs/) and [Reqwest](https://docs.rs/reqwest/), it delivers exceptional performance while maintaining simplicity and configurability.
 
-### Why Ben?
+### Why Kairos-rs?
 
 - 🔥 **Performance**: Built with Rust for maximum throughput and minimal latency
 - 🧠 **Smart Routing**: Dynamic path parameters with regex-based pattern matching
@@ -53,7 +53,7 @@ Ben is a production-ready HTTP gateway service that acts as an intelligent rever
 
 ## 🎯 Overview
 
-Ben is a lightweight, configurable HTTP gateway service that acts as a reverse proxy, routing external requests to internal services based on path patterns. Built with [Actix Web](https://actix.rs/) and [Reqwest](https://docs.rs/reqwest/), it provides high-performance request forwarding with comprehensive error handling and logging.
+Kairos-rs is a lightweight, configurable HTTP gateway service that acts as a reverse proxy, routing external requests to internal services based on path patterns. Built with [Actix Web](https://actix.rs/) and [Reqwest](https://docs.rs/reqwest/), it provides high-performance request forwarding with comprehensive error handling and logging.
 
 ### Key Use Cases
 
@@ -87,17 +87,17 @@ Ben is a lightweight, configurable HTTP gateway service that acts as a reverse p
 
 ## 🏗️ Architecture
 
-Ben follows a clean, modular architecture designed for high performance and maintainability:
+Kairos-rs follows a clean, modular architecture designed for high performance and maintainability:
 
 ```mermaid
 graph TB
     Client[Client Applications] --> LB[Load Balancer]
-    LB --> Ben1[Ben Instance 1]
-    LB --> Ben2[Ben Instance 2]
-    LB --> Ben3[Ben Instance 3]
+    LB --> Kairos1[Kairos-rs Instance 1]
+    LB --> Kairos2[Kairos-rs Instance 2]
+    LB --> Kairos3[Kairos-rs Instance 3]
     
-    Ben1 --> Route[Route Matcher Engine]
-    Ben1 --> Pool[Connection Pool]
+    Kairos1 --> Route[Route Matcher Engine]
+    Kairos1 --> Pool[Connection Pool]
     
     Route --> Static[Static Route Cache]
     Route --> Dynamic[Dynamic Pattern Matcher]
@@ -106,7 +106,7 @@ graph TB
     Pool --> Service2[Microservice B]
     Pool --> Service3[Microservice C]
     
-    Ben1 --> Metrics[Metrics & Logging]
+    Kairos1 --> Metrics[Metrics & Logging]
     Metrics --> Prometheus[Prometheus]
     Metrics --> Jaeger[Jaeger Tracing]
 ```
@@ -145,7 +145,7 @@ Client::builder()
 # docker-compose.dev.yml
 version: '3.8'
 services:
-  ben:
+  kairos-rs:
     build: .
     ports:
       - "5900:5900"
@@ -160,8 +160,8 @@ services:
 # docker-compose.prod.yml
 version: '3.8'
 services:
-  ben:
-    image: danielsarmiento04/ben:latest
+  kairos-rs:
+    image: danielsarmiento04/kairos-rs:latest
     deploy:
       replicas: 3
       resources:
@@ -172,7 +172,7 @@ services:
       - ./config.json:/app/config.json:ro
     environment:
       - RUST_LOG=info
-      - BEN_WORKER_THREADS=4
+      - KAIROS_WORKER_THREADS=4
 ```
 
 #### Kubernetes Deployment
@@ -180,20 +180,20 @@ services:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ben-gateway
+  name: kairos-rs-gateway
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: ben
+      app: kairos-rs
   template:
     metadata:
       labels:
-        app: ben
+        app: kairos-rs
     spec:
       containers:
-      - name: ben
-        image: danielsarmiento04/ben:latest
+      - name: kairos-rs
+        image: danielsarmiento04/kairos-rs:latest
         ports:
         - containerPort: 5900
         resources:
@@ -210,29 +210,29 @@ spec:
       volumes:
       - name: config
         configMap:
-          name: ben-config
+          name: kairos-rs-config
 ```
 
 ## 🚀 Quick Start
 
-Get Ben up and running in under 2 minutes:
+Get Kairos-rs up and running in under 2 minutes:
 
 ### Option 1: Using Cargo
 
 ```bash
 # Install from crates.io
-cargo install ben
+cargo install kairos-rs
 
 # Run with default configuration
-ben
+kairos-rs
 ```
 
 ### Option 2: From Source
 
 ```bash
 # Clone and build
-git clone https://github.com/DanielSarmiento04/Ben.git
-cd Ben
+git clone https://github.com/DanielSarmiento04/kairos-rs.git
+cd kairos-rs
 cargo run --release
 ```
 
@@ -240,11 +240,11 @@ cargo run --release
 
 ```bash
 # Pull and run
-docker run -p 5900:5900 -v $(pwd)/config.json:/app/config.json danielsarmiento04/ben
+docker run -p 5900:5900 -v $(pwd)/config.json:/app/config.json danielsarmiento04/kairos-rs
 
 # Or build locally
-docker build -t ben .
-docker run -p 5900:5900 ben
+docker build -t kairos-rs .
+docker run -p 5900:5900 kairos-rs
 ```
 
 The service starts on `http://localhost:5900` and is ready to handle requests!
@@ -286,7 +286,7 @@ Create a `config.json` file to define your routing rules:
 
 ### Dynamic Path Parameters
 
-Ben supports dynamic path parameters that are automatically extracted and forwarded:
+Kairos-rs supports dynamic path parameters that are automatically extracted and forwarded:
 
 ```json
 {
@@ -342,7 +342,7 @@ curl http://localhost:5900/health
 
 #### Path Parameter Syntax
 
-Ben supports dynamic path parameters using curly brace syntax:
+Kairos-rs supports dynamic path parameters using curly brace syntax:
 
 - `{id}` - Matches any non-slash characters
 - `{user_id}` - Parameter names can include underscores
@@ -357,23 +357,23 @@ Ben supports dynamic path parameters using curly brace syntax:
 
 ### Environment Variables
 
-Configure Ben using environment variables:
+Configure Kairos-rs using environment variables:
 
 ```bash
 # Server configuration
-export BEN_HOST="0.0.0.0"                    # Bind address (default: 0.0.0.0)
-export BEN_PORT="5900"                       # Server port (default: 5900)
-export BEN_CONFIG_PATH="./config.json"      # Config file path
+export KAIROS_HOST="0.0.0.0"                    # Bind address (default: 0.0.0.0)
+export KAIROS_PORT="5900"                       # Server port (default: 5900)
+export KAIROS_CONFIG_PATH="./config.json"       # Config file path
 
 # Performance tuning
-export BEN_WORKER_THREADS="4"               # Worker thread count
-export BEN_REQUEST_TIMEOUT="30"             # Request timeout in seconds
-export BEN_CONNECTION_POOL_SIZE="32"        # Connection pool size
+export KAIROS_WORKER_THREADS="4"                # Worker thread count
+export KAIROS_REQUEST_TIMEOUT="30"              # Request timeout in seconds
+export KAIROS_CONNECTION_POOL_SIZE="32"         # Connection pool size
 
 # Logging configuration
-export RUST_LOG="ben=info"                  # Log level
-export BEN_LOG_FORMAT="json"                # Log format: json|pretty
-export NO_COLOR="1"                         # Disable colored output
+export RUST_LOG="kairos_rs=info"                # Log level
+export KAIROS_LOG_FORMAT="json"                 # Log format: json|pretty
+export NO_COLOR="1"                             # Disable colored output
 ```
 
 ### Performance Tuning
@@ -389,15 +389,15 @@ export NO_COLOR="1"                         # Disable colored output
 #### Async Configuration
 ```bash
 # Optimize for your workload
-export TOKIO_WORKER_THREADS=8              # CPU-bound tasks
-export BEN_MAX_CONCURRENT_REQUESTS=1000    # Concurrent request limit
+export TOKIO_WORKER_THREADS=8                    # CPU-bound tasks
+export KAIROS_MAX_CONCURRENT_REQUESTS=1000       # Concurrent request limit
 ```
 
 ## 🔧 API Reference
 
 ### Health and Monitoring
 
-Ben provides built-in endpoints for monitoring and health checks:
+Kairos-rs provides built-in endpoints for monitoring and health checks:
 
 ```bash
 # Health check (if configured in routes)
@@ -405,17 +405,17 @@ GET /health
 # Response: 200 OK with upstream health status
 
 # Metrics endpoint (built-in)
-GET /_ben/metrics
+GET /_kairos/metrics
 # Response: Prometheus-compatible metrics
 
 # Status endpoint (built-in)  
-GET /_ben/status
+GET /_kairos/status
 # Response: Service status and route information
 ```
 
 ### Error Responses
 
-Ben returns structured error responses with consistent format:
+Kairos-rs returns structured error responses with consistent format:
 
 ```json
 {
@@ -438,11 +438,11 @@ Ben returns structured error responses with consistent format:
 
 ### Request/Response Headers
 
-Ben forwards most headers between client and upstream service:
+Kairos-rs forwards most headers between client and upstream service:
 
 #### Forwarded Headers
 ```http
-# Client → Ben → Upstream
+# Client → Kairos-rs → Upstream
 Authorization: Bearer <token>
 Content-Type: application/json
 User-Agent: MyApp/1.0
@@ -451,15 +451,15 @@ X-Request-ID: req_123
 
 #### Added Headers
 ```http
-# Ben → Upstream
+# Kairos-rs → Upstream
 X-Forwarded-For: <client_ip>
 X-Forwarded-Proto: <scheme>
 X-Forwarded-Host: <original_host>
-X-Ben-Version: 0.1.0
+X-Kairos-Version: 0.1.0
 ```
 
 #### Blocked Headers
-Ben filters out connection-specific headers:
+Kairos-rs filters out connection-specific headers:
 - `Connection`
 - `Host` (replaced with target host)
 - `Upgrade`
@@ -467,34 +467,34 @@ Ben filters out connection-specific headers:
 
 ## 📝 Logging and Observability
 
-Ben features enterprise-grade logging and observability built for production environments.
+Kairos-rs features enterprise-grade logging and observability built for production environments.
 
 ### Structured Logging
 
 ```bash
 # JSON format (production)
-{"timestamp":"2024-09-10T14:30:15Z","level":"INFO","target":"ben::routes","message":"Request forwarded","request_id":"req_123","duration_ms":45}
+{"timestamp":"2024-09-10T14:30:15Z","level":"INFO","target":"kairos_rs::routes","message":"Request forwarded","request_id":"req_123","duration_ms":45}
 
 # Pretty format (development)
-Sep 10 02:30:15 PM | [INFO] | ben::routes | Request forwarded | req_id=req_123 duration=45ms
+Sep 10 02:30:15 PM | [INFO] | kairos_rs::routes | Request forwarded | req_id=req_123 duration=45ms
 ```
 
 ### Log Levels and Configuration
 
 ```bash
 # Environment-based configuration
-export RUST_LOG="ben=info"                    # Application logs
-export RUST_LOG="ben=debug,actix_web=warn"    # Detailed app logs, minimal framework logs
-export RUST_LOG="trace"                       # Everything (debug only!)
+export RUST_LOG="kairos_rs=info"                      # Application logs
+export RUST_LOG="kairos_rs=debug,actix_web=warn"      # Detailed app logs, minimal framework logs
+export RUST_LOG="trace"                               # Everything (debug only!)
 
 # Structured logging
-export BEN_LOG_FORMAT="json"                  # json|pretty|compact
-export BEN_LOG_TIMESTAMP="rfc3339"            # rfc3339|unix|none
+export KAIROS_LOG_FORMAT="json"                       # json|pretty|compact
+export KAIROS_LOG_TIMESTAMP="rfc3339"                 # rfc3339|unix|none
 ```
 
 ### Monitoring and Metrics
 
-Ben exposes comprehensive metrics for production monitoring:
+Kairos-rs exposes comprehensive metrics for production monitoring:
 
 #### Request Metrics
 - Request count by route and status code
@@ -511,12 +511,12 @@ Ben exposes comprehensive metrics for production monitoring:
 #### Custom Metrics Integration
 ```bash
 # Prometheus scraping endpoint
-curl http://localhost:5900/_ben/metrics
+curl http://localhost:5900/_kairos/metrics
 
 # Example metrics output
-ben_requests_total{route="/api/users/{id}",method="GET",status="200"} 1234
-ben_request_duration_seconds{route="/api/users/{id}",method="GET"} 0.045
-ben_upstream_health{service="user-service"} 1
+kairos_rs_requests_total{route="/api/users/{id}",method="GET",status="200"} 1234
+kairos_rs_request_duration_seconds{route="/api/users/{id}",method="GET"} 0.045
+kairos_rs_upstream_health{service="user-service"} 1
 ```
 
 ### Distributed Tracing
@@ -526,7 +526,7 @@ Enable distributed tracing with OpenTelemetry:
 ```bash
 # Jaeger integration
 export OTEL_EXPORTER_JAEGER_ENDPOINT="http://jaeger:14268/api/traces"
-export OTEL_SERVICE_NAME="ben-gateway"
+export OTEL_SERVICE_NAME="kairos-rs-gateway"
 export OTEL_TRACE_SAMPLER="parentbased_traceidratio"
 export OTEL_TRACE_SAMPLER_ARG="0.1"  # 10% sampling rate
 ```
@@ -543,8 +543,8 @@ export OTEL_TRACE_SAMPLER_ARG="0.1"  # 10% sampling rate
 
 ```bash
 # Clone repository
-git clone https://github.com/DanielSarmiento04/Ben.git
-cd Ben
+git clone https://github.com/DanielSarmiento04/kairos-rs.git
+cd kairos-rs
 
 # Install development dependencies
 cargo install cargo-watch cargo-audit cargo-tarpaulin
@@ -712,37 +712,37 @@ FROM rust:1.70-alpine AS builder
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
-COPY --from=builder /app/target/release/ben /usr/local/bin/ben
-CMD ["ben"]
+COPY --from=builder /app/target/release/kairos-rs /usr/local/bin/kairos-rs
+CMD ["kairos-rs"]
 ```
 
 #### Docker Compose
 ```yaml
 version: '3.8'
 services:
-  ben:
-    image: danielsarmiento04/ben:latest
+  kairos-rs:
+    image: danielsarmiento04/kairos-rs:latest
     ports:
       - "5900:5900"
     volumes:
       - ./config.json:/app/config.json:ro
     environment:
-      - RUST_LOG=ben=info
-      - BEN_WORKER_THREADS=4
+      - RUST_LOG=kairos_rs=info
+      - KAIROS_WORKER_THREADS=4
     restart: unless-stopped
 ```
 
 ## 🤝 Contributing
 
-We welcome contributions! Ben follows standard open-source practices and maintains high code quality standards.
+We welcome contributions! Kairos-rs follows standard open-source practices and maintains high code quality standards.
 
 ### How to Contribute
 
 1. **Fork the Repository**
    ```bash
    # Fork on GitHub, then clone your fork
-   git clone https://github.com/YOUR_USERNAME/Ben.git
-   cd Ben
+   git clone https://github.com/YOUR_USERNAME/kairos-rs.git
+   cd kairos-rs
    ```
 
 2. **Set Up Development Environment**
@@ -871,7 +871,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 🙏 Acknowledgments
 
-Special thanks to the amazing Rust community and the following projects that make Ben possible:
+Special thanks to the amazing Rust community and the following projects that make Kairos-rs possible:
 
 - **[Actix Web](https://actix.rs/)** - For the high-performance web framework
 - **[Tokio](https://tokio.rs/)** - For the excellent async runtime
@@ -883,10 +883,10 @@ Special thanks to the amazing Rust community and the following projects that mak
 
 <div align="center">
 
-![GitHub stars](https://img.shields.io/github/stars/DanielSarmiento04/Ben?style=social)
-![GitHub forks](https://img.shields.io/github/forks/DanielSarmiento04/Ben?style=social)
-![GitHub issues](https://img.shields.io/github/issues/DanielSarmiento04/Ben)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/DanielSarmiento04/Ben)
+![GitHub stars](https://img.shields.io/github/stars/DanielSarmiento04/kairos-rs?style=social)
+![GitHub forks](https://img.shields.io/github/forks/DanielSarmiento04/kairos-rs?style=social)
+![GitHub issues](https://img.shields.io/github/issues/DanielSarmiento04/kairos-rs)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/DanielSarmiento04/kairos-rs)
 
 </div>
 
@@ -901,9 +901,9 @@ Special thanks to the amazing Rust community and the following projects that mak
 
 <div align="center">
 
-**[⭐ Star this project](https://github.com/DanielSarmiento04/Ben)** • **[📖 Documentation](https://github.com/DanielSarmiento04/Ben/wiki)** • **[🐛 Report Bug](https://github.com/DanielSarmiento04/Ben/issues)** • **[💡 Request Feature](https://github.com/DanielSarmiento04/Ben/issues)**
+**[⭐ Star this project](https://github.com/DanielSarmiento04/kairos-rs)** • **[📖 Documentation](https://github.com/DanielSarmiento04/kairos-rs/wiki)** • **[🐛 Report Bug](https://github.com/DanielSarmiento04/kairos-rs/issues)** • **[💡 Request Feature](https://github.com/DanielSarmiento04/kairos-rs/issues)**
 
-<sub>Built with ❤️ and ⚡ by [Daniel Sarmiento](https://github.com/DanielSarmiento04) and [contributors](https://github.com/DanielSarmiento04/Ben/graphs/contributors)</sub>
+<sub>Built with ❤️ and ⚡ by [Daniel Sarmiento](https://github.com/DanielSarmiento04) and [contributors](https://github.com/DanielSarmiento04/kairos-rs/graphs/contributors)</sub>
 
 </div>
 
