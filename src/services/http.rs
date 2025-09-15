@@ -54,15 +54,26 @@ impl RouteHandler {
         let reqwest_method = self.parse_method(&method);
 
         // Convert headers
-        let reqwest_headers = self.build_headers(req.headers());
+        let reqwest_headers = self.build_headers_optimized(req.headers());
 
         // Find matching route using the new pattern matching function
         let (route, transformed_internal_path) = self.route_matcher.find_match(&path)
-            .map_err(|e| GatewayError::Config(format!("Route matching error: {}", e)))?;
+            .map_err(|e| match e {
+                crate::utils::route_matcher::RouteMatchError::NoMatch { path } => {
+                    GatewayError::RouteNotFound { path }
+                }
+                _ => GatewayError::Config { 
+                    message: e.to_string(), 
+                    route: path.clone() 
+                }
+            })?;
 
         // Validate method is allowed
         if !route.methods.iter().any(|m| m == method.as_str()) {
-            return Ok(HttpResponse::MethodNotAllowed().finish());
+            return Err(GatewayError::MethodNotAllowed { 
+                method: method.to_string(), 
+                path: path.clone() 
+            }.into());
         }
 
         let target_url = format_route(&route.host, &route.port, &transformed_internal_path);
@@ -101,8 +112,14 @@ impl RouteHandler {
         .await
         {
             Ok(Ok(resp)) => resp,
-            Ok(Err(e)) => return Err(GatewayError::Upstream(e.to_string()).into()),
-            Err(_) => return Err(GatewayError::Timeout.into()),
+            Ok(Err(e)) => return Err(GatewayError::Upstream { 
+                message: e.to_string(),
+                url: target_url.clone(),
+                status: None,
+            }.into()),
+            Err(_) => return Err(GatewayError::Timeout { 
+                timeout: self.timeout_seconds 
+            }.into()),
         };
 
         // Convert upstream response to HttpResponse
@@ -123,37 +140,42 @@ impl RouteHandler {
         // Handle the response body
         match response.bytes().await {
             Ok(bytes) => Ok(builder.body(bytes)),
-            Err(e) => Err(GatewayError::Upstream(e.to_string()).into()),
+            Err(e) => Err(GatewayError::Upstream { 
+                message: e.to_string(),
+                url: target_url,
+                status: None,
+            }.into()),
         }
     }
 
-    fn build_headers(
+    fn build_headers_optimized(
         &self,
         original_headers: &actix_web::http::header::HeaderMap,
     ) -> ReqwestHeaderMap {
-        // Convert headers
-        let mut reqwest_headers = ReqwestHeaderMap::new();
+        let mut reqwest_headers = ReqwestHeaderMap::with_capacity(original_headers.len());
+        
+        // Skip problematic headers more efficiently
+        const SKIP_HEADERS: &[&str] = &["host", "connection", "upgrade", "proxy-connection"];
+        
         for (key, value) in original_headers {
-            if key.as_str().to_lowercase() == "host"
-                || key.as_str().to_lowercase().starts_with("connection")
-            {
+            let key_str = key.as_str().to_lowercase();
+            if SKIP_HEADERS.iter().any(|&skip| key_str.starts_with(skip)) {
                 continue;
             }
 
-            if let Ok(header_name) = HeaderName::from_bytes(key.as_ref()) {
-                if let Ok(header_value) = HeaderValue::from_bytes(value.as_bytes()) {
-                    reqwest_headers.insert(header_name, header_value);
-                }
+            // More efficient header conversion
+            if let (Ok(header_name), Ok(header_value)) = (
+                HeaderName::from_bytes(key.as_ref()),
+                HeaderValue::from_bytes(value.as_bytes())
+            ) {
+                reqwest_headers.insert(header_name, header_value);
             }
         }
-        // Ensure User-Agent header is set
-        if !reqwest_headers.contains_key("user-agent") {
-            reqwest_headers.insert(
-                HeaderName::from_static("user-agent"),
-                HeaderValue::from_static("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"),
-            );
-        }
-
+        
+        // Set default User-Agent if not present
+        reqwest_headers.entry("user-agent")
+            .or_insert_with(|| HeaderValue::from_static("kairos-rs/0.2.0"));
+        
         reqwest_headers
     }
 

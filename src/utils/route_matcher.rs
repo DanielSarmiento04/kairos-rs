@@ -1,6 +1,7 @@
 use crate::models::router::Router;
+use ahash::HashMap as AHashMap;
 use regex::Regex;
-use std::collections::HashMap;
+use std::sync::Arc;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -17,22 +18,22 @@ pub enum RouteMatchError {
 #[derive(Debug, Clone)]
 pub struct CompiledRoute {
     pub router: Router,
-    pub regex: Regex,
+    pub regex: Arc<Regex>, // Use Arc to share regex across threads
     pub param_names: Vec<String>,
 }
 
 /// High-performance route matcher with compiled patterns
 #[derive(Debug)]
 pub struct RouteMatcher {
-    static_routes: HashMap<String, Router>,
+    static_routes: AHashMap<String, Router>, // Use ahash for better performance
     dynamic_routes: Vec<CompiledRoute>,
 }
 
 impl RouteMatcher {
     /// Creates a new route matcher with pre-compiled patterns
     pub fn new(routes: Vec<Router>) -> Result<Self, RouteMatchError> {
-        let mut static_routes = HashMap::new();
-        let mut dynamic_routes = Vec::new();
+        let mut static_routes = AHashMap::default();
+        let mut dynamic_routes = Vec::with_capacity(routes.len());
 
         for route in routes {
             if route.external_path.contains('{') {
@@ -44,6 +45,11 @@ impl RouteMatcher {
                 static_routes.insert(route.external_path.clone(), route);
             }
         }
+
+        // Sort dynamic routes by specificity (more parameters = more specific)
+        dynamic_routes.sort_by(|a, b| {
+            b.param_names.len().cmp(&a.param_names.len())
+        });
 
         Ok(Self {
             static_routes,
@@ -84,7 +90,7 @@ impl RouteMatcher {
 
         Ok(CompiledRoute {
             router: route,
-            regex,
+            regex: Arc::new(regex),
             param_names,
         })
     }
