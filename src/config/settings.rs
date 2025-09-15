@@ -55,9 +55,9 @@ use std::path::Path;
 /// let config = load_settings().expect("Failed to load configuration");
 /// println!("Loaded {} routes", config.routers.len());
 /// 
-/// // Load with custom path via environment variable
-/// std::env::set_var("KAIROS_CONFIG_PATH", "/etc/kairos/config.json");
-/// let config = load_settings().expect("Failed to load custom configuration");
+/// // Note: Custom path examples require the file to exist
+/// // std::env::set_var("KAIROS_CONFIG_PATH", "/etc/kairos/config.json");
+/// // let config = load_settings().expect("Failed to load custom configuration");
 /// ```
 /// 
 /// # Error Conditions

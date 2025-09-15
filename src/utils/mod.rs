@@ -41,8 +41,16 @@
 //! let url = format_route("http://backend", &8080, "/api/users/123");
 //! assert_eq!(url, "http://backend:8080/api/users/123");
 //! 
-//! // Route matching
-//! let routes = vec![/* ... route configurations ... */];
+//! // Route matching with proper route configuration
+//! let routes = vec![
+//!     Router {
+//!         host: "http://localhost".to_string(),
+//!         port: 8080,
+//!         external_path: "/users/{id}".to_string(),
+//!         internal_path: "/v1/user/{id}".to_string(),
+//!         methods: vec!["GET".to_string()],
+//!     }
+//! ];
 //! let matcher = RouteMatcher::new(routes)?;
 //! let (route, internal_path) = matcher.find_match("/users/123")?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())

@@ -168,12 +168,18 @@ impl RouteMatcher {
     /// 
     /// let routes = vec![
     ///     Router {
+    ///         host: "http://localhost".to_string(),
+    ///         port: 8080,
     ///         external_path: "/health".to_string(),        // Static
-    ///         // ... other fields
+    ///         internal_path: "/status".to_string(),
+    ///         methods: vec!["GET".to_string()],
     ///     },
     ///     Router {
+    ///         host: "http://localhost".to_string(),
+    ///         port: 8080,
     ///         external_path: "/users/{id}".to_string(),    // Dynamic
-    ///         // ... other fields  
+    ///         internal_path: "/v1/user/{id}".to_string(),
+    ///         methods: vec!["GET".to_string()],
     ///     },
     /// ];
     /// 
@@ -255,7 +261,24 @@ impl RouteMatcher {
     /// 
     /// ```rust
     /// # use kairos_rs::utils::route_matcher::RouteMatcher;
-    /// # let matcher = RouteMatcher::new(vec![])?;
+    /// # use kairos_rs::models::router::Router;
+    /// # let routes = vec![
+    /// #     Router {
+    /// #         host: "http://localhost".to_string(),
+    /// #         port: 8080,
+    /// #         external_path: "/health".to_string(),
+    /// #         internal_path: "/status".to_string(),
+    /// #         methods: vec!["GET".to_string()],
+    /// #     },
+    /// #     Router {
+    /// #         host: "http://localhost".to_string(),
+    /// #         port: 8080,
+    /// #         external_path: "/users/{id}".to_string(),
+    /// #         internal_path: "/v1/user/{id}".to_string(),
+    /// #         methods: vec!["GET".to_string()],
+    /// #     }
+    /// # ];
+    /// # let matcher = RouteMatcher::new(routes)?;
     /// 
     /// // Static route matching
     /// let (route, internal_path) = matcher.find_match("/health")?;
