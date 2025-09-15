@@ -51,10 +51,10 @@ Create a `config.json` file:
 ### 3. Test It
 ```bash
 # This request to kairos-rs:
-curl http://localhost:5900/test/hello
+curl http://localhost:5900/cats/200
 
 # Gets forwarded to:
-# http://httpbin.org:80/anything/hello
+# https://http.cat:443/200
 ```
 
 ## How Dynamic Routing Works
