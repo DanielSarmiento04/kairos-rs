@@ -15,15 +15,129 @@ use reqwest::{
 use std::sync::Arc;
 use tokio::time::{timeout, Duration};
 
-// Route handler structure
+/// High-performance HTTP request handler for the kairos-rs gateway.
+/// 
+/// The `RouteHandler` is responsible for processing incoming HTTP requests,
+/// finding matching routes, and forwarding requests to upstream services.
+/// It implements connection pooling, timeout management, and efficient header
+/// processing for optimal performance.
+/// 
+/// # Architecture
+/// 
+/// ```text
+/// Client Request → RouteHandler → Route Matching → Request Forwarding → Upstream Service
+///                             ↓
+///                    Response Processing ← Upstream Response
+/// ```
+/// 
+/// # Key Features
+/// 
+/// - **Connection Pooling**: Reuses HTTP connections for better performance
+/// - **Timeout Management**: Configurable request timeouts prevent hanging requests
+/// - **Header Optimization**: Efficient header conversion and filtering
+/// - **Route Matching**: Supports both static and dynamic (parameterized) routes
+/// - **Thread Safety**: Safe to clone and share across multiple workers
+/// 
+/// # Performance Optimizations
+/// 
+/// - Pre-configured HTTP client with connection pooling
+/// - Shared route matcher using `Arc` for zero-copy sharing
+/// - Optimized header processing that skips problematic headers
+/// - Efficient memory management with capacity pre-allocation
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use kairos_rs::services::http::RouteHandler;
+/// use kairos_rs::models::router::Router;
+/// 
+/// let routes = vec![
+///     Router {
+///         host: "http://backend".to_string(),
+///         port: 8080,
+///         external_path: "/api/users/{id}".to_string(),
+///         internal_path: "/v1/user/{id}".to_string(),
+///         methods: vec!["GET".to_string(), "PUT".to_string()],
+///     }
+/// ];
+/// 
+/// let handler = RouteHandler::new(routes, 30); // 30-second timeout
+/// ```
 #[derive(Clone)]
 pub struct RouteHandler {
+    /// HTTP client with connection pooling and optimized settings
     client: Client,
+    /// Thread-safe route matcher for path resolution
     route_matcher: Arc<RouteMatcher>,
+    /// Request timeout in seconds
     timeout_seconds: u64,
 }
 
 impl RouteHandler {
+    /// Creates a new HTTP route handler with optimized client configuration.
+    /// 
+    /// This constructor sets up a high-performance HTTP client with connection
+    /// pooling and compiles all route patterns for efficient matching.
+    /// 
+    /// # Parameters
+    /// 
+    /// * `routes` - Vector of router configurations defining request forwarding rules
+    /// * `timeout_seconds` - Maximum time in seconds to wait for upstream responses
+    /// 
+    /// # Returns
+    /// 
+    /// A new `RouteHandler` instance ready to process requests
+    /// 
+    /// # HTTP Client Configuration
+    /// 
+    /// The internal HTTP client is configured with:
+    /// - **Idle Timeout**: 30 seconds to keep connections alive
+    /// - **Pool Size**: Up to 32 idle connections per host
+    /// - **Connection Reuse**: Automatic connection pooling
+    /// 
+    /// # Route Compilation
+    /// 
+    /// All routes are pre-compiled into an optimized matcher that:
+    /// - Separates static and dynamic routes for optimal lookup performance
+    /// - Compiles regex patterns for parameterized routes
+    /// - Validates all route patterns at startup
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust
+    /// use kairos_rs::services::http::RouteHandler;
+    /// use kairos_rs::models::router::Router;
+    /// 
+    /// let routes = vec![
+    ///     Router {
+    ///         host: "http://auth-service".to_string(),
+    ///         port: 8080,
+    ///         external_path: "/auth/login".to_string(),
+    ///         internal_path: "/authenticate".to_string(),
+    ///         methods: vec!["POST".to_string()],
+    ///     },
+    ///     Router {
+    ///         host: "http://user-service".to_string(),
+    ///         port: 8080,
+    ///         external_path: "/users/{id}".to_string(),
+    ///         internal_path: "/api/v1/user/{id}".to_string(),
+    ///         methods: vec!["GET".to_string(), "PUT".to_string(), "DELETE".to_string()],
+    ///     }
+    /// ];
+    /// 
+    /// let handler = RouteHandler::new(routes, 30);
+    /// ```
+    /// 
+    /// # Panics
+    /// 
+    /// Panics if:
+    /// - HTTP client creation fails (rare, indicates system resource issues)
+    /// - Route compilation fails (invalid route patterns in configuration)
+    /// 
+    /// # Thread Safety
+    /// 
+    /// The returned handler is safe to clone and share across multiple worker threads.
+    /// All internal state is either immutable or thread-safe.
     pub fn new(routes: Vec<Router>, timeout_seconds: u64) -> Self {
         let client = Client::builder()
             .pool_idle_timeout(Duration::from_secs(30))

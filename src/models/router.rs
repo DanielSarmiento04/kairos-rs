@@ -1,15 +1,120 @@
 use serde::{Deserialize, Serialize};
 
+/// Configuration for HTTP route forwarding in the kairos-rs gateway.
+/// 
+/// A `Router` defines how external requests are mapped to internal services,
+/// including host translation, path transformation, and method validation.
+/// 
+/// # Examples
+/// 
+/// Basic route configuration:
+/// ```json
+/// {
+///   "host": "http://backend-service",
+///   "port": 8080,
+///   "external_path": "/api/users/{id}",
+///   "internal_path": "/v1/user/{id}",
+///   "methods": ["GET", "POST", "PUT"]
+/// }
+/// ```
+/// 
+/// Static route (no parameters):
+/// ```json
+/// {
+///   "host": "https://auth-service",
+///   "port": 443,
+///   "external_path": "/auth/login",
+///   "internal_path": "/authenticate",
+///   "methods": ["POST"]
+/// }
+/// ```
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Router {
+    /// Target host URL including protocol (http:// or https://).
+    /// This is where the gateway will forward matching requests.
+    /// 
+    /// # Examples
+    /// - `"http://localhost"`
+    /// - `"https://api.example.com"`
+    /// - `"http://backend-service"` (for container environments)
     pub host: String,
+    
+    /// Target port number for the upstream service.
+    /// Must be a valid port number between 1 and 65535.
     pub port: u16,
+    
+    /// External path pattern that clients will use to access the service.
+    /// Supports dynamic parameters using `{parameter_name}` syntax.
+    /// Must start with a forward slash (`/`).
+    /// 
+    /// # Examples
+    /// - `"/api/users"` (static path)
+    /// - `"/api/users/{id}"` (dynamic parameter)
+    /// - `"/api/users/{id}/posts/{post_id}"` (multiple parameters)
     pub external_path: String,
+    
+    /// Internal path pattern for the upstream service.
+    /// Parameters from `external_path` can be used here with the same `{parameter_name}` syntax.
+    /// Must start with a forward slash (`/`).
+    /// 
+    /// # Examples
+    /// - `"/v1/user"` (path translation)
+    /// - `"/v1/user/{id}"` (parameter forwarding)
+    /// - `"/legacy/api/user/{id}"` (path and parameter transformation)
     pub internal_path: String,
+    
+    /// List of allowed HTTP methods for this route.
+    /// Only requests with these methods will be forwarded.
+    /// 
+    /// # Valid Methods
+    /// - `GET`, `POST`, `PUT`, `DELETE`, `HEAD`, `OPTIONS`, `PATCH`, `TRACE`
+    /// 
+    /// # Examples
+    /// - `["GET"]` (read-only endpoint)
+    /// - `["POST", "PUT"]` (write operations)
+    /// - `["GET", "POST", "PUT", "DELETE"]` (full CRUD)
     pub methods: Vec<String>,
 }
 
 impl Router {
+    /// Validates the router configuration for correctness and security.
+    /// 
+    /// This method performs comprehensive validation of all router fields:
+    /// - Host URL format validation (must include protocol)
+    /// - Port range validation (1-65535)
+    /// - Path format validation (must start with `/`)
+    /// - HTTP method validation (against standard methods)
+    /// - Ensures at least one method is specified
+    /// 
+    /// # Returns
+    /// 
+    /// - `Ok(())` if the configuration is valid
+    /// - `Err(String)` with a descriptive error message if validation fails
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust
+    /// use kairos_rs::models::router::Router;
+    /// 
+    /// let router = Router {
+    ///     host: "http://localhost".to_string(),
+    ///     port: 8080,
+    ///     external_path: "/api/users".to_string(),
+    ///     internal_path: "/v1/users".to_string(),
+    ///     methods: vec!["GET".to_string(), "POST".to_string()],
+    /// };
+    /// 
+    /// assert!(router.validate().is_ok());
+    /// ```
+    /// 
+    /// # Errors
+    /// 
+    /// This method will return an error if:
+    /// - Host doesn't start with `http://` or `https://`
+    /// - Port is 0 (ports 1-65535 are valid)
+    /// - External or internal path doesn't start with `/`
+    /// - No HTTP methods are specified
+    /// - An invalid HTTP method is provided
     pub fn validate(&self) -> Result<(), String> {
         log::debug!(
             "Validating Router: host={}, port={}, external_path={}, internal_path={}, methods={:?}",
