@@ -1,6 +1,6 @@
 #  Kairos-rs Development Roadmap
 
-> **Version**: 1.0  
+> **Version**: 0.2.1.
 > **Last Updated**: September 15, 2025  
 > **Status**: Development mode
 
