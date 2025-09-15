@@ -221,9 +221,3 @@ Built with these excellent Rust crates:
 **Maintainer**: [@DanielSarmiento04](https://github.com/DanielSarmiento04)  
 **Community**: Issues and PRs welcome!
 
----
-
-**Status**: Early development, not production ready  
-**Maintainer**: [@DanielSarmiento04](https://github.com/DanielSarmiento04)  
-**Community**: Issues and PRs welcome!
-
