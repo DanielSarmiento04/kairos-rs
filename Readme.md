@@ -207,6 +207,19 @@ Basic benchmarks on M1 MacBook Pro:
 
 MIT License - see [LICENSE](LICENSE) file.
 
+## AI Development Transparency
+
+This project utilizes AI assistance for:
+
+- **Code Review**: AI tools help identify potential issues and suggest improvements
+- **Documentation**: AI assists in maintaining clear and comprehensive documentation  
+- **Testing**: AI helps generate test cases and identify edge cases
+- **Optimization**: AI provides suggestions for performance improvements
+
+**Human Oversight**: All AI suggestions are reviewed, tested, and validated by human developers before implementation. The core architecture decisions and project direction remain under human control.
+
+We believe in transparency about development tools and methods used in open source projects.
+
 ## Acknowledgments
 
 Built with these excellent Rust crates:
