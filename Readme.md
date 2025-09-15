@@ -38,11 +38,13 @@ Create a `config.json` file:
   "version": 1,
   "routers": [
     {
-      "host": "http://httpbin.org",
-      "port": 80,
-      "external_path": "/test/{path}",
-      "internal_path": "/anything/{path}",
-      "methods": ["GET", "POST"]
+      "host": "https://http.cat",
+      "port": 443,
+      "external_path": "/cats/{id}",
+      "internal_path": "/{id}",
+      "methods": [
+          "GET"
+      ]
     }
   ]
 }
