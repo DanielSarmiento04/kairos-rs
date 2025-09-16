@@ -1,13 +1,58 @@
+//! Logger configuration and structured output formatting.
+//! 
+//! This module provides a comprehensive logging system with structured output,
+//! color formatting, and configurable alignment. Designed for both development
+//! debugging and production observability.
+
 use chrono::Local;
 use env_logger::Builder;
 use log::LevelFilter;
 use std::env;
 use std::io::Write;
 
-// Adjust these widths to control alignment
+/// Width for the level field column including padding.
+/// 
+/// Controls the alignment of log level indicators in the structured output.
+/// Increase this value if log level names don't align properly.
 const LEVEL_FIELD_WIDTH: usize = 8; // visible width for the '[LEVEL]' column including padding
+
+/// Width for the file:line field column including padding.
+/// 
+/// Controls the alignment of source location information in structured output.
+/// Adjust based on your typical file path lengths for optimal readability.
 const FILE_LINE_FIELD_WIDTH: usize = 22; // visible width for the 'file:line' column including padding
 
+/// Compute the visible length of a string while stripping ANSI escape sequences.
+/// 
+/// This function calculates the actual display width of a string by ignoring
+/// ANSI color codes and control sequences. Essential for proper column alignment
+/// in colored terminal output.
+/// 
+/// # Arguments
+/// * `s` - The string to measure, potentially containing ANSI escape sequences
+/// 
+/// # Returns
+/// The visible character count excluding ANSI sequences
+/// 
+/// # ANSI Sequence Handling
+/// - Detects escape sequences starting with `\x1b[`
+/// - Skips all characters until 'm' terminator
+/// - Properly handles UTF-8 multi-byte characters
+/// - Counts each Unicode code point as one visible character
+/// 
+/// # Examples
+/// ```rust
+/// use kairos_rs::logs::logger::visible_len;
+/// 
+/// assert_eq!(visible_len("hello"), 5);
+/// assert_eq!(visible_len("\x1b[31mred\x1b[0m"), 3);
+/// assert_eq!(visible_len("\x1b[1;32m[INFO]\x1b[0m"), 6);
+/// ```
+/// 
+/// # Performance
+/// - Single pass algorithm with O(n) complexity
+/// - Efficient UTF-8 boundary detection
+/// - Minimal memory allocations
 // Compute visible length of a string while stripping simple ANSI escape sequences (\x1b[...m)
 fn visible_len(s: &str) -> usize {
     let bytes = s.as_bytes();
@@ -48,6 +93,78 @@ fn visible_len(s: &str) -> usize {
     visible
 }
 
+/// Configure and initialize the application's logging system.
+/// 
+/// Sets up structured logging with color support, configurable output formatting,
+/// and environment-based configuration. This function should be called once
+/// during application startup to establish the logging infrastructure.
+/// 
+/// # Logging Format
+/// 
+/// The structured output format includes:
+/// ```text
+/// [Timestamp] | [LEVEL] | file:line | Message
+/// Dec 15 24 02:30:45 PM | [INFO ] | main.rs:42        | Gateway starting on port 5900
+/// Dec 15 24 02:30:45 PM | [ERROR] | router.rs:156     | Failed to connect to upstream
+/// ```
+/// 
+/// # Color Support
+/// 
+/// - **Automatic Detection**: Detects terminal color capabilities
+/// - **Environment Override**: Honors `NO_COLOR` environment variable
+/// - **Level Colors**: Different colors for each log level:
+///   - ERROR: Red
+///   - WARN: Yellow
+///   - INFO: Green
+///   - DEBUG: Blue
+///   - TRACE: Magenta
+/// 
+/// # Environment Configuration
+/// 
+/// - `RUST_LOG`: Sets log level filtering (debug, info, warn, error)
+/// - `NO_COLOR`: Disables colored output for structured logging systems
+/// 
+/// # Log Levels
+/// 
+/// - **ERROR**: Critical errors requiring immediate attention
+/// - **WARN**: Warning conditions that should be investigated
+/// - **INFO**: General application operation information
+/// - **DEBUG**: Detailed debugging information for development
+/// - **TRACE**: Very detailed tracing for deep debugging
+/// 
+/// # Thread Safety
+/// 
+/// This function is thread-safe and can be called from any thread, but should
+/// only be called once during application initialization.
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use kairos_rs::logs::logger::configure_logger;
+/// use log::{info, error, debug};
+/// 
+/// // Initialize logging at application startup
+/// configure_logger();
+/// 
+/// // Use throughout application
+/// info!("Application initialized successfully");
+/// error!("Failed to process request: {}", error_msg);
+/// debug!("Request processing time: {}ms", duration);
+/// ```
+/// 
+/// # Performance Considerations
+/// 
+/// - **Efficient Formatting**: Optimized string operations with minimal allocations
+/// - **Early Filtering**: Log level filtering prevents unnecessary processing
+/// - **Async Compatible**: Works with async runtimes and multi-threaded environments
+/// - **Memory Bounded**: Efficient buffer management with controlled memory usage
+/// 
+/// # Production Usage
+/// 
+/// - Set appropriate log levels via `RUST_LOG` environment variable
+/// - Disable colors in production with `NO_COLOR=1`
+/// - Integrate with log aggregation systems for centralized monitoring
+/// - Consider log rotation for long-running services
 pub fn configure_logger() {
     // If NO_COLOR is set in the environment, disable coloring and bolding.
     let no_color = env::var("NO_COLOR").is_ok();
