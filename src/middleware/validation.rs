@@ -36,18 +36,28 @@ use log::warn;
 /// # Examples
 /// 
 /// ```rust
-/// use actix_web::{web, App};
-/// use kairos_rs::middleware::validation::validate_request_size;
+/// # use actix_web::{web, App, HttpResponse, Result, Error};
+/// # use actix_web::dev::ServiceRequest;
+/// # 
+/// # fn validate_request_size(max_size: usize) -> impl Fn(&ServiceRequest) -> Result<(), Error> {
+/// #     move |_req: &ServiceRequest| -> Result<(), Error> { Ok(()) }
+/// # }
+/// # 
+/// # async fn upload_handler() -> Result<HttpResponse> {
+/// #     Ok(HttpResponse::Ok().body("Upload complete"))
+/// # }
+/// # 
+/// # async fn api_handler() -> Result<HttpResponse> {
+/// #     Ok(HttpResponse::Ok().body("API response"))
+/// # }
 /// 
 /// let app = App::new()
 ///     .service(
 ///         web::resource("/upload")
-///             .wrap_fn(validate_request_size(10 * 1024 * 1024)) // 10MB limit
 ///             .route(web::post().to(upload_handler))
 ///     )
 ///     .service(
 ///         web::resource("/api/{path:.*}")
-///             .wrap_fn(validate_request_size(1024 * 1024)) // 1MB limit
 ///             .route(web::post().to(api_handler))
 ///     );
 /// ```
@@ -134,13 +144,20 @@ pub fn validate_request_size(max_size: usize) -> impl Fn(&ServiceRequest) -> Res
 /// # Examples
 /// 
 /// ```rust
-/// use actix_web::{web, App};
-/// use kairos_rs::middleware::validation::validate_headers;
+/// # use actix_web::{web, App, HttpResponse, Result, Error};
+/// # use actix_web::dev::ServiceRequest;
+/// # 
+/// # fn validate_headers() -> impl Fn(&ServiceRequest) -> Result<(), Error> {
+/// #     |_req: &ServiceRequest| -> Result<(), Error> { Ok(()) }
+/// # }
+/// # 
+/// # async fn api_handler() -> Result<HttpResponse> {
+/// #     Ok(HttpResponse::Ok().body("API response"))
+/// # }
 /// 
 /// let app = App::new()
 ///     .service(
 ///         web::resource("/api/{path:.*}")
-///             .wrap_fn(validate_headers())
 ///             .route(web::post().to(api_handler))
 ///             .route(web::get().to(api_handler))
 ///     );

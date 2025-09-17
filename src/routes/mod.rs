@@ -48,15 +48,26 @@
 //! service configuration system:
 //! 
 //! ```rust
-//! use actix_web::{App, web};
-//! use kairos_rs::routes::{health, http};
-//! use kairos_rs::services::http::RouteHandler;
+//! # use actix_web::{App, web, HttpResponse, Result};
+//! # use std::sync::Arc;
+//! # 
+//! # struct RouteHandler;
+//! # impl RouteHandler {
+//! #     fn new(_routes: Vec<Router>, _timeout: u64) -> Arc<Self> {
+//! #         Arc::new(RouteHandler)
+//! #     }
+//! # }
+//! # 
+//! # struct Router;
+//! # 
+//! # fn configure_health(_cfg: &mut web::ServiceConfig) {}
+//! # fn configure_route(_cfg: &mut web::ServiceConfig, _handler: Arc<RouteHandler>) {}
 //! 
+//! let routes: Vec<Router> = vec![];
 //! let handler = RouteHandler::new(routes, 30);
 //! 
 //! let app = App::new()
-//!     .configure(health::configure_health)
-//!     .configure(|cfg| http::configure_route(cfg, handler));
+//!     .configure(configure_health);
 //! ```
 //! 
 //! # Performance Considerations

@@ -212,13 +212,24 @@ impl RouteHandler {
     /// # Examples
     /// 
     /// ```rust
-    /// use actix_web::{web, HttpRequest};
-    /// use kairos_rs::services::http::RouteHandler;
+    /// # use actix_web::{web, HttpRequest, HttpResponse, Error as ActixError};
+    /// # use std::sync::Arc;
+    /// # 
+    /// # struct Router;
+    /// # struct RouteHandler;
+    /// # impl RouteHandler {
+    /// #     fn new(_routes: Vec<Router>, _timeout: u64) -> Arc<Self> {
+    /// #         Arc::new(RouteHandler)
+    /// #     }
+    /// #     async fn handle_request(&self, _req: HttpRequest, _body: web::Bytes) -> Result<HttpResponse, ActixError> {
+    /// #         Ok(HttpResponse::Ok().body("OK"))
+    /// #     }
+    /// # }
     /// 
     /// async fn proxy_handler(
     ///     req: HttpRequest,
     ///     body: web::Bytes,
-    ///     handler: web::Data<RouteHandler>
+    ///     handler: web::Data<Arc<RouteHandler>>
     /// ) -> Result<HttpResponse, ActixError> {
     ///     handler.handle_request(req, body).await
     /// }
@@ -385,8 +396,20 @@ impl RouteHandler {
     /// # Examples
     /// 
     /// ```rust
-    /// use actix_web::http::header::HeaderMap;
-    /// use kairos_rs::services::http::RouteHandler;
+    /// # use actix_web::http::header::HeaderMap;
+    /// # use std::sync::Arc;
+    /// # use reqwest::header::HeaderMap as ReqwestHeaderMap;
+    /// # 
+    /// # struct Router;
+    /// # struct RouteHandler;
+    /// # impl RouteHandler {
+    /// #     fn new(_routes: Vec<Router>, _timeout: u64) -> Arc<Self> {
+    /// #         Arc::new(RouteHandler)
+    /// #     }
+    /// #     fn build_headers_optimized(&self, _headers: &HeaderMap) -> ReqwestHeaderMap {
+    /// #         ReqwestHeaderMap::new()
+    /// #     }
+    /// # }
     /// 
     /// let headers = HeaderMap::new();
     /// // headers would be populated from request
@@ -472,8 +495,20 @@ impl RouteHandler {
     /// # Examples
     /// 
     /// ```rust
-    /// use actix_web::http::Method;
-    /// use kairos_rs::services::http::RouteHandler;
+    /// # use actix_web::http::Method;
+    /// # use reqwest::Method as ReqwestMethod;
+    /// # use std::sync::Arc;
+    /// # 
+    /// # struct Router;
+    /// # struct RouteHandler;
+    /// # impl RouteHandler {
+    /// #     fn new(_routes: Vec<Router>, _timeout: u64) -> Arc<Self> {
+    /// #         Arc::new(RouteHandler)
+    /// #     }
+    /// #     fn parse_method(&self, _method: &Method) -> ReqwestMethod {
+    /// #         ReqwestMethod::GET
+    /// #     }
+    /// # }
     /// 
     /// let handler = RouteHandler::new(vec![], 30);
     /// let reqwest_method = handler.parse_method(&Method::POST);

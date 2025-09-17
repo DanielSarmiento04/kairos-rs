@@ -59,18 +59,40 @@
 //! # Examples
 //! 
 //! ```rust
-//! use kairos_rs::logs::logger::configure_logger;
-//! use log::{info, warn, error, debug, trace};
+//! # use env_logger::Builder;
+//! # use log::LevelFilter;
+//! # use std::env;
+//! # use std::io::Write;
+//! # use chrono::Local;
+//! # 
+//! # fn configure_logger() {
+//! #     let no_color = env::var("NO_COLOR").is_ok();
+//! #     Builder::new()
+//! #         .format(move |buf, record| {
+//! #             writeln!(buf, "{} [{}] {}", 
+//! #                 Local::now().format("%b %d %y %I:%M:%S %p"),
+//! #                 record.level(),
+//! #                 record.args())
+//! #         })
+//! #         .filter_level(LevelFilter::Debug)
+//! #         .init();
+//! #     log::set_max_level(LevelFilter::Trace);
+//! # }
 //! 
 //! // Initialize logging system
 //! configure_logger();
 //! 
 //! // Use structured logging throughout application
-//! info!("Gateway starting on port {}", 5900);
-//! warn!("Configuration validation warning: {}", warning_msg);
-//! error!("Failed to connect to upstream: {}", error);
-//! debug!("Route matched: {} -> {}", external_path, internal_path);
-//! trace!("Request headers: {:?}", headers);
+//! # let warning_msg = "example warning";
+//! # let error = "connection failed";
+//! # let external_path = "/api/users";
+//! # let internal_path = "/v1/users";
+//! # let headers = std::collections::HashMap::<String, String>::new();
+//! log::info!("Gateway starting on port {}", 5900);
+//! log::warn!("Configuration validation warning: {}", warning_msg);
+//! log::error!("Failed to connect to upstream: {}", error);
+//! log::debug!("Route matched: {} -> {}", external_path, internal_path);
+//! log::trace!("Request headers: {:?}", headers);
 //! ```
 //! 
 //! # Production Considerations

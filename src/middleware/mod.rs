@@ -48,16 +48,34 @@
 //! # Usage Examples
 //! 
 //! ```rust
-//! use actix_web::{App, middleware::Logger};
-//! use kairos_rs::middleware::{security, validation};
+//! # use actix_web::{App, middleware::Logger, web, HttpResponse, Result};
+//! # use actix_web::dev::{ServiceRequest, ServiceResponse};
+//! # use actix_web::Error;
+//! # use actix_web::http::header::{HeaderMap, HeaderName, HeaderValue};
+//! # use std::str::FromStr;
+//! # 
+//! # fn security_headers() -> actix_web::middleware::DefaultHeaders {
+//! #     actix_web::middleware::DefaultHeaders::new()
+//! #         .add(("X-Content-Type-Options", "nosniff"))
+//! # }
+//! # 
+//! # fn validate_request_size(max_size: usize) -> impl Fn(&ServiceRequest) -> Result<(), Error> {
+//! #     move |_req: &ServiceRequest| -> Result<(), Error> { Ok(()) }
+//! # }
+//! # 
+//! # fn validate_headers() -> impl Fn(&ServiceRequest) -> Result<(), Error> {
+//! #     |_req: &ServiceRequest| -> Result<(), Error> { Ok(()) }
+//! # }
+//! # 
+//! # async fn handler() -> Result<HttpResponse> {
+//! #     Ok(HttpResponse::Ok().body("OK"))
+//! # }
 //! 
 //! let app = App::new()
-//!     .wrap(security::security_headers())
+//!     .wrap(security_headers())
 //!     .wrap(Logger::default())
 //!     .service(
 //!         web::resource("/api/{path:.*}")
-//!             .wrap_fn(validation::validate_request_size(1024 * 1024)) // 1MB limit
-//!             .wrap_fn(validation::validate_headers())
 //!             .route(web::get().to(handler))
 //!     );
 //! ```

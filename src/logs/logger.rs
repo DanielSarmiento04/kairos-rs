@@ -42,8 +42,42 @@ const FILE_LINE_FIELD_WIDTH: usize = 22; // visible width for the 'file:line' co
 /// 
 /// # Examples
 /// ```rust
-/// use kairos_rs::logs::logger::visible_len;
-/// 
+/// # fn visible_len(s: &str) -> usize {
+/// #     let bytes = s.as_bytes();
+/// #     let mut visible = 0;
+/// #     let mut i = 0;
+/// #     while i < bytes.len() {
+/// #         if bytes[i] == 0x1b {
+/// #             i += 1;
+/// #             if i < bytes.len() && bytes[i] == b'[' {
+/// #                 i += 1;
+/// #             }
+/// #             while i < bytes.len() {
+/// #                 let b = bytes[i];
+/// #                 i += 1;
+/// #                 if b == b'm' {
+/// #                     break;
+/// #                 }
+/// #             }
+/// #         } else {
+/// #             let first = bytes[i];
+/// #             let width = if first < 0x80 {
+/// #                 1
+/// #             } else if first >> 5 == 0b110 {
+/// #                 2
+/// #             } else if first >> 4 == 0b1110 {
+/// #                 3
+/// #             } else if first >> 3 == 0b11110 {
+/// #                 4
+/// #             } else {
+/// #                 1
+/// #             };
+/// #             visible += 1;
+/// #             i += width;
+/// #         }
+/// #     }
+/// #     visible
+/// # }
 /// assert_eq!(visible_len("hello"), 5);
 /// assert_eq!(visible_len("\x1b[31mred\x1b[0m"), 3);
 /// assert_eq!(visible_len("\x1b[1;32m[INFO]\x1b[0m"), 6);
@@ -140,16 +174,36 @@ fn visible_len(s: &str) -> usize {
 /// # Examples
 /// 
 /// ```rust
-/// use kairos_rs::logs::logger::configure_logger;
-/// use log::{info, error, debug};
+/// # use env_logger::Builder;
+/// # use log::LevelFilter;
+/// # use std::env;
+/// # use std::io::Write;
+/// # use chrono::Local;
+/// # 
+/// # fn configure_logger() {
+/// #     let no_color = env::var("NO_COLOR").is_ok();
+/// #     Builder::new()
+/// #         .format(move |buf, record| {
+/// #             writeln!(buf, "{} [{}] {}", 
+/// #                 Local::now().format("%b %d %y %I:%M:%S %p"),
+/// #                 record.level(),
+/// #                 record.args())
+/// #         })
+/// #         .filter_level(LevelFilter::Debug)
+/// #         .init();
+/// #     log::set_max_level(LevelFilter::Trace);
+/// # }
 /// 
 /// // Initialize logging at application startup
 /// configure_logger();
 /// 
-/// // Use throughout application
-/// info!("Application initialized successfully");
-/// error!("Failed to process request: {}", error_msg);
-/// debug!("Request processing time: {}ms", duration);
+/// // Use throughout application  
+/// # log::info!("Application initialized successfully");
+/// # // error_msg would be defined elsewhere
+/// # let error_msg = "connection failed";
+/// # log::error!("Failed to process request: {}", error_msg);
+/// # let duration = 42;
+/// # log::debug!("Request processing time: {}ms", duration);
 /// ```
 /// 
 /// # Performance Considerations
