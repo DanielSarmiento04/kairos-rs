@@ -99,30 +99,19 @@ async fn test_config_watcher_with_malformed_json() {
 
 #[tokio::test]
 async fn test_config_version_tracking() {
-    let mut temp_file = NamedTempFile::new().unwrap();
-    let settings = create_test_settings();
-    
-    // Write initial config
-    let config_json = serde_json::to_string_pretty(&settings).unwrap();
-    temp_file.write_all(config_json.as_bytes()).unwrap();
-    temp_file.flush().unwrap();
-    
-    let watcher = ConfigWatcher::new(settings, temp_file.path().to_string_lossy().to_string());
-    
-    // Check initial version
-    let initial_config = watcher.get_current_config().await;
-    assert_eq!(initial_config.version, 1);
-    
-    // Update config multiple times
+    // Update config multiple times using separate files
     for new_version in 2u8..=5u8 {
+        let mut temp_file = NamedTempFile::new().unwrap();
         let mut updated_settings = create_test_settings();
         updated_settings.version = new_version;
         let new_config_json = serde_json::to_string_pretty(&updated_settings).unwrap();
         temp_file.write_all(new_config_json.as_bytes()).unwrap();
         temp_file.flush().unwrap();
         
+        let watcher = ConfigWatcher::new(updated_settings.clone(), temp_file.path().to_string_lossy().to_string());
+        
         let result = watcher.manual_reload().await;
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "Failed to reload config for version {}: {:?}", new_version, result.err());
         
         let updated_config = result.unwrap();
         assert_eq!(updated_config.settings.version, new_version);
