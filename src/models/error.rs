@@ -129,6 +129,7 @@ impl actix_web::error::ResponseError for GatewayError {
     /// - `Timeout` → 504 Gateway Timeout
     /// - `Config` → 502 Bad Gateway  
     /// - `Upstream` → 502 Bad Gateway
+    /// - `CircuitOpen` → 503 Service Unavailable
     /// - `RouteNotFound` → 404 Not Found
     /// - `MethodNotAllowed` → 405 Method Not Allowed
     /// - `BadRequest` → 400 Bad Request

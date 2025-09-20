@@ -186,9 +186,9 @@ impl RouteHandler {
     /// Processes an incoming HTTP request and forwards it to the appropriate upstream service.
     /// 
     /// This is the core request processing method that handles route matching,
-    /// method validation, header transformation, and upstream communication.
-    /// It implements comprehensive error handling and timeout management for
-    /// reliable gateway operation.
+    /// method validation, header transformation, circuit breaker protection,
+    /// metrics collection, and upstream communication. It implements comprehensive
+    /// error handling and timeout management for reliable gateway operation.
     /// 
     /// # Parameters
     /// 
@@ -198,21 +198,32 @@ impl RouteHandler {
     /// # Returns
     /// 
     /// * `Ok(HttpResponse)` - Successfully forwarded request with upstream response
-    /// * `Err(ActixError)` - Request processing error (routing, upstream, timeout)
+    /// * `Err(ActixError)` - Request processing error (routing, upstream, timeout, circuit open)
     /// 
     /// # Request Processing Flow
     /// 
-    /// 1. **Route Resolution**: Matches request path against configured routes
-    /// 2. **Method Validation**: Verifies HTTP method is allowed for the route
-    /// 3. **Header Processing**: Converts and filters headers for upstream forwarding
-    /// 4. **Request Forwarding**: Sends request to upstream service with timeout
-    /// 5. **Response Processing**: Converts upstream response back to client format
+    /// 1. **Metrics Setup**: Initialize request timing and connection tracking
+    /// 2. **Route Resolution**: Matches request path against configured routes
+    /// 3. **Method Validation**: Verifies HTTP method is allowed for the route
+    /// 4. **Circuit Breaker Check**: Verifies upstream service availability
+    /// 5. **Header Processing**: Converts and filters headers for upstream forwarding
+    /// 6. **Request Forwarding**: Sends request to upstream service with timeout and circuit protection
+    /// 7. **Response Processing**: Converts upstream response back to client format
+    /// 8. **Metrics Recording**: Records request timing, success/failure, and connection cleanup
     /// 
     /// # Route Matching
     /// 
     /// Supports both static and dynamic routes:
     /// - Static: `/api/health` → `/internal/health`
     /// - Dynamic: `/users/{id}` → `/v1/user/{id}` (with parameter substitution)
+    /// 
+    /// # Circuit Breaker Protection
+    /// 
+    /// Each upstream service is protected by an independent circuit breaker:
+    /// - **Fast Failure**: Open circuits return 503 immediately without upstream calls
+    /// - **Service Isolation**: Failures in one service don't affect others  
+    /// - **Automatic Recovery**: Half-open state tests service recovery
+    /// - **Error Tracking**: Tracks consecutive failures and successes
     /// 
     /// # Header Processing
     /// 
@@ -226,6 +237,7 @@ impl RouteHandler {
     /// Returns specific errors for different failure modes:
     /// - **RouteNotFound**: No matching route configuration
     /// - **MethodNotAllowed**: HTTP method not permitted for the route
+    /// - **CircuitOpen**: Circuit breaker protecting upstream service (503)
     /// - **Timeout**: Upstream response exceeded configured timeout
     /// - **Upstream**: Connection or response errors from upstream service
     /// - **Config**: Route configuration or processing errors

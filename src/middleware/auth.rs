@@ -16,6 +16,34 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::rc::Rc;
 
+/// JWT claims structure containing standard and custom fields.
+/// 
+/// This structure represents the standard JWT claims along with application-specific
+/// fields used for authorization and user identification within the gateway.
+/// 
+/// # Fields
+/// 
+/// * `sub` - Subject identifier (typically user ID)
+/// * `exp` - Expiration time as Unix timestamp
+/// * `iat` - Issued at time as Unix timestamp  
+/// * `iss` - Optional issuer identifier for validation
+/// * `aud` - Optional audience identifier for validation
+/// * `roles` - Optional list of user roles for authorization
+/// 
+/// # Usage
+/// 
+/// ```rust
+/// use kairos_rs::middleware::auth::Claims;
+/// 
+/// let claims = Claims {
+///     sub: "user123".to_string(),
+///     exp: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp() as usize,
+///     iat: chrono::Utc::now().timestamp() as usize,
+///     iss: Some("kairos-gateway".to_string()),
+///     aud: Some("api-clients".to_string()),
+///     roles: Some(vec!["user".to_string(), "admin".to_string()]),
+/// };
+/// ```
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
@@ -26,6 +54,38 @@ pub struct Claims {
     pub roles: Option<Vec<String>>,
 }
 
+/// Configuration for JWT authentication middleware.
+/// 
+/// This structure holds all necessary configuration for JWT token validation,
+/// including the secret key, algorithm, and validation requirements. It supports
+/// builder pattern methods for convenient configuration.
+/// 
+/// # Fields
+/// 
+/// * `secret` - Secret key for JWT signature verification
+/// * `algorithm` - Cryptographic algorithm for token validation (default: HS256)
+/// * `required_claims` - Set of claim names that must be present in valid tokens
+/// * `issuer` - Optional expected issuer for iss claim validation
+/// * `audience` - Optional expected audience for aud claim validation
+/// 
+/// # Thread Safety
+/// 
+/// This struct implements `Clone` and can be safely shared across threads.
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use kairos_rs::middleware::auth::JwtConfig;
+/// 
+/// // Basic configuration
+/// let config = JwtConfig::new("my-secret-key".to_string());
+/// 
+/// // Advanced configuration with validation
+/// let config = JwtConfig::new("my-secret-key".to_string())
+///     .with_issuer("kairos-gateway".to_string())
+///     .with_audience("api-clients".to_string())
+///     .with_required_claims(vec!["sub".to_string(), "exp".to_string()]);
+/// ```
 #[derive(Clone)]
 pub struct JwtConfig {
     pub secret: String,
@@ -72,11 +132,68 @@ impl JwtConfig {
     }
 }
 
+/// JWT authentication middleware for Actix Web applications.
+/// 
+/// This middleware provides automated JWT token validation for protected routes.
+/// It extracts JWT tokens from the Authorization header, validates them against
+/// the configured parameters, and adds the decoded claims to the request extensions
+/// for use by downstream handlers.
+/// 
+/// # Architecture
+/// 
+/// The middleware uses a reference-counted configuration to enable efficient
+/// sharing across multiple request handlers without cloning expensive data.
+/// 
+/// # Authentication Flow
+/// 
+/// 1. Extract Bearer token from Authorization header
+/// 2. Decode and validate JWT signature using configured secret
+/// 3. Validate expiration, issuer, audience, and required claims
+/// 4. Add decoded claims to request extensions on success
+/// 5. Return 401 Unauthorized on validation failure
+/// 
+/// # Usage
+/// 
+/// ```rust
+/// use actix_web::{App, web, middleware};
+/// use kairos_rs::middleware::auth::{JwtAuth, JwtConfig};
+/// 
+/// let config = JwtConfig::new("secret".to_string())
+///     .with_issuer("kairos".to_string());
+/// let auth = JwtAuth::new(config);
+/// 
+/// let app = App::new()
+///     .wrap(auth)
+///     .route("/protected", web::get().to(handler));
+/// ```
+/// 
+/// # Error Handling
+/// 
+/// Returns HTTP 401 for invalid, expired, or missing tokens with descriptive
+/// error messages for debugging (while avoiding sensitive information exposure).
 pub struct JwtAuth {
     config: Rc<JwtConfig>,
 }
 
 impl JwtAuth {
+    /// Creates a new JWT authentication middleware instance.
+    /// 
+    /// # Parameters
+    /// 
+    /// * `config` - JWT configuration containing secret, validation rules, and options
+    /// 
+    /// # Returns
+    /// 
+    /// A new `JwtAuth` middleware ready to be applied to Actix Web applications.
+    /// 
+    /// # Example
+    /// 
+    /// ```rust
+    /// use kairos_rs::middleware::auth::{JwtAuth, JwtConfig};
+    /// 
+    /// let config = JwtConfig::new("my-secret".to_string());
+    /// let auth_middleware = JwtAuth::new(config);
+    /// ```
     pub fn new(config: JwtConfig) -> Self {
         Self {
             config: Rc::new(config),

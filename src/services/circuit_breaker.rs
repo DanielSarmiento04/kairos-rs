@@ -28,6 +28,36 @@ impl From<u8> for CircuitState {
     }
 }
 
+/// Configuration parameters for circuit breaker behavior.
+/// 
+/// This structure defines the thresholds and timeouts that control when a circuit
+/// breaker transitions between states (Closed, Open, HalfOpen). It provides
+/// sensible defaults while allowing customization for different service requirements.
+/// 
+/// # Fields
+/// 
+/// * `failure_threshold` - Number of consecutive failures to open the circuit (default: 5)
+/// * `success_threshold` - Number of consecutive successes to close the circuit (default: 3)
+/// * `timeout` - Request timeout before considering operation failed (default: 60s)
+/// * `reset_timeout` - Time to wait before transitioning from Open to HalfOpen (default: 30s)
+/// 
+/// # Usage
+/// 
+/// ```rust
+/// use std::time::Duration;
+/// use kairos_rs::services::circuit_breaker::CircuitBreakerConfig;
+/// 
+/// // Use defaults
+/// let config = CircuitBreakerConfig::default();
+/// 
+/// // Custom configuration for sensitive service
+/// let config = CircuitBreakerConfig {
+///     failure_threshold: 3,  // More sensitive to failures
+///     success_threshold: 5,  // More conservative recovery
+///     timeout: Duration::from_secs(30),
+///     reset_timeout: Duration::from_secs(60),
+/// };
+/// ```
 #[derive(Debug, Clone)]
 pub struct CircuitBreakerConfig {
     pub failure_threshold: u64,
@@ -47,6 +77,54 @@ impl Default for CircuitBreakerConfig {
     }
 }
 
+/// Circuit breaker implementation for protecting upstream services.
+/// 
+/// This struct implements the circuit breaker pattern to prevent cascading failures
+/// by monitoring request success/failure rates and automatically failing fast when
+/// an upstream service is degraded or unavailable.
+/// 
+/// # States
+/// 
+/// - **Closed**: Normal operation, requests pass through
+/// - **Open**: Circuit is open, requests fail immediately  
+/// - **HalfOpen**: Testing recovery, limited requests allowed
+/// 
+/// # Thread Safety
+/// 
+/// All operations are thread-safe using atomic operations and async RwLock.
+/// Multiple concurrent requests can safely interact with the same circuit breaker.
+/// 
+/// # Architecture
+/// 
+/// Uses atomic counters for performance-critical paths and async locks only for
+/// state transitions that require coordination.
+/// 
+/// # Example
+/// 
+/// ```rust
+/// use std::sync::Arc;
+/// use kairos_rs::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
+/// 
+/// let config = CircuitBreakerConfig::default();
+/// let breaker = CircuitBreaker::new("user-service".to_string(), config);
+/// 
+/// // Check if request should proceed
+/// if breaker.can_execute().await {
+///     match make_request().await {
+///         Ok(response) => {
+///             breaker.record_success().await;
+///             response
+///         }
+///         Err(error) => {
+///             breaker.record_failure().await;
+///             error
+///         }
+///     }
+/// } else {
+///     // Circuit is open, fail fast
+///     return Err("Service unavailable");
+/// }
+/// ```
 #[derive(Debug)]
 pub struct CircuitBreaker {
     config: CircuitBreakerConfig,
