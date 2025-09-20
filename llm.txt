@@ -1,0 +1,474 @@
+# Rust Project Guidelines (llm.txt)
+
+## Project Overview
+This file contains essential guidelines and best practices for Rust development, targeting Rust 1.87+ with modern practices from 2025.
+
+## Language Version & Edition
+- **Rust Version**: 1.87+ (Released May 15, 2025)
+- **Edition**: 2021 (recommended for new projects)
+- **MSRV Policy**: Support last 6 stable releases minimum
+
+## Key Rust 1.87 Features to Leverage
+- Anonymous pipes in standard library (`std::process::Command` integration)
+- Stabilized `asm_goto` feature for inline assembly
+- Open beginning ranges (`..EXPR`) after unary operators
+- Precise capturing in traits (`#![feature(precise_capturing_in_traits)]`)
+- Enhanced `Self: Sized` bounds handling
+
+## Code Style & Formatting
+
+### rustfmt Configuration
+```toml
+# rustfmt.toml
+max_width = 100
+hard_tabs = false
+tab_spaces = 4
+newline_style = "Unix"
+use_small_heuristics = "Default"
+reorder_imports = true
+reorder_modules = true
+remove_nested_parens = true
+edition = "2021"
+```
+
+### Clippy Lints
+Enable strict linting in `Cargo.toml`:
+```toml
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+```
+
+## Documentation Standards
+
+### Doc Comments Best Practices
+Use `///` for public APIs and `//!` for module-level documentation.
+
+```rust
+/// Represents a user account in the system.
+/// 
+/// This struct provides functionality for user management including
+/// authentication, profile updates, and permission handling.
+/// 
+/// # Examples
+/// 
+/// ```
+/// use myproject::User;
+/// 
+/// let user = User::new("alice", "alice@example.com");
+/// assert_eq!(user.username(), "alice");
+/// ```
+/// 
+/// # Errors
+/// 
+/// Returns [`UserError`] when:
+/// - Username contains invalid characters
+/// - Email format is invalid
+/// - Username already exists in the system
+/// 
+/// # Panics
+/// 
+/// This function will panic if the internal user ID counter overflows.
+/// This is extremely unlikely in practice.
+pub struct User {
+    username: String,
+    email: String,
+    id: u64,
+}
+
+impl User {
+    /// Creates a new user with the given username and email.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `username` - A string slice containing the desired username
+    /// * `email` - A valid email address as a string slice
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let user = User::new("bob", "bob@example.com");
+    /// ```
+    /// 
+    /// # Errors
+    /// 
+    /// Returns [`UserError::InvalidUsername`] if the username contains
+    /// prohibited characters or is too short/long.
+    pub fn new(username: &str, email: &str) -> Result<Self, UserError> {
+        // Implementation
+    }
+}
+```
+
+### Module Documentation
+```rust
+//! User management module.
+//! 
+//! This module provides comprehensive user account management functionality
+//! including registration, authentication, and profile management.
+//! 
+//! # Quick Start
+//! 
+//! ```
+//! use myproject::users::{User, UserManager};
+//! 
+//! let manager = UserManager::new();
+//! let user = manager.create_user("alice", "alice@example.com")?;
+//! ```
+//! 
+//! # Architecture
+//! 
+//! The module is organized around these core types:
+//! - [`User`] - Represents individual user accounts
+//! - [`UserManager`] - Handles user operations and persistence
+//! - [`UserError`] - Error types for user operations
+```
+
+## Error Handling Patterns
+
+### Error Types
+```rust
+/// Errors that can occur during user operations.
+#[derive(Debug, thiserror::Error)]
+pub enum UserError {
+    /// Username contains invalid characters or format.
+    #[error("Invalid username: {0}")]
+    InvalidUsername(String),
+    
+    /// Email address format is invalid.
+    #[error("Invalid email format: {0}")]
+    InvalidEmail(String),
+    
+    /// User already exists in the system.
+    #[error("User '{0}' already exists")]
+    UserExists(String),
+    
+    /// Database operation failed.
+    #[error("Database error")]
+    Database(#[from] DatabaseError),
+    
+    /// Network operation failed.
+    #[error("Network error")]
+    Network(#[from] NetworkError),
+}
+```
+
+### Result Type Aliases
+```rust
+/// Standard Result type for user operations.
+pub type UserResult<T> = Result<T, UserError>;
+```
+
+## Project Structure
+```
+src/
+├── lib.rs              # Library root with public API
+├── main.rs             # Binary entry point (if applicable)
+├── config/             # Configuration management
+│   ├── mod.rs
+│   └── settings.rs
+├── domain/             # Business logic
+│   ├── mod.rs
+│   ├── user.rs
+│   └── events.rs
+├── infrastructure/     # External concerns
+│   ├── mod.rs
+│   ├── database.rs
+│   └── http_client.rs
+├── utils/              # Utility functions
+│   ├── mod.rs
+│   └── validation.rs
+└── prelude.rs          # Common imports
+```
+
+## Dependency Management
+
+### Cargo.toml Structure
+```toml
+[package]
+name = "myproject"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.87.0"
+authors = ["Your Name <you@example.com>"]
+description = "A brief description"
+repository = "https://github.com/user/repo"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["keyword1", "keyword2"]
+categories = ["category1", "category2"]
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+# Testing
+tokio-test = "0.4"
+proptest = "1.0"
+rstest = "0.18"
+
+# Benchmarking
+criterion = { version = "0.5", features = ["html_reports"] }
+```
+
+## Testing Best Practices
+
+### Unit Tests
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::*;
+
+    #[fixture]
+    fn valid_user_data() -> (&'static str, &'static str) {
+        ("testuser", "test@example.com")
+    }
+
+    #[rstest]
+    fn test_user_creation_success(valid_user_data: (&str, &str)) {
+        let (username, email) = valid_user_data;
+        let result = User::new(username, email);
+        
+        assert!(result.is_ok());
+        let user = result.unwrap();
+        assert_eq!(user.username(), username);
+        assert_eq!(user.email(), email);
+    }
+
+    #[rstest]
+    #[case("", "test@example.com", UserError::InvalidUsername)]
+    #[case("validuser", "invalid-email", UserError::InvalidEmail)]
+    fn test_user_creation_errors(
+        #[case] username: &str,
+        #[case] email: &str,
+        #[case] expected_error: UserError,
+    ) {
+        let result = User::new(username, email);
+        assert!(result.is_err());
+        // Additional error type checking
+    }
+}
+```
+
+### Integration Tests
+```rust
+// tests/integration_test.rs
+use myproject::*;
+
+#[tokio::test]
+async fn test_full_user_workflow() {
+    let manager = UserManager::new().await;
+    
+    // Test user creation
+    let user = manager.create_user("integration_test", "test@example.com")
+        .await
+        .expect("User creation should succeed");
+    
+    // Test user retrieval
+    let retrieved = manager.get_user_by_username("integration_test")
+        .await
+        .expect("User retrieval should succeed");
+    
+    assert_eq!(user.id(), retrieved.id());
+}
+```
+
+## Security Best Practices
+
+### Safe Concurrency
+- Use Rust's safe concurrency APIs (Arc, Mutex, RwLock)
+- Avoid `unsafe` code unless absolutely necessary
+- Use structured concurrency with tokio's task management
+
+### Input Validation
+```rust
+use validator::{Validate, ValidationError};
+
+#[derive(Validate)]
+pub struct CreateUserRequest {
+    #[validate(length(min = 3, max = 50), regex = "USERNAME_REGEX")]
+    pub username: String,
+    
+    #[validate(email)]
+    pub email: String,
+    
+    #[validate(length(min = 8))]
+    pub password: String,
+}
+```
+
+### Secrets Management
+- Never hardcode secrets
+- Use environment variables or secure secret management
+- Zero secrets in version control
+
+## Performance Guidelines
+
+### Memory Management
+- Use `Box<T>` for heap allocation when needed
+- Prefer `&str` over `String` for borrowed data
+- Use `Cow<str>` for flexible ownership
+- Consider `Arc<str>` for shared immutable strings
+
+### Async Best Practices
+```rust
+// Prefer structured concurrency
+async fn process_users(users: Vec<User>) -> Result<Vec<ProcessedUser>, AppError> {
+    let tasks: Vec<_> = users
+        .into_iter()
+        .map(|user| tokio::spawn(async move { process_single_user(user).await }))
+        .collect();
+    
+    // Wait for all tasks and collect results
+    let mut results = Vec::new();
+    for task in tasks {
+        results.push(task.await??);
+    }
+    
+    Ok(results)
+}
+```
+
+## Build Configuration
+
+### Profile Optimization
+```toml
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true
+overflow-checks = true
+
+[profile.test]
+opt-level = 1
+debug = true
+```
+
+## CI/CD Integration
+
+### GitHub Actions Example
+```yaml
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: 1.87.0
+        components: rustfmt, clippy
+    
+    - name: Format check
+      run: cargo fmt --all -- --check
+    
+    - name: Clippy check
+      run: cargo clippy --all-targets --all-features -- -D warnings
+    
+    - name: Test
+      run: cargo test --all-features
+    
+    - name: Doc test
+      run: cargo test --doc
+```
+
+## Common Patterns
+
+### Builder Pattern
+```rust
+/// Configuration builder for database connections.
+#[derive(Debug, Default)]
+pub struct DatabaseConfigBuilder {
+    host: Option<String>,
+    port: Option<u16>,
+    database: Option<String>,
+    username: Option<String>,
+    password: Option<String>,
+}
+
+impl DatabaseConfigBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    
+    pub fn host(mut self, host: impl Into<String>) -> Self {
+        self.host = Some(host.into());
+        self
+    }
+    
+    pub fn port(mut self, port: u16) -> Self {
+        self.port = Some(port);
+        self
+    }
+    
+    pub fn build(self) -> Result<DatabaseConfig, ConfigError> {
+        Ok(DatabaseConfig {
+            host: self.host.ok_or(ConfigError::MissingHost)?,
+            port: self.port.unwrap_or(5432),
+            database: self.database.ok_or(ConfigError::MissingDatabase)?,
+            username: self.username.ok_or(ConfigError::MissingUsername)?,
+            password: self.password.ok_or(ConfigError::MissingPassword)?,
+        })
+    }
+}
+```
+
+### Trait Objects and Dynamic Dispatch
+```rust
+/// Trait for different storage backends.
+pub trait Storage: Send + Sync {
+    async fn store(&self, key: &str, value: &[u8]) -> Result<(), StorageError>;
+    async fn retrieve(&self, key: &str) -> Result<Vec<u8>, StorageError>;
+}
+
+/// Storage manager that can work with any storage implementation.
+pub struct StorageManager {
+    backend: Box<dyn Storage>,
+}
+
+impl StorageManager {
+    pub fn new(backend: Box<dyn Storage>) -> Self {
+        Self { backend }
+    }
+    
+    pub async fn save_user(&self, user: &User) -> Result<(), StorageError> {
+        let data = serde_json::to_vec(user)?;
+        self.backend.store(&format!("user:{}", user.id()), &data).await
+    }
+}
+```
+
+## License and Copyright
+This project follows Rust community standards for dual licensing (MIT OR Apache-2.0).
+
+---
+
+*This llm.txt file should be kept updated with project-specific guidelines and evolving Rust best practices.*
