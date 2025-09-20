@@ -101,6 +101,16 @@ pub enum GatewayError {
         /// Specific reason why the request was invalid
         reason: String 
     },
+
+    /// Circuit breaker is open, protecting upstream service.
+    /// 
+    /// This occurs when an upstream service has experienced too many failures
+    /// and the circuit breaker has opened to prevent further requests.
+    #[error("Circuit breaker is open for service: {service}")]
+    CircuitOpen {
+        /// The upstream service identifier (host:port)
+        service: String
+    },
 }
 
 impl actix_web::error::ResponseError for GatewayError {
@@ -176,6 +186,11 @@ impl actix_web::error::ResponseError for GatewayError {
                 actix_web::http::StatusCode::BAD_REQUEST,
                 "bad_request",
                 reason.clone()
+            ),
+            GatewayError::CircuitOpen { service } => (
+                actix_web::http::StatusCode::SERVICE_UNAVAILABLE,
+                "circuit_open",
+                format!("Service {} is currently unavailable (circuit breaker open)", service)
             ),
         };
         

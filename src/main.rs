@@ -105,11 +105,11 @@ mod routes;
 mod services;
 mod utils;
 
-use crate::config::settings::load_settings;
+use crate::config::{settings::load_settings, validation::ConfigValidator};
 use crate::logs::logger::configure_logger;
 use crate::middleware::security::security_headers;
 use crate::models::settings::Settings;
-use crate::routes::{health, http};
+use crate::routes::{health, http, metrics};
 use crate::services::http::RouteHandler;
 
 use actix_governor::{Governor, GovernorConfigBuilder};
@@ -199,9 +199,21 @@ async fn main() -> std::io::Result<()> {
 
     info!("Starting Kairos-rs API Gateway v{}", config.version);
 
-    config.validate().expect("Invalid configuration");
+    // Comprehensive configuration validation
+    let validation_result = ConfigValidator::validate_comprehensive(&config);
+    if !validation_result.is_valid {
+        error!("Configuration validation failed:");
+        for error in &validation_result.errors {
+            error!("  - {}", error);
+        }
+        std::process::exit(1);
+    }
+    info!("Configuration validated successfully with {} warnings", validation_result.warnings.len());
 
     let route_handler = RouteHandler::new(config.routers, 30); // 30 second timeout
+    
+    // Initialize metrics collector
+    let metrics_collector = metrics::MetricsCollector::default();
 
     // Configure rate limiting
     let governor_conf = GovernorConfigBuilder::default()
@@ -228,6 +240,7 @@ async fn main() -> std::io::Result<()> {
     // Start the HTTP server
     let server = HttpServer::new(move || {
         App::new()
+            .app_data(actix_web::web::Data::new(metrics_collector.clone()))
             .wrap(Governor::new(&governor_conf))
             .wrap(Logger::new(
                 r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#
@@ -235,6 +248,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(actix_web::middleware::Compress::default())
             .wrap(security_headers())
             .configure(health::configure_health)
+            .configure(metrics::configure_metrics)
             .configure(|cfg| http::configure_route(cfg, route_handler.clone()))
     })
     .bind((host.as_str(), port))?

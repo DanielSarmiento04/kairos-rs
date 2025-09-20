@@ -35,7 +35,7 @@ use serde::{Deserialize, Serialize};
 /// settings.validate().expect("Invalid configuration");
 /// println!("Loaded {} routes", settings.routers.len());
 /// ```
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Settings {
     /// Configuration schema version for compatibility checking.
     /// 

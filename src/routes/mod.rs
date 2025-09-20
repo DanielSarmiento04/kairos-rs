@@ -86,4 +86,5 @@
 
 pub mod health;
 pub mod http;
+pub mod metrics;
 pub mod websocket;

@@ -65,4 +65,5 @@
 //! // let response = handler.handle_request(req, body).await?;
 //! ```
 
+pub mod circuit_breaker;
 pub mod http;

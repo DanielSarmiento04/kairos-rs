@@ -1,5 +1,7 @@
 use crate::models::error::GatewayError;
 use crate::models::router::Router;
+use crate::routes::metrics::MetricsCollector;
+use crate::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
 use crate::utils::path::format_route;
 use crate::utils::route_matcher::RouteMatcher;
 
@@ -12,21 +14,23 @@ use reqwest::{
     header::HeaderMap as ReqwestHeaderMap, header::HeaderName, header::HeaderValue, Client,
     Method as ReqwestMethod,
 };
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::time::{timeout, Duration};
 
 /// High-performance HTTP request handler for the kairos-rs gateway.
 /// 
 /// The `RouteHandler` is responsible for processing incoming HTTP requests,
 /// finding matching routes, and forwarding requests to upstream services.
-/// It implements connection pooling, timeout management, and efficient header
-/// processing for optimal performance.
+/// It implements connection pooling, timeout management, circuit breaker protection,
+/// and efficient header processing for optimal performance and reliability.
 /// 
 /// # Architecture
 /// 
 /// ```text
-/// Client Request → RouteHandler → Route Matching → Request Forwarding → Upstream Service
-///                             ↓
+/// Client Request → RouteHandler → Route Matching → Circuit Breaker → Request Forwarding → Upstream Service
+///                             ↓                      ↓
 ///                    Response Processing ← Upstream Response
 /// ```
 /// 
@@ -71,13 +75,16 @@ pub struct RouteHandler {
     route_matcher: Arc<RouteMatcher>,
     /// Request timeout in seconds
     timeout_seconds: u64,
+    /// Circuit breakers for upstream services (keyed by host:port)
+    circuit_breakers: Arc<HashMap<String, Arc<CircuitBreaker>>>,
 }
 
 impl RouteHandler {
     /// Creates a new HTTP route handler with optimized client configuration.
     /// 
     /// This constructor sets up a high-performance HTTP client with connection
-    /// pooling and compiles all route patterns for efficient matching.
+    /// pooling, compiles all route patterns for efficient matching, and initializes
+    /// circuit breakers for upstream service protection.
     /// 
     /// # Parameters
     /// 
@@ -86,7 +93,7 @@ impl RouteHandler {
     /// 
     /// # Returns
     /// 
-    /// A new `RouteHandler` instance ready to process requests
+    /// A new `RouteHandler` instance ready to process requests with full circuit breaker protection
     /// 
     /// # HTTP Client Configuration
     /// 
@@ -101,6 +108,14 @@ impl RouteHandler {
     /// - Separates static and dynamic routes for optimal lookup performance
     /// - Compiles regex patterns for parameterized routes
     /// - Validates all route patterns at startup
+    /// 
+    /// # Circuit Breaker Initialization
+    /// 
+    /// Circuit breakers are created for each unique upstream service (host:port combination):
+    /// - **Failure Threshold**: 5 consecutive failures trigger circuit opening
+    /// - **Success Threshold**: 3 consecutive successes close an open circuit
+    /// - **Reset Timeout**: 30 seconds before transitioning from open to half-open
+    /// - **Service Isolation**: Each upstream service has independent protection
     /// 
     /// # Examples
     /// 
@@ -146,13 +161,25 @@ impl RouteHandler {
             .expect("Failed to create HTTP client");
 
         let route_matcher = Arc::new(
-            RouteMatcher::new(routes).expect("Failed to create route matcher")
+            RouteMatcher::new(routes.clone()).expect("Failed to create route matcher")
         );
+
+        // Create circuit breakers for each unique upstream service
+        let mut circuit_breakers = HashMap::new();
+        for route in &routes {
+            let service_key = format!("{}:{}", route.host, route.port);
+            if !circuit_breakers.contains_key(&service_key) {
+                let config = CircuitBreakerConfig::default();
+                let circuit_breaker = CircuitBreaker::new(service_key.clone(), config);
+                circuit_breakers.insert(service_key, circuit_breaker);
+            }
+        }
 
         Self {
             client,
             route_matcher,
             timeout_seconds,
+            circuit_breakers: Arc::new(circuit_breakers),
         }
     }
 
@@ -253,6 +280,34 @@ impl RouteHandler {
         req: HttpRequest,
         body: web::Bytes,
     ) -> Result<HttpResponse, ActixError> {
+        let start_time = Instant::now();
+
+        // Get metrics collector from app data if available
+        let metrics = req.app_data::<web::Data<MetricsCollector>>().cloned();
+        
+        // Track active connections
+        if let Some(ref metrics) = metrics {
+            metrics.increment_connections();
+        }
+
+        let result = self.handle_request_internal(req, body).await;
+        
+        // Record metrics
+        if let Some(ref metrics) = metrics {
+            let duration = start_time.elapsed();
+            let success = result.as_ref().map_or(false, |resp| resp.status().is_success());
+            metrics.record_request(success, duration);
+            metrics.decrement_connections();
+        }
+
+        result
+    }
+
+    async fn handle_request_internal(
+        &self,
+        req: HttpRequest,
+        body: web::Bytes,
+    ) -> Result<HttpResponse, ActixError> {
         let path = req.path().to_string();
         let method = req.method().clone();
 
@@ -310,22 +365,41 @@ impl RouteHandler {
             .body(body.to_vec())
             .headers(reqwest_headers);
 
-        // Execute request with timeout
-        let response = match timeout(
-            Duration::from_secs(self.timeout_seconds),
-            forwarded_req.send(),
-        )
-        .await
-        {
-            Ok(Ok(resp)) => resp,
-            Ok(Err(e)) => return Err(GatewayError::Upstream { 
-                message: e.to_string(),
-                url: target_url.clone(),
-                status: None,
-            }.into()),
-            Err(_) => return Err(GatewayError::Timeout { 
-                timeout: self.timeout_seconds 
-            }.into()),
+        // Get circuit breaker for this upstream service
+        let service_key = format!("{}:{}", route.host, route.port);
+        let circuit_breaker = self.circuit_breakers.get(&service_key)
+            .ok_or_else(|| GatewayError::Config { 
+                message: format!("No circuit breaker found for service: {}", service_key),
+                route: path.clone()
+            })?;
+
+        // Execute request with timeout and circuit breaker protection
+        let response = match circuit_breaker.call(async {
+            // Wrap the timeout and HTTP request in a simplified error type
+            match timeout(
+                Duration::from_secs(self.timeout_seconds),
+                forwarded_req.send(),
+            ).await {
+                Ok(Ok(resp)) => Ok(resp),
+                Ok(Err(e)) => Err(GatewayError::Upstream { 
+                    message: e.to_string(),
+                    url: target_url.clone(),
+                    status: None,
+                }),
+                Err(_) => Err(GatewayError::Timeout { 
+                    timeout: self.timeout_seconds 
+                }),
+            }
+        }).await {
+            Ok(resp) => resp,
+            Err(CircuitBreakerError::CircuitOpen) => {
+                return Err(GatewayError::CircuitOpen { 
+                    service: service_key 
+                }.into());
+            },
+            Err(CircuitBreakerError::OperationFailed(gateway_error)) => {
+                return Err(gateway_error.into());
+            }
         };
 
         // Convert upstream response to HttpResponse
