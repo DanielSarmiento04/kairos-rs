@@ -222,6 +222,8 @@ This project utilizes AI assistance for:
 
 We believe in transparency about development tools and methods used in open source projects.
 
+See the prompt guidance in [llm.txt](./llm.txt) for more details.
+
 ## Acknowledgments
 
 Built with these excellent Rust crates:
