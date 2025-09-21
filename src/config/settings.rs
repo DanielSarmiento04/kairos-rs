@@ -127,6 +127,10 @@ pub fn load_settings() -> Result<Settings, Box<dyn std::error::Error>> {
     let settings: Settings = serde_json::from_str(&config_data)
         .map_err(|e| format!("Invalid JSON: {}", e))?;
     
+    // Validate configuration
+    settings.validate()
+        .map_err(|e| format!("Configuration validation failed: {}", e))?;
+    
     debug!("Successfully loaded configuration with {} routes", settings.routers.len());
     
     Ok(settings)
