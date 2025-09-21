@@ -93,6 +93,11 @@ pub fn load_settings() -> Result<Settings, Box<dyn std::error::Error>> {
     // Validate path is safe to prevent path traversal attacks
     let path = Path::new(&config_path);
     
+    // Check if file exists first before canonicalizing
+    if !path.exists() {
+        return Err(format!("Cannot resolve config path '{}'", config_path).into());
+    }
+    
     // Resolve to absolute path and verify it's within allowed directories
     let canonical_path = path.canonicalize()
         .map_err(|e| format!("Cannot resolve config path '{}': {}", config_path, e))?;
@@ -120,7 +125,7 @@ pub fn load_settings() -> Result<Settings, Box<dyn std::error::Error>> {
         .map_err(|e| format!("Cannot read config file: {}", e))?;
     
     let settings: Settings = serde_json::from_str(&config_data)
-        .map_err(|e| format!("Invalid JSON in config file: {}", e))?;
+        .map_err(|e| format!("Invalid JSON: {}", e))?;
     
     debug!("Successfully loaded configuration with {} routes", settings.routers.len());
     
