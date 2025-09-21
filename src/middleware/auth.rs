@@ -45,6 +45,7 @@ use std::rc::Rc;
 /// };
 /// ```
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)] // Used in JWT validation and tests
 pub struct Claims {
     pub sub: String,
     pub exp: usize,
@@ -87,6 +88,7 @@ pub struct Claims {
 ///     .with_required_claims(vec!["sub".to_string(), "exp".to_string()]);
 /// ```
 #[derive(Clone)]
+#[allow(dead_code)] // Used in JWT authentication features
 pub struct JwtConfig {
     pub secret: String,
     pub algorithm: Algorithm,

@@ -13,12 +13,14 @@ use tokio::sync::{broadcast, RwLock};
 use tokio::time::interval;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // Used in tests and future features
 pub struct ConfigUpdate {
     pub settings: Settings,
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub version: u64,
 }
 
+#[allow(dead_code)] // Used in tests and future features
 pub struct ConfigWatcher {
     current_config: Arc<RwLock<ConfigUpdate>>,
     config_path: String,
@@ -26,6 +28,7 @@ pub struct ConfigWatcher {
     version_counter: Arc<std::sync::atomic::AtomicU64>,
 }
 
+#[allow(dead_code)] // Used in tests and future features
 impl ConfigWatcher {
     pub fn new(initial_config: Settings, config_path: String) -> Self {
         let (update_sender, _) = broadcast::channel(100);
@@ -147,6 +150,7 @@ impl ConfigWatcher {
     }
 }
 
+#[allow(dead_code)] // Used for file watching functionality
 async fn get_file_modified_time(path: &str) -> Option<std::time::SystemTime> {
     tokio::fs::metadata(path)
         .await
@@ -155,6 +159,7 @@ async fn get_file_modified_time(path: &str) -> Option<std::time::SystemTime> {
         .ok()
 }
 
+#[allow(dead_code)] // Used for configuration loading
 fn load_settings_from_path(path: &str) -> Result<Settings, Box<dyn std::error::Error>> {
     let config_content = std::fs::read_to_string(path)?;
     let settings: Settings = serde_json::from_str(&config_content)?;
@@ -163,10 +168,12 @@ fn load_settings_from_path(path: &str) -> Result<Settings, Box<dyn std::error::E
 
 /// Configuration management service that handles hot-reload and provides
 /// current configuration to other services
+#[allow(dead_code)] // Used in future features
 pub struct ConfigManager {
     watcher: ConfigWatcher,
 }
 
+#[allow(dead_code)] // Used in future features
 impl ConfigManager {
     pub fn new(initial_config: Settings, config_path: String) -> Self {
         Self {
