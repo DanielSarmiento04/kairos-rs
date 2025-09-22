@@ -1288,7 +1288,7 @@ dependencies = [
 
 [[package]]
 name = "kairos-rs"
-version = "0.2.4"
+version = "0.2.5"
 dependencies = [
  "actix-governor",
  "actix-web",
