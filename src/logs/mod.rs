@@ -111,3 +111,4 @@
 //! - **Security Auditing**: Security event logging and alerting
 
 pub mod logger;
+pub mod structured;

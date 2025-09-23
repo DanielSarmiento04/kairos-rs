@@ -106,7 +106,7 @@ mod services;
 mod utils;
 
 use crate::config::{settings::load_settings, validation::ConfigValidator};
-use crate::logs::logger::configure_logger;
+use crate::logs::{logger::configure_logger, structured::configure_enhanced_logger};
 use crate::middleware::{security::{security_headers, cors_headers}, rate_limit};
 use crate::models::settings::Settings;
 use crate::routes::{admin, health, http, metrics};
@@ -191,8 +191,18 @@ use tokio::signal;
 /// - `Err(std::io::Error)` - Server binding or startup error
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Initialize the logger
-    configure_logger();
+    // Initialize the logger based on configuration
+    let use_structured_logging = std::env::var("KAIROS_STRUCTURED_LOGGING")
+        .unwrap_or_else(|_| "false".to_string())
+        .to_lowercase() == "true";
+    
+    if use_structured_logging {
+        configure_enhanced_logger();
+        info!("Enhanced structured logging enabled");
+    } else {
+        configure_logger();
+        info!("Standard logging enabled");
+    }
 
     // Parse configuration
     let config: Settings = load_settings().expect("Failed to load settings");
