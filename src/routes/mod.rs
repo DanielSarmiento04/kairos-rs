@@ -84,6 +84,7 @@
 //! - Server-Sent Events (SSE) support
 //! - Advanced routing features (rate limiting per route, caching)
 
+pub mod admin;
 pub mod health;
 pub mod http;
 pub mod metrics;

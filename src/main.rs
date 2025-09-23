@@ -109,7 +109,7 @@ use crate::config::{settings::load_settings, validation::ConfigValidator};
 use crate::logs::logger::configure_logger;
 use crate::middleware::security::security_headers;
 use crate::models::settings::Settings;
-use crate::routes::{health, http, metrics};
+use crate::routes::{admin, health, http, metrics};
 use crate::services::http::RouteHandler;
 
 use actix_governor::{Governor, GovernorConfigBuilder};
@@ -249,6 +249,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(security_headers())
             .configure(health::configure_health)
             .configure(metrics::configure_metrics)
+            .configure(admin::configure_admin)
             .configure(|cfg| http::configure_route(cfg, route_handler.clone()))
     })
     .bind((host.as_str(), port))?
