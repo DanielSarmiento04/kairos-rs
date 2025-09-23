@@ -28,12 +28,18 @@ use serde::{Deserialize, Serialize};
 /// 
 /// Loading and validating settings:
 /// ```rust
+/// # use std::fs;
+/// # // Create a temporary config file for testing
+/// # let config_content = r#"{"version": 1, "routers": []}"#;
+/// # fs::write("./config.json", config_content).unwrap();
 /// use kairos_rs::models::settings::Settings;
 /// use kairos_rs::config::settings::load_settings;
 /// 
 /// let settings = load_settings().expect("Failed to load configuration");
 /// settings.validate().expect("Invalid configuration");
 /// println!("Loaded {} routes", settings.routers.len());
+/// # // Clean up
+/// # fs::remove_file("./config.json").ok();
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Settings {

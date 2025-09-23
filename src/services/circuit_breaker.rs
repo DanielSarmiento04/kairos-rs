@@ -105,25 +105,26 @@ impl Default for CircuitBreakerConfig {
 /// use std::sync::Arc;
 /// use kairos_rs::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
 /// 
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let config = CircuitBreakerConfig::default();
 /// let breaker = CircuitBreaker::new("user-service".to_string(), config);
 /// 
-/// // Check if request should proceed
-/// if breaker.can_execute().await {
-///     match make_request().await {
-///         Ok(response) => {
-///             breaker.record_success().await;
-///             response
-///         }
-///         Err(error) => {
-///             breaker.record_failure().await;
-///             error
-///         }
+/// // Example operation that might fail
+/// let result = breaker.call(async {
+///     // Simulated HTTP request
+///     if rand::random::<bool>() {
+///         Ok("Success response")
+///     } else {
+///         Err("Network error")
 ///     }
-/// } else {
-///     // Circuit is open, fail fast
-///     return Err("Service unavailable");
+/// }).await;
+/// 
+/// match result {
+///     Ok(response) => println!("Request succeeded: {}", response),
+///     Err(e) => println!("Request failed: {:?}", e),
 /// }
+/// # Ok(())
+/// # }
 /// ```
 #[derive(Debug)]
 pub struct CircuitBreaker {

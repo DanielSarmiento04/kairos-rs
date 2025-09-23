@@ -37,10 +37,12 @@ use std::time::{Duration, Instant};
 /// use actix_web::{web, App};
 /// use kairos_rs::routes::metrics::MetricsCollector;
 /// 
+/// # fn example() {
 /// let metrics = MetricsCollector::default();
 /// let app = App::new()
-///     .app_data(web::Data::new(metrics))
-///     .configure(metrics::configure_metrics);
+///     .app_data(web::Data::new(metrics.clone()))
+///     .configure(kairos_rs::routes::metrics::configure_metrics);
+/// # }
 /// ```
 /// 
 /// # Prometheus Compatibility
@@ -272,9 +274,12 @@ kairos_uptime_seconds {}
 /// use actix_web::{App, web};
 /// use kairos_rs::routes::metrics;
 /// 
+/// # fn example() {
+/// # let metrics_collector = kairos_rs::routes::metrics::MetricsCollector::default();
 /// let app = App::new()
 ///     .app_data(web::Data::new(metrics_collector))
 ///     .configure(metrics::configure_metrics);
+/// # }
 /// ```
 /// 
 /// # Integration
