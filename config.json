@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "routers": [
+    {
+      "host": "http://localhost",
+      "port": 3000,
+      "external_path": "/api/test",
+      "internal_path": "/test",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "host": "http://httpbin.org",
+      "port": 80,
+      "external_path": "/api/httpbin/{path}",
+      "internal_path": "/{path}",
+      "methods": ["GET", "POST", "PUT", "DELETE"]
+    }
+  ]
+}

@@ -256,7 +256,7 @@ async fn main() -> std::io::Result<()> {
 
     info!("Server started successfully");
 
-    // Graceful shutdown handling
+    // Enhanced graceful shutdown handling
     tokio::select! {
         result = server => {
             match result {
@@ -265,9 +265,27 @@ async fn main() -> std::io::Result<()> {
             }
         }
         _ = signal::ctrl_c() => {
-            info!("Received shutdown signal, stopping server...");
+            info!("Received SIGINT (Ctrl+C), initiating graceful shutdown...");
+        }
+        _ = signal_handler() => {
+            info!("Received SIGTERM, initiating graceful shutdown...");
         }
     }
 
+    info!("Graceful shutdown completed");
     Ok(())
+}
+
+/// Handle SIGTERM signal for graceful shutdown in containerized environments
+#[cfg(unix)]
+async fn signal_handler() {
+    use tokio::signal::unix::{signal, SignalKind};
+    let mut sigterm = signal(SignalKind::terminate()).expect("Failed to install SIGTERM handler");
+    sigterm.recv().await;
+}
+
+#[cfg(not(unix))]
+async fn signal_handler() {
+    // On Windows, we only handle Ctrl+C
+    std::future::pending::<()>().await;
 }
