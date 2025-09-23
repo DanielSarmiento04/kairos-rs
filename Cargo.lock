@@ -1296,6 +1296,7 @@ dependencies = [
  "base64",
  "chrono",
  "env_logger",
+ "futures",
  "futures-util",
  "jsonwebtoken",
  "log",

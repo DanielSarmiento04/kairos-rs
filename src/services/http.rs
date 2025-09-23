@@ -307,8 +307,17 @@ impl RouteHandler {
         // Record metrics
         if let Some(ref metrics) = metrics {
             let duration = start_time.elapsed();
-            let success = result.as_ref().map_or(false, |resp| resp.status().is_success());
-            metrics.record_request(success, duration);
+            match &result {
+                Ok(resp) => {
+                    let success = resp.status().is_success();
+                    let status_code = resp.status().as_u16();
+                    metrics.record_request(success, duration, status_code, None, None);
+                },
+                Err(_) => {
+                    // For errors, we don't have a specific status code, so use 500
+                    metrics.record_request(false, duration, 500, None, None);
+                }
+            }
             metrics.decrement_connections();
         }
 
@@ -624,5 +633,55 @@ impl RouteHandler {
             &ActixMethod::TRACE => ReqwestMethod::TRACE,
             _ => ReqwestMethod::GET, // or another default, or panic! if you want to handle this differently
         }
+    }
+
+    /// Gets the current state of all circuit breakers for monitoring.
+    /// 
+    /// This method provides access to circuit breaker states for monitoring
+    /// and observability purposes. It returns a HashMap with service identifiers
+    /// as keys and their current circuit breaker state information.
+    /// 
+    /// # Returns
+    /// 
+    /// A HashMap where:
+    /// - **Key**: Service identifier in format "host:port"
+    /// - **Value**: Tuple of (state, failure_count, success_count)
+    /// 
+    /// # Circuit States
+    /// 
+    /// - **Closed**: Normal operation, requests are forwarded
+    /// - **Open**: Circuit is open, requests fail fast
+    /// - **HalfOpen**: Testing recovery, limited requests allowed
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust
+    /// use kairos_rs::services::http::RouteHandler;
+    /// use kairos_rs::services::circuit_breaker::CircuitState;
+    /// 
+    /// # let handler = RouteHandler::new(vec![], 30);
+    /// let states = handler.get_circuit_breaker_states();
+    /// for (service, (state, failures, successes)) in states {
+    ///     println!("Service: {}, State: {:?}, Failures: {}, Successes: {}", 
+    ///              service, state, failures, successes);
+    /// }
+    /// ```
+    /// 
+    /// # Use Cases
+    /// 
+    /// - **Monitoring Dashboards**: Display circuit breaker status
+    /// - **Health Checks**: Include circuit state in health endpoints
+    /// - **Alerting**: Trigger alerts when circuits open
+    /// - **Debugging**: Understand upstream service health
+    pub fn get_circuit_breaker_states(&self) -> HashMap<String, (crate::services::circuit_breaker::CircuitState, u64, u64)> {
+        self.circuit_breakers
+            .iter()
+            .map(|(service, breaker)| {
+                let state = breaker.get_state();
+                let failure_count = breaker.get_failure_count();
+                let success_count = breaker.get_success_count();
+                (service.clone(), (state, failure_count, success_count))
+            })
+            .collect()
     }
 }

@@ -15,6 +15,8 @@ use tempfile::{NamedTempFile, TempDir};
 fn create_test_settings() -> Settings {
     Settings {
         version: 1,
+        jwt: None,
+        rate_limit: None,
         routers: vec![
             Router {
                 host: "http://localhost".to_string(),
@@ -22,6 +24,7 @@ fn create_test_settings() -> Settings {
                 external_path: "/api/test".to_string(),
                 internal_path: "/test".to_string(),
                 methods: vec!["GET".to_string(), "POST".to_string()],
+                auth_required: false,
             }
         ],
     }
@@ -158,6 +161,8 @@ fn test_load_settings_file_size_limit() {
 fn test_load_settings_complex_configuration() {
     let complex_settings = Settings {
         version: 2,
+        jwt: None,
+        rate_limit: None,
         routers: vec![
             Router {
                 host: "https://api.example.com".to_string(),
@@ -165,6 +170,7 @@ fn test_load_settings_complex_configuration() {
                 external_path: "/api/v1/users/{id}".to_string(),
                 internal_path: "/users/{id}".to_string(),
                 methods: vec!["GET".to_string(), "PUT".to_string(), "DELETE".to_string()],
+                auth_required: false,
             },
             Router {
                 host: "http://internal-service".to_string(),
@@ -172,6 +178,7 @@ fn test_load_settings_complex_configuration() {
                 external_path: "/internal/{service}/{action}".to_string(),
                 internal_path: "/{service}/{action}".to_string(),
                 methods: vec!["POST".to_string()],
+                auth_required: false,
             },
             Router {
                 host: "https://auth.example.com".to_string(),
@@ -179,6 +186,7 @@ fn test_load_settings_complex_configuration() {
                 external_path: "/auth/login".to_string(),
                 internal_path: "/v2/auth/login".to_string(),
                 methods: vec!["POST".to_string()],
+                auth_required: false,
             },
         ],
     };
@@ -207,6 +215,8 @@ fn test_load_settings_complex_configuration() {
 fn test_load_settings_empty_routers() {
     let empty_settings = Settings {
         version: 1,
+        jwt: None,
+        rate_limit: None,
         routers: vec![],
     };
     
@@ -227,6 +237,8 @@ fn test_load_settings_empty_routers() {
 fn test_load_settings_unicode_content() {
     let unicode_settings = Settings {
         version: 1,
+        jwt: None,
+        rate_limit: None,
         routers: vec![
             Router {
                 host: "https://测试.example.com".to_string(),
@@ -234,6 +246,7 @@ fn test_load_settings_unicode_content() {
                 external_path: "/api/用户/{id}".to_string(),
                 internal_path: "/users/{id}".to_string(),
                 methods: vec!["GET".to_string()],
+                auth_required: false,
             }
         ],
     };

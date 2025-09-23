@@ -13,6 +13,8 @@ use tempfile::NamedTempFile;
 fn create_test_settings() -> Settings {
     Settings {
         version: 1,
+        jwt: None,
+        rate_limit: None,
         routers: vec![
             Router {
                 host: "http://localhost".to_string(),
@@ -20,6 +22,7 @@ fn create_test_settings() -> Settings {
                 external_path: "/test".to_string(),
                 internal_path: "/test".to_string(),
                 methods: vec!["GET".to_string()],
+                auth_required: false,
             }
         ],
     }

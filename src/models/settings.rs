@@ -1,4 +1,5 @@
 use crate::models::router::Router;
+use crate::middleware::rate_limit::RateLimitConfig;
 use serde::{Deserialize, Serialize};
 
 /// JWT authentication configuration for the gateway.
@@ -110,6 +111,14 @@ pub struct Settings {
     /// or be disabled if no routes require authentication.
     #[serde(default)]
     pub jwt: Option<JwtSettings>,
+    
+    /// Advanced rate limiting configuration.
+    /// 
+    /// Optional rate limiting settings with support for multiple strategies
+    /// including per-IP, per-user, per-route, and composite limiting.
+    /// If not specified, basic rate limiting will be used.
+    #[serde(default)]
+    pub rate_limit: Option<RateLimitConfig>,
     
     /// Collection of route configurations defining how requests are forwarded.
     /// 

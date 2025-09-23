@@ -15,12 +15,15 @@ fn create_test_router(host: &str, external_path: &str, methods: Vec<&str>) -> Ro
         external_path: external_path.to_string(),
         internal_path: "/test".to_string(),
         methods: methods.iter().map(|s| s.to_string()).collect(),
+        auth_required: false,
     }
 }
 
 #[test]
 fn test_empty_configuration() {
     let settings = Settings {
+        jwt: None,
+        rate_limit: None,
         version: 1,
         routers: vec![],
     };
@@ -33,6 +36,8 @@ fn test_empty_configuration() {
 #[test]
 fn test_security_warnings() {
     let settings = Settings {
+        jwt: None,
+        rate_limit: None,
         version: 1,
         routers: vec![
             create_test_router("http://example.com", "/api/test", vec!["GET"]),
@@ -46,6 +51,8 @@ fn test_security_warnings() {
 #[test]
 fn test_performance_warnings() {
     let settings = Settings {
+        jwt: None,
+        rate_limit: None,
         version: 1,
         routers: vec![
             create_test_router("https://example.com", "/api/{a}/{b}/{c}/{d}", vec!["GET"]),
@@ -98,6 +105,8 @@ fn test_validation_result_add_recommendation() {
 #[test]
 fn test_localhost_http_warnings() {
     let settings = Settings {
+        jwt: None,
+        rate_limit: None,
         version: 1,
         routers: vec![
             create_test_router("http://localhost:3000", "/api/test", vec!["GET"]),
@@ -112,6 +121,8 @@ fn test_localhost_http_warnings() {
 #[test]
 fn test_overly_permissive_methods() {
     let settings = Settings {
+        jwt: None,
+        rate_limit: None,
         version: 1,
         routers: vec![
             create_test_router("https://example.com", "/api/test", 
@@ -126,6 +137,8 @@ fn test_overly_permissive_methods() {
 #[test]
 fn test_path_traversal_detection() {
     let settings = Settings {
+        jwt: None,
+        rate_limit: None,
         version: 1,
         routers: vec![
             Router {
@@ -146,6 +159,8 @@ fn test_path_traversal_detection() {
 #[test]
 fn test_duplicate_route_paths() {
     let settings = Settings {
+        jwt: None,
+        rate_limit: None,
         version: 1,
         routers: vec![
             create_test_router("https://example.com", "/api/test", vec!["GET"]),
@@ -161,6 +176,8 @@ fn test_duplicate_route_paths() {
 #[test]
 fn test_mixed_http_https_warnings() {
     let settings = Settings {
+        jwt: None,
+        rate_limit: None,
         version: 1,
         routers: vec![
             create_test_router("http://example.com", "/api/insecure", vec!["GET"]),
@@ -177,6 +194,8 @@ fn test_mixed_http_https_warnings() {
 #[test]
 fn test_all_http_routes_warning() {
     let settings = Settings {
+        jwt: None,
+        rate_limit: None,
         version: 1,
         routers: vec![
             create_test_router("http://example1.com", "/api/test1", vec!["GET"]),
@@ -197,6 +216,8 @@ fn test_high_dynamic_routes_warning() {
     }
     
     let settings = Settings {
+        jwt: None,
+        rate_limit: None,
         version: 1,
         routers,
     };
@@ -208,6 +229,8 @@ fn test_high_dynamic_routes_warning() {
 #[test]
 fn test_static_route_recommendation() {
     let settings = Settings {
+        jwt: None,
+        rate_limit: None,
         version: 1,
         routers: vec![
             create_test_router("https://example.com", "/api/{id}", vec!["GET"]),
@@ -222,6 +245,8 @@ fn test_static_route_recommendation() {
 #[test]
 fn test_valid_configuration() {
     let settings = Settings {
+        jwt: None,
+        rate_limit: None,
         version: 1,
         routers: vec![
             create_test_router("https://example.com", "/api/health", vec!["GET"]),
