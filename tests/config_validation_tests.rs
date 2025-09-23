@@ -147,6 +147,7 @@ fn test_path_traversal_detection() {
                 external_path: "/api/../admin".to_string(),
                 internal_path: "/test".to_string(),
                 methods: vec!["GET".to_string()],
+                auth_required: false,
             },
         ],
     };

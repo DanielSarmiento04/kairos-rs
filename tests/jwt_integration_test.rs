@@ -24,6 +24,7 @@ fn create_test_settings() -> Settings {
     Settings {
         version: 1,
         jwt: Some(create_test_jwt_config()),
+        rate_limit: None,
         routers: vec![
             // Public route - no authentication required
             Router {

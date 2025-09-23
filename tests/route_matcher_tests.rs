@@ -10,6 +10,7 @@ fn create_test_routes() -> Vec<Router> {
             external_path: "/api/identity/register/v3".to_string(),
             internal_path: "/api/identity/register".to_string(),
             methods: vec!["POST".to_string(), "GET".to_string()],
+            auth_required: false,
         },
         Router {
             host: "https://google.com".to_string(),
@@ -17,6 +18,7 @@ fn create_test_routes() -> Vec<Router> {
             external_path: "/identity/register/v2".to_string(),
             internal_path: "/".to_string(),
             methods: vec!["POST".to_string(), "GET".to_string()],
+            auth_required: false,
         },
         Router {
             host: "https://http.cat".to_string(),
@@ -24,6 +26,7 @@ fn create_test_routes() -> Vec<Router> {
             external_path: "/cats/{id}".to_string(),
             internal_path: "/{id}".to_string(),
             methods: vec!["GET".to_string()],
+            auth_required: false,
         },
         Router {
             host: "http://api.example.com".to_string(),
@@ -31,6 +34,7 @@ fn create_test_routes() -> Vec<Router> {
             external_path: "/api/users/{user_id}".to_string(),
             internal_path: "/users/{user_id}".to_string(),
             methods: vec!["GET".to_string(), "PUT".to_string(), "DELETE".to_string()],
+            auth_required: false,
         },
         Router {
             host: "http://api.example.com".to_string(),
@@ -38,6 +42,7 @@ fn create_test_routes() -> Vec<Router> {
             external_path: "/api/products/{product_id}/details".to_string(),
             internal_path: "/products/{product_id}/info".to_string(),
             methods: vec!["GET".to_string()],
+            auth_required: false,
         },
         Router {
             host: "http://api.example.com".to_string(),
@@ -45,6 +50,7 @@ fn create_test_routes() -> Vec<Router> {
             external_path: "/api/orders/{order_id}/items/{item_id}".to_string(),
             internal_path: "/orders/{order_id}/items/{item_id}".to_string(),
             methods: vec!["GET".to_string(), "PUT".to_string()],
+            auth_required: false,
         },
         Router {
             host: "http://static.example.com".to_string(),
@@ -52,6 +58,7 @@ fn create_test_routes() -> Vec<Router> {
             external_path: "/api/static/path".to_string(),
             internal_path: "/static".to_string(),
             methods: vec!["GET".to_string()],
+            auth_required: false,
         },
         Router {
             host: "http://static.example.com".to_string(),
@@ -59,6 +66,7 @@ fn create_test_routes() -> Vec<Router> {
             external_path: "/api/static/path/details".to_string(),
             internal_path: "/static/details".to_string(),
             methods: vec!["GET".to_string()],
+            auth_required: false,
         },
     ]
 }
@@ -218,6 +226,7 @@ mod route_matcher_tests {
                 external_path: "/api/users/{user_id".to_string(), // Missing closing brace
                 internal_path: "/users/{user_id}".to_string(),
                 methods: vec!["GET".to_string()],
+            auth_required: false,
             },
             Router {
                 host: "http://localhost".to_string(),
@@ -225,6 +234,7 @@ mod route_matcher_tests {
                 external_path: "/api/users/{user id}".to_string(), // Space in parameter name
                 internal_path: "/users/{user_id}".to_string(),
                 methods: vec!["GET".to_string()],
+            auth_required: false,
             },
             Router {
                 host: "http://localhost".to_string(),
@@ -232,6 +242,7 @@ mod route_matcher_tests {
                 external_path: "/api/users/{}".to_string(), // Empty parameter name
                 internal_path: "/users/{}".to_string(),
                 methods: vec!["GET".to_string()],
+            auth_required: false,
             },
         ];
 

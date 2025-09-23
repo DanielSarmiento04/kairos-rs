@@ -13,6 +13,7 @@ async fn test_simple_circuit_breaker() {
             external_path: "/test".to_string(),
             internal_path: "/test".to_string(),
             methods: vec!["GET".to_string()],
+            auth_required: false,
         }
     ];
     let route_handler = RouteHandler::new(routes, 5);
