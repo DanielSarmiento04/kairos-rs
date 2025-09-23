@@ -1,5 +1,11 @@
 {
     "version": 1,
+    "jwt": {
+        "secret": "your-super-secure-jwt-secret-key-must-be-at-least-32-characters-long",
+        "issuer": "kairos-gateway",
+        "audience": "api-clients",
+        "required_claims": ["sub", "exp"]
+    },
     "routers": [
         {
             "host": "http://localhost",
@@ -9,7 +15,8 @@
             "methods": [
                 "POST",
                 "GET"
-            ]
+            ],
+            "auth_required": false
         },
         {
             "host": "https://google.com",
@@ -19,7 +26,8 @@
             "methods": [
                 "POST",
                 "GET"
-            ]
+            ],
+            "auth_required": false
         },
         {
             "host": "https://http.cat",
@@ -28,7 +36,18 @@
             "internal_path": "/{id}",
             "methods": [
                 "GET"
-            ]
+            ],
+            "auth_required": false
+        },
+        {
+            "host": "https://http.cat",
+            "port": 443,
+            "external_path": "/protected/cats/{id}",
+            "internal_path": "/{id}",
+            "methods": [
+                "GET"
+            ],
+            "auth_required": true
         }
     ]
 }

@@ -53,6 +53,10 @@
 //! # Examples
 //! 
 //! ```rust
+//! # use std::fs;
+//! # // Create a temporary config file for testing
+//! # let config_content = r#"{"version": 1, "routers": []}"#;
+//! # fs::write("./config.json", config_content).unwrap();
 //! use kairos_rs::config::settings::load_settings;
 //! 
 //! // Load configuration with default settings
@@ -62,6 +66,8 @@
 //! config.validate().expect("Invalid configuration");
 //! 
 //! println!("Loaded {} routes", config.routers.len());
+//! # // Clean up
+//! # fs::remove_file("./config.json").ok();
 //! ```
 //! 
 //! # Error Handling

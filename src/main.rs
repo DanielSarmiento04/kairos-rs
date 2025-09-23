@@ -109,7 +109,7 @@ use crate::config::{settings::load_settings, validation::ConfigValidator};
 use crate::logs::logger::configure_logger;
 use crate::middleware::security::security_headers;
 use crate::models::settings::Settings;
-use crate::routes::{health, http, metrics};
+use crate::routes::{auth_http, health, metrics};
 use crate::services::http::RouteHandler;
 
 use actix_governor::{Governor, GovernorConfigBuilder};
@@ -210,7 +210,7 @@ async fn main() -> std::io::Result<()> {
     }
     info!("Configuration validated successfully with {} warnings", validation_result.warnings.len());
 
-    let route_handler = RouteHandler::new(config.routers, 30); // 30 second timeout
+    let route_handler = RouteHandler::new(config.routers.clone(), 30); // 30 second timeout
     
     // Initialize metrics collector
     let metrics_collector = metrics::MetricsCollector::default();
@@ -249,7 +249,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(security_headers())
             .configure(health::configure_health)
             .configure(metrics::configure_metrics)
-            .configure(|cfg| http::configure_route(cfg, route_handler.clone()))
+            .configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler.clone(), &config))
     })
     .bind((host.as_str(), port))?
     .run();

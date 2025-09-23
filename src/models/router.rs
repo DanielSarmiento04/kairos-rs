@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 /// Configuration for HTTP route forwarding in the kairos-rs gateway.
 /// 
 /// A `Router` defines how external requests are mapped to internal services,
-/// including host translation, path transformation, and method validation.
+/// including host translation, path transformation, method validation, and
+/// optional authentication requirements.
 /// 
 /// # Examples
 /// 
@@ -14,18 +15,20 @@ use serde::{Deserialize, Serialize};
 ///   "port": 8080,
 ///   "external_path": "/api/users/{id}",
 ///   "internal_path": "/v1/user/{id}",
-///   "methods": ["GET", "POST", "PUT"]
+///   "methods": ["GET", "POST", "PUT"],
+///   "auth_required": false
 /// }
 /// ```
 /// 
-/// Static route (no parameters):
+/// Protected route with JWT authentication:
 /// ```json
 /// {
-///   "host": "https://auth-service",
+///   "host": "https://auth-service", 
 ///   "port": 443,
-///   "external_path": "/auth/login",
-///   "internal_path": "/authenticate",
-///   "methods": ["POST"]
+///   "external_path": "/auth/profile",
+///   "internal_path": "/user/profile",
+///   "methods": ["GET", "PUT"],
+///   "auth_required": true
 /// }
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -74,6 +77,22 @@ pub struct Router {
     /// - `["POST", "PUT"]` (write operations)
     /// - `["GET", "POST", "PUT", "DELETE"]` (full CRUD)
     pub methods: Vec<String>,
+
+    /// Whether JWT authentication is required for this route.
+    /// 
+    /// When `true`, the request must include a valid JWT token in the
+    /// Authorization header. The token will be validated according to
+    /// the global JWT configuration.
+    /// 
+    /// # Default
+    /// 
+    /// If not specified, defaults to `false` (no authentication required).
+    /// 
+    /// # Examples
+    /// - `false` for public endpoints (health checks, static content)
+    /// - `true` for protected endpoints (user data, admin operations)
+    #[serde(default)]
+    pub auth_required: bool,
 }
 
 impl Router {

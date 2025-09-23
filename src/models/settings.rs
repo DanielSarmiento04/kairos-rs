@@ -1,24 +1,78 @@
 use crate::models::router::Router;
 use serde::{Deserialize, Serialize};
 
+/// JWT authentication configuration for the gateway.
+/// 
+/// This structure defines the JWT validation parameters used by the
+/// authentication middleware when protecting routes.
+/// 
+/// # Examples
+/// 
+/// ```json
+/// {
+///   "secret": "your-secret-key",
+///   "issuer": "kairos-gateway",
+///   "audience": "api-clients",
+///   "required_claims": ["sub", "exp"]
+/// }
+/// ```
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct JwtSettings {
+    /// Secret key used for JWT signature validation.
+    /// Should be a strong, randomly generated secret.
+    pub secret: String,
+
+    /// Optional expected issuer for iss claim validation.
+    /// If specified, JWT tokens must have a matching iss claim.
+    pub issuer: Option<String>,
+
+    /// Optional expected audience for aud claim validation.
+    /// If specified, JWT tokens must have a matching aud claim.
+    pub audience: Option<String>,
+
+    /// List of claim names that must be present in valid tokens.
+    /// Standard claims include: sub, exp, iat, iss, aud
+    #[serde(default)]
+    pub required_claims: Vec<String>,
+}
+
+impl Default for JwtSettings {
+    fn default() -> Self {
+        Self {
+            secret: std::env::var("JWT_SECRET")
+                .unwrap_or_else(|_| "please-change-this-secret".to_string()),
+            issuer: None,
+            audience: None,
+            required_claims: vec!["sub".to_string(), "exp".to_string()],
+        }
+    }
+}
+
 /// Application configuration settings for the kairos-rs gateway.
 /// 
 /// This structure contains the complete configuration needed to run the gateway,
-/// including version information and all route definitions. The configuration
-/// is typically loaded from a JSON file and validated before use.
+/// including version information, route definitions, and authentication settings.
+/// The configuration is typically loaded from a JSON file and validated before use.
 /// 
 /// # Configuration File Format
 /// 
 /// ```json
 /// {
 ///   "version": 1,
+///   "jwt": {
+///     "secret": "your-secret-key",
+///     "issuer": "kairos-gateway",
+///     "audience": "api-clients",
+///     "required_claims": ["sub", "exp"]
+///   },
 ///   "routers": [
 ///     {
 ///       "host": "http://backend-service",
 ///       "port": 8080,
 ///       "external_path": "/api/users/{id}",
 ///       "internal_path": "/v1/user/{id}",
-///       "methods": ["GET", "POST", "PUT"]
+///       "methods": ["GET", "POST", "PUT"],
+///       "auth_required": true
 ///     }
 ///   ]
 /// }
@@ -49,6 +103,14 @@ pub struct Settings {
     /// maintaining backward compatibility. Currently expected to be `1`.
     pub version: u8,
     
+    /// JWT authentication configuration.
+    /// 
+    /// Optional JWT settings for routes that require authentication.
+    /// If not specified, JWT authentication will use default settings
+    /// or be disabled if no routes require authentication.
+    #[serde(default)]
+    pub jwt: Option<JwtSettings>,
+    
     /// Collection of route configurations defining how requests are forwarded.
     /// 
     /// Each router defines a mapping from external client requests to internal
@@ -59,23 +121,25 @@ pub struct Settings {
 }
 
 impl Settings {
-    /// Validates all router configurations in the settings.
+    /// Validates all router configurations and JWT settings.
     /// 
     /// This method performs comprehensive validation of the entire configuration
-    /// by validating each individual router. It ensures that all route definitions
-    /// are properly formatted and contain valid values before the gateway starts.
+    /// by validating each individual router and the JWT configuration. It ensures
+    /// that all route definitions are properly formatted and contain valid values
+    /// before the gateway starts.
     /// 
     /// # Returns
     /// 
-    /// - `Ok(())` if all router configurations are valid
+    /// - `Ok(())` if all configurations are valid
     /// - `Err(String)` with the first validation error encountered
     /// 
     /// # Validation Process
     /// 
-    /// 1. Iterates through all routers in configuration order
-    /// 2. Calls `Router::validate()` on each router
-    /// 3. Returns immediately on first validation failure
-    /// 4. Only returns `Ok(())` if all routers pass validation
+    /// 1. Validates JWT configuration if any routes require authentication
+    /// 2. Iterates through all routers in configuration order
+    /// 3. Calls `Router::validate()` on each router
+    /// 4. Returns immediately on first validation failure
+    /// 5. Only returns `Ok(())` if all configurations pass validation
     /// 
     /// # Examples
     /// 
@@ -85,6 +149,7 @@ impl Settings {
     /// 
     /// let settings = Settings {
     ///     version: 1,
+    ///     jwt: None,
     ///     routers: vec![
     ///         Router {
     ///             host: "http://localhost".to_string(),
@@ -92,6 +157,7 @@ impl Settings {
     ///             external_path: "/api/test".to_string(),
     ///             internal_path: "/test".to_string(),
     ///             methods: vec!["GET".to_string()],
+    ///             auth_required: false,
     ///         }
     ///     ],
     /// };
@@ -101,17 +167,40 @@ impl Settings {
     /// 
     /// # Errors
     /// 
-    /// Returns the first validation error from any router in the configuration.
+    /// Returns the first validation error from any router or JWT configuration.
     /// Common errors include:
+    /// - Missing JWT configuration when routes require authentication
     /// - Invalid host URLs (missing protocol)
     /// - Invalid port numbers (0 or out of range)
     /// - Malformed paths (not starting with `/`)
     /// - Invalid HTTP methods
     /// - Empty methods list
     pub fn validate(&self) -> Result<(), String> {
+        // Check if any routes require authentication
+        let has_auth_routes = self.routers.iter().any(|r| r.auth_required);
+        
+        if has_auth_routes && self.jwt.is_none() {
+            return Err("JWT configuration is required when routes have auth_required=true".to_string());
+        }
+        
+        // Validate JWT settings if present
+        if let Some(ref jwt) = self.jwt {
+            if jwt.secret.is_empty() {
+                return Err("JWT secret cannot be empty".to_string());
+            }
+            if jwt.secret == "please-change-this-secret" {
+                return Err("JWT secret must be changed from default value".to_string());
+            }
+            if jwt.secret.len() < 32 {
+                return Err("JWT secret should be at least 32 characters for security".to_string());
+            }
+        }
+        
+        // Validate all routers
         for route in &self.routers {
             route.validate()?;
         }
+        
         Ok(())
     }
 }
