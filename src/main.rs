@@ -107,7 +107,7 @@ mod utils;
 
 use crate::config::{settings::load_settings, validation::ConfigValidator};
 use crate::logs::logger::configure_logger;
-use crate::middleware::security::security_headers;
+use crate::middleware::{security::{security_headers, cors_headers}, rate_limit};
 use crate::models::settings::Settings;
 use crate::routes::{admin, health, http, metrics};
 use crate::services::http::RouteHandler;
@@ -215,7 +215,20 @@ async fn main() -> std::io::Result<()> {
     // Initialize metrics collector
     let metrics_collector = metrics::MetricsCollector::default();
 
-    // Configure rate limiting
+    // Configure rate limiting (per-route or global)
+    let use_per_route_limits = std::env::var("KAIROS_USE_PER_ROUTE_LIMITS")
+        .unwrap_or_else(|_| "false".to_string())
+        .to_lowercase() == "true";
+    
+    if use_per_route_limits {
+        info!("Using per-route rate limiting configuration");
+        let route_limits = rate_limit::load_route_rate_limits();
+        info!("Loaded {} custom rate limit rules", route_limits.len());
+    } else {
+        info!("Using global rate limiting (100 req/s, 200 burst)");
+    }
+    
+    // Create global rate limiter configuration for backward compatibility
     let governor_conf = GovernorConfigBuilder::default()
         .per_second(100) // 100 requests per second
         .burst_size(200) // Allow bursts up to 200 requests
@@ -247,6 +260,7 @@ async fn main() -> std::io::Result<()> {
             ))
             .wrap(actix_web::middleware::Compress::default())
             .wrap(security_headers())
+            .wrap(cors_headers())
             .configure(health::configure_health)
             .configure(metrics::configure_metrics)
             .configure(admin::configure_admin)
