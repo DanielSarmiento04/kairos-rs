@@ -221,6 +221,12 @@ impl RateLimitStore {
         // Calculate token refill rate (tokens per second)
         let refill_rate = config.requests_per_window as f64 / config.window_duration.as_secs_f64();
         
+        // For new entries, initialize with the base request limit (not burst)
+        // This allows immediate requests while respecting the configured rate
+        if entry.available_tokens == 0.0 && time_passed < 0.001 {
+            entry.available_tokens = config.requests_per_window as f64;
+        }
+        
         // Refill tokens based on time passed
         let max_tokens = (config.requests_per_window + config.burst_allowance) as f64;
         entry.available_tokens = (entry.available_tokens + time_passed * refill_rate).min(max_tokens);
