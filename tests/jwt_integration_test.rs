@@ -147,6 +147,7 @@ async fn test_jwt_config_validation() {
     let invalid_settings = Settings {
         version: 1,
         jwt: None,
+        rate_limit: None,
         routers: vec![
             Router {
                 host: "http://example.com".to_string(),
@@ -178,6 +179,7 @@ async fn test_jwt_secret_validation() {
             audience: None,
             required_claims: vec![],
         }),
+        rate_limit: None,
         routers: vec![
             Router {
                 host: "http://example.com".to_string(),
@@ -202,6 +204,7 @@ async fn test_jwt_secret_validation() {
             audience: None,
             required_claims: vec![],
         }),
+        rate_limit: None,
         routers: vec![
             Router {
                 host: "http://example.com".to_string(),
