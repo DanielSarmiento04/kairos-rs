@@ -4,7 +4,39 @@
 > **Last Updated**: September 24, 2025  
 >## 🔥 Immediate Priorities (Next 2 Weeks)
 
-1. **Implement load balancing strategies** - Round-robin, weighted, health-based
+1. **Imp- [ ]** AI Integration POC** - Experiment with LLM request transformation
+
+## 🤖 AI/LLM Gateway Vision
+
+**Innovative Use Cases for AI-Powered API Gateway:**
+
+### Smart Request Routing
+- **Content Analysis**: Route `/api/translate` requests to different translation services based on detected language complexity
+- **Load Prediction**: Use ML to predict which backend will handle requests most efficiently
+- **Failover Intelligence**: AI-driven decisions on when and where to route during service degradation
+
+### LLM-Enhanced Request Processing
+- **Request Transformation**: Convert REST to GraphQL automatically based on request intent
+- **Response Enrichment**: Use LLMs to add context or explanations to API responses
+- **Query Optimization**: Automatically optimize database queries or API calls using AI insights
+
+### Intelligent Rate Limiting & Security
+- **Behavioral Analysis**: Detect abnormal request patterns and adjust rate limits dynamically
+- **Threat Detection**: Use AI to identify potential attacks or abuse patterns
+- **Personalized Limits**: Adjust rate limits based on user behavior and request complexity
+
+### Developer Experience AI
+- **Auto-Documentation**: Generate API documentation from request/response patterns
+- **Performance Insights**: AI-generated recommendations for API optimization
+- **Configuration Assistance**: Smart suggestions for gateway configuration based on usage patterns
+
+**Implementation Approach:**
+- Start with simple ML models for load balancing
+- Integrate with popular LLM APIs (OpenAI, Anthropic, local models)
+- Build plugin architecture for custom AI modules
+- Focus on performance - AI decisions should add <5ms latency
+
+## Success Metricsent load balancing strategies** - Round-robin, weighted, health-based
 2. **Add retry logic with backoff** - Configurable retry policies  
 3. **Request transformation** - Header manipulation, path rewriting
 4. **Performance optimizations** - Connection pooling improvements
@@ -18,7 +50,7 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 
 **Future Vision**: A solid, reliable gateway that developers actually want to use.
 
-## 🎯 Current Status (What Actually Works)
+## Current Status (What Actually Works)
 
 - ✅ Basic HTTP request routing
 - ✅ Dynamic path parameters (`/users/{id}` → `/users/123`)
@@ -34,7 +66,7 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 
 **Performance**: ~200k route matches/sec on M1 MacBook Pro
 
-## 🚧 What's Missing (Honestly)
+## What's Missing (Honestly)
 
 - No load balancing strategies
 - No caching layer
@@ -92,7 +124,17 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 - [ ] **Compression** - gzip/brotli response compression
 - [ ] **Performance monitoring** - Latency histograms, throughput
 
-### Phase 4: Developer Experience (Months 4-6)
+### Phase 4: AI-Powered Gateway Features (Months 4-6) 🤖 **NEW**
+**Goal**: Leverage AI/LLM capabilities for intelligent routing and request processing
+
+- [ ] **AI-powered route optimization** - ML-based routing decisions based on load, latency, and success rates
+- [ ] **LLM request transformation** - Use LLMs to intelligently transform requests/responses
+- [ ] **Smart load balancing** - AI-driven backend selection based on request content analysis
+- [ ] **Intelligent rate limiting** - Dynamic rate limits based on request patterns and user behavior
+- [ ] **Content-aware routing** - Route requests to specialized backends based on content analysis
+- [ ] **Auto-scaling recommendations** - AI-generated insights for infrastructure optimization
+
+### Phase 5: Developer Experience (Months 6-8)
 **Goal**: Make it easy to use and manage
 
 - [ ] **Admin UI** - Web interface for configuration
@@ -102,7 +144,7 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 
 ---
 
-## � Immediate Priorities (Next 2 Weeks)
+## Immediate Priorities (Next 2 Weeks)
 
 1. **Fix configuration validation** - Currently accepts invalid configs
 2. **Add proper error responses** - Return structured JSON errors  
@@ -110,7 +152,7 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 4. **Write more tests** - Integration tests for error cases
 5. **Improve documentation** - Add more real-world examples
 
-## 💡 Feature Requests We've Received
+## Feature Requests We've Received
 
 Based on early feedback:
 
@@ -119,8 +161,9 @@ Based on early feedback:
 - ✅ **Metrics/monitoring** - COMPLETED - Required for production use
 - ✅ **Better error handling** - COMPLETED - Current errors are helpful
 - [ ] **Request transformation** - PLANNED - Header manipulation, path rewriting
+- [ ] **🤖 AI/LLM Integration** - EXCITING NEW FEATURE - Intelligent routing and request processing
 
-## 🤝 How You Can Help
+## How You Can Help
 
 **If you're interested in contributing:**
 
@@ -136,22 +179,26 @@ Based on early feedback:
 - Add retry logic with exponential backoff
 - Write examples for JWT authentication
 - Performance testing and optimization
+- **🤖 AI Integration POC** - Experiment with LLM request transformation
 
-## 📊 Success Metrics
+## Success Metrics
 
 **Technical Goals:**
 - Handle 50k+ RPS (currently ~10k)
 - P99 latency under 5ms (currently ~2ms)
 - 99.9% uptime in production use
 - Zero memory leaks under load
+- **🤖 AI latency under 10ms** - Keep AI decisions fast
+- **Smart routing accuracy >95%** - AI should make better decisions than static rules
 
 **Community Goals:**
 - 10+ contributors
 - 100+ GitHub stars  
 - Used in at least 5 real projects
 - Active issue discussions
+- **🤖 First AI-powered open source API gateway** - Pioneer in the space
 
-## ⚠️ Things We Won't Do
+## Things We Won't Do
 
 **Out of scope** (at least for now):
 - WebSocket proxying
@@ -163,7 +210,7 @@ Based on early feedback:
 
 We want to do HTTP proxying really well before expanding scope.
 
-## 🔄 How This Roadmap Changes
+## How This Roadmap Changes
 
 This roadmap will evolve based on:
 - User feedback and feature requests
