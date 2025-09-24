@@ -14,6 +14,7 @@ async fn test_real_metrics_collection() {
             external_path: "/api/test".to_string(),
             internal_path: "/test".to_string(),
             methods: vec!["GET".to_string()],
+            auth_required: false,
         }
     ];
     let route_handler = RouteHandler::new(routes, 30);

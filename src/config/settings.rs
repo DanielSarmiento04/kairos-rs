@@ -49,15 +49,17 @@ use std::path::Path;
 /// # Examples
 /// 
 /// ```rust
+/// # use std::fs;
+/// # // Create a temporary config file for testing
+/// # let config_content = r#"{"version": 1, "routers": []}"#;
+/// # fs::write("./config.json", config_content).unwrap();
 /// use kairos_rs::config::settings::load_settings;
 /// 
 /// // Load configuration with default path
 /// let config = load_settings().expect("Failed to load configuration");
 /// println!("Loaded {} routes", config.routers.len());
-/// 
-/// // Note: Custom path examples require the file to exist
-/// // std::env::set_var("KAIROS_CONFIG_PATH", "/etc/kairos/config.json");
-/// // let config = load_settings().expect("Failed to load custom configuration");
+/// # // Clean up
+/// # fs::remove_file("./config.json").ok();
 /// ```
 /// 
 /// # Error Conditions

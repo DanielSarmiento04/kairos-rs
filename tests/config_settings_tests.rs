@@ -8,13 +8,14 @@ use kairos_rs::config::settings::load_settings;
 use kairos_rs::models::settings::Settings;
 use kairos_rs::models::router::Router;
 use std::env;
-use std::fs;
 use std::io::Write;
 use tempfile::{NamedTempFile, TempDir};
 
 fn create_test_settings() -> Settings {
     Settings {
         version: 1,
+        jwt: None,
+        rate_limit: None,
         routers: vec![
             Router {
                 host: "http://localhost".to_string(),
@@ -22,6 +23,7 @@ fn create_test_settings() -> Settings {
                 external_path: "/api/test".to_string(),
                 internal_path: "/test".to_string(),
                 methods: vec!["GET".to_string(), "POST".to_string()],
+                auth_required: false,
             }
         ],
     }
@@ -36,17 +38,24 @@ fn create_config_file(settings: &Settings) -> NamedTempFile {
 }
 
 #[test]
-fn test_load_settings_default_path() {
-    let settings = create_test_settings();
-    let config_json = serde_json::to_string_pretty(&settings).unwrap();
+fn test_load_settings_with_environment_variable() {
+    // Save original environment variable if it exists
+    let original_path = env::var("KAIROS_CONFIG_PATH").ok();
     
-    // Create config.json in current directory
-    fs::write("./config.json", config_json).unwrap();
+    let settings = create_test_settings();
+    let temp_file = create_config_file(&settings);
+
+    // Test by setting environment variable to our test file
+    env::set_var("KAIROS_CONFIG_PATH", temp_file.path());
     
     let result = load_settings();
     
-    // Clean up
-    let _ = fs::remove_file("./config.json");
+    // Restore original environment variable if it existed
+    if let Some(path) = original_path {
+        env::set_var("KAIROS_CONFIG_PATH", path);
+    } else {
+        env::remove_var("KAIROS_CONFIG_PATH");
+    }
     
     assert!(result.is_ok());
     let loaded_settings = result.unwrap();
@@ -132,7 +141,7 @@ fn test_load_settings_path_traversal_protection() {
     assert!(result.is_err());
     let error_message = result.unwrap_err().to_string();
     assert!(error_message.contains("Cannot resolve config path") || 
-           error_message.contains("outside working directory"));
+           error_message.contains("Config path outside working directory"));
 }
 
 #[test]
@@ -158,6 +167,8 @@ fn test_load_settings_file_size_limit() {
 fn test_load_settings_complex_configuration() {
     let complex_settings = Settings {
         version: 2,
+        jwt: None,
+        rate_limit: None,
         routers: vec![
             Router {
                 host: "https://api.example.com".to_string(),
@@ -165,6 +176,7 @@ fn test_load_settings_complex_configuration() {
                 external_path: "/api/v1/users/{id}".to_string(),
                 internal_path: "/users/{id}".to_string(),
                 methods: vec!["GET".to_string(), "PUT".to_string(), "DELETE".to_string()],
+                auth_required: false,
             },
             Router {
                 host: "http://internal-service".to_string(),
@@ -172,6 +184,7 @@ fn test_load_settings_complex_configuration() {
                 external_path: "/internal/{service}/{action}".to_string(),
                 internal_path: "/{service}/{action}".to_string(),
                 methods: vec!["POST".to_string()],
+                auth_required: false,
             },
             Router {
                 host: "https://auth.example.com".to_string(),
@@ -179,6 +192,7 @@ fn test_load_settings_complex_configuration() {
                 external_path: "/auth/login".to_string(),
                 internal_path: "/v2/auth/login".to_string(),
                 methods: vec!["POST".to_string()],
+                auth_required: false,
             },
         ],
     };
@@ -207,6 +221,8 @@ fn test_load_settings_complex_configuration() {
 fn test_load_settings_empty_routers() {
     let empty_settings = Settings {
         version: 1,
+        jwt: None,
+        rate_limit: None,
         routers: vec![],
     };
     
@@ -227,6 +243,8 @@ fn test_load_settings_empty_routers() {
 fn test_load_settings_unicode_content() {
     let unicode_settings = Settings {
         version: 1,
+        jwt: None,
+        rate_limit: None,
         routers: vec![
             Router {
                 host: "https://测试.example.com".to_string(),
@@ -234,6 +252,7 @@ fn test_load_settings_unicode_content() {
                 external_path: "/api/用户/{id}".to_string(),
                 internal_path: "/users/{id}".to_string(),
                 methods: vec!["GET".to_string()],
+                auth_required: false,
             }
         ],
     };

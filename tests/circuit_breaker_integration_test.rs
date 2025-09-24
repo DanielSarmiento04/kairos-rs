@@ -14,6 +14,7 @@ async fn test_circuit_breaker_integration() {
             external_path: "/api/test".to_string(),
             internal_path: "/test".to_string(),
             methods: vec!["GET".to_string()],
+            auth_required: false,
         }
     ];
     let route_handler = RouteHandler::new(routes, 5); // 5 second timeout
@@ -84,6 +85,7 @@ async fn test_multiple_service_circuit_breakers() {
             external_path: "/api/service-a".to_string(),
             internal_path: "/test".to_string(),
             methods: vec!["GET".to_string()],
+            auth_required: false,
         },
         Router {
             host: "http://service-b".to_string(),
@@ -91,6 +93,7 @@ async fn test_multiple_service_circuit_breakers() {
             external_path: "/api/service-b".to_string(),
             internal_path: "/test".to_string(),
             methods: vec!["GET".to_string()],
+            auth_required: false,
         }
     ];
     let route_handler = RouteHandler::new(routes, 5);

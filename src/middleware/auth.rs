@@ -157,9 +157,13 @@ impl JwtConfig {
 /// # Usage
 /// 
 /// ```rust
-/// use actix_web::{App, web, middleware};
+/// use actix_web::{App, web, HttpResponse, Result};
 /// use kairos_rs::middleware::auth::{JwtAuth, JwtConfig};
 /// 
+/// # async fn handler() -> Result<HttpResponse> {
+/// #     Ok(HttpResponse::Ok().finish())
+/// # }
+/// # fn example() {
 /// let config = JwtConfig::new("secret".to_string())
 ///     .with_issuer("kairos".to_string());
 /// let auth = JwtAuth::new(config);
@@ -167,12 +171,14 @@ impl JwtConfig {
 /// let app = App::new()
 ///     .wrap(auth)
 ///     .route("/protected", web::get().to(handler));
+/// # }
 /// ```
 /// 
 /// # Error Handling
 /// 
 /// Returns HTTP 401 for invalid, expired, or missing tokens with descriptive
 /// error messages for debugging (while avoiding sensitive information exposure).
+#[derive(Clone)]
 pub struct JwtAuth {
     config: Rc<JwtConfig>,
 }

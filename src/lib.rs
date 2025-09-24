@@ -7,6 +7,10 @@
 //! ## Quick Start
 //! 
 //! ```rust
+//! # use std::fs;
+//! # // Create a temporary config file for testing
+//! # let config_content = r#"{"version": 1, "routers": []}"#;
+//! # fs::write("./config.json", config_content).unwrap();
 //! use kairos_rs::{
 //!     config::settings::load_settings,
 //!     services::http::RouteHandler,
@@ -25,6 +29,8 @@
 //!     // Handler is now ready to process requests
 //!     Ok(())
 //! }
+//! # // Clean up
+//! # fs::remove_file("./config.json").ok();
 //! ```
 //! 
 //! ## Core Features

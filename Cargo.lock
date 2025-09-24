@@ -1288,7 +1288,7 @@ dependencies = [
 
 [[package]]
 name = "kairos-rs"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "actix-governor",
  "actix-web",
@@ -1296,6 +1296,7 @@ dependencies = [
  "base64",
  "chrono",
  "env_logger",
+ "futures",
  "futures-util",
  "jsonwebtoken",
  "log",

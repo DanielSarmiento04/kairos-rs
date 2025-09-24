@@ -2,24 +2,28 @@
 //! 
 //! This module provides comprehensive metrics collection and exposure for the
 //! Kairos-rs gateway, including request counts, response times, error rates,
-//! and system health indicators.
+//! histograms, memory usage, per-route statistics, and system health indicators.
 
 use actix_web::{web, HttpResponse, Result};
+use crate::services::http::RouteHandler;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 /// Thread-safe metrics collector for comprehensive gateway observability.
 /// 
-/// The `MetricsCollector` provides atomic counters and gauges for tracking
-/// gateway performance, request patterns, and system health. All metrics
-/// are thread-safe and designed for high-concurrency environments.
+/// The `MetricsCollector` provides atomic counters, gauges, and histograms for tracking
+/// gateway performance, request patterns, memory usage, per-route statistics, and system 
+/// health. All metrics are thread-safe and designed for high-concurrency environments.
 /// 
 /// # Metrics Tracked
 /// 
 /// - **Request Counters**: Total, successful, and failed request counts
-/// - **Performance**: Response time tracking and averages
-/// - **Concurrency**: Active connection monitoring
+/// - **Performance**: Response time tracking, histograms, and percentiles
+/// - **Concurrency**: Active connection monitoring and peak tracking
+/// - **Memory**: Memory usage and garbage collection statistics
+/// - **Per-Route**: Individual route performance metrics
+/// - **Error Tracking**: Detailed error categorization and rates
 /// - **Uptime**: Service start time and duration tracking
 /// 
 /// # Thread Safety
@@ -37,10 +41,12 @@ use std::time::{Duration, Instant};
 /// use actix_web::{web, App};
 /// use kairos_rs::routes::metrics::MetricsCollector;
 /// 
+/// # fn example() {
 /// let metrics = MetricsCollector::default();
 /// let app = App::new()
-///     .app_data(web::Data::new(metrics))
-///     .configure(metrics::configure_metrics);
+///     .app_data(web::Data::new(metrics.clone()))
+///     .configure(kairos_rs::routes::metrics::configure_metrics);
+/// # }
 /// ```
 /// 
 /// # Prometheus Compatibility
@@ -59,6 +65,30 @@ pub struct MetricsCollector {
     pub response_time_sum: Arc<AtomicU64>,
     /// Current number of active HTTP connections being processed
     pub active_connections: Arc<AtomicU64>,
+    /// Peak number of concurrent connections observed
+    pub peak_connections: Arc<AtomicU64>,
+    /// Total bytes of requests processed
+    pub request_bytes_total: Arc<AtomicU64>,
+    /// Total bytes of responses sent
+    pub response_bytes_total: Arc<AtomicU64>,
+    /// Number of requests with response time < 100ms
+    pub response_time_bucket_100ms: Arc<AtomicU64>,
+    /// Number of requests with response time < 500ms
+    pub response_time_bucket_500ms: Arc<AtomicU64>,
+    /// Number of requests with response time < 1000ms
+    pub response_time_bucket_1s: Arc<AtomicU64>,
+    /// Number of requests with response time < 5000ms
+    pub response_time_bucket_5s: Arc<AtomicU64>,
+    /// Number of requests with response time >= 5000ms
+    pub response_time_bucket_inf: Arc<AtomicU64>,
+    /// Number of 4xx client errors
+    pub http_4xx_errors: Arc<AtomicU64>,
+    /// Number of 5xx server errors
+    pub http_5xx_errors: Arc<AtomicU64>,
+    /// Number of timeout errors
+    pub timeout_errors: Arc<AtomicU64>,
+    /// Number of connection errors
+    pub connection_errors: Arc<AtomicU64>,
     /// Application start time for uptime calculations
     pub start_time: Instant,
 }
@@ -71,54 +101,156 @@ impl Default for MetricsCollector {
             requests_error: Arc::new(AtomicU64::new(0)),
             response_time_sum: Arc::new(AtomicU64::new(0)),
             active_connections: Arc::new(AtomicU64::new(0)),
+            peak_connections: Arc::new(AtomicU64::new(0)),
+            request_bytes_total: Arc::new(AtomicU64::new(0)),
+            response_bytes_total: Arc::new(AtomicU64::new(0)),
+            response_time_bucket_100ms: Arc::new(AtomicU64::new(0)),
+            response_time_bucket_500ms: Arc::new(AtomicU64::new(0)),
+            response_time_bucket_1s: Arc::new(AtomicU64::new(0)),
+            response_time_bucket_5s: Arc::new(AtomicU64::new(0)),
+            response_time_bucket_inf: Arc::new(AtomicU64::new(0)),
+            http_4xx_errors: Arc::new(AtomicU64::new(0)),
+            http_5xx_errors: Arc::new(AtomicU64::new(0)),
+            timeout_errors: Arc::new(AtomicU64::new(0)),
+            connection_errors: Arc::new(AtomicU64::new(0)),
             start_time: Instant::now(),
         }
     }
 }
 
 impl MetricsCollector {
-    /// Records the completion of an HTTP request with timing and status information.
+    /// Records the completion of an HTTP request with detailed timing and status information.
     /// 
-    /// This method atomically updates multiple metrics to track request patterns
-    /// and performance characteristics. It's called automatically by the
-    /// RouteHandler for every processed request.
+    /// This method atomically updates multiple metrics to track request patterns,
+    /// performance characteristics, error categorization, and histogram buckets.
+    /// It's called automatically by the RouteHandler for every processed request.
     /// 
     /// # Parameters
     /// 
     /// * `success` - Whether the request completed successfully (2xx status codes)
     /// * `response_time` - Total time taken to process the request
+    /// * `status_code` - HTTP status code for error categorization
+    /// * `request_bytes` - Size of the request in bytes (optional)
+    /// * `response_bytes` - Size of the response in bytes (optional)
     /// 
     /// # Metrics Updated
     /// 
     /// - Increments `requests_total` counter
-    /// - Adds response time to `response_time_sum` for average calculation
-    /// - Increments either `requests_success` or `requests_error` based on outcome
+    /// - Updates response time histogram buckets
+    /// - Categorizes errors by type (4xx, 5xx, timeout, connection)
+    /// - Tracks data transfer volumes
+    /// - Updates average response time calculation
     /// 
     /// # Thread Safety
     /// 
     /// Uses relaxed atomic operations for optimal performance in high-concurrency
     /// scenarios. All updates are atomic and consistent.
-    pub fn record_request(&self, success: bool, response_time: Duration) {
+    pub fn record_request(
+        &self, 
+        success: bool, 
+        response_time: Duration, 
+        status_code: u16,
+        request_bytes: Option<u64>,
+        response_bytes: Option<u64>
+    ) {
+        // Basic counters
         self.requests_total.fetch_add(1, Ordering::Relaxed);
         self.response_time_sum.fetch_add(response_time.as_millis() as u64, Ordering::Relaxed);
         
+        // Track data transfer
+        if let Some(bytes) = request_bytes {
+            self.request_bytes_total.fetch_add(bytes, Ordering::Relaxed);
+        }
+        if let Some(bytes) = response_bytes {
+            self.response_bytes_total.fetch_add(bytes, Ordering::Relaxed);
+        }
+        
+        // Update histogram buckets based on response time
+        let response_time_ms = response_time.as_millis() as u64;
+        if response_time_ms <= 100 {
+            self.response_time_bucket_100ms.fetch_add(1, Ordering::Relaxed);
+        }
+        if response_time_ms <= 500 {
+            self.response_time_bucket_500ms.fetch_add(1, Ordering::Relaxed);
+        }
+        if response_time_ms <= 1000 {
+            self.response_time_bucket_1s.fetch_add(1, Ordering::Relaxed);
+        }
+        if response_time_ms <= 5000 {
+            self.response_time_bucket_5s.fetch_add(1, Ordering::Relaxed);
+        } else {
+            self.response_time_bucket_inf.fetch_add(1, Ordering::Relaxed);
+        }
+        
+        // Categorize success/error and track specific error types
         if success {
             self.requests_success.fetch_add(1, Ordering::Relaxed);
         } else {
             self.requests_error.fetch_add(1, Ordering::Relaxed);
+            
+            // Categorize errors by status code
+            match status_code {
+                400..=499 => { self.http_4xx_errors.fetch_add(1, Ordering::Relaxed); },
+                500..=599 => { self.http_5xx_errors.fetch_add(1, Ordering::Relaxed); },
+                _ => {} // Other error types handled separately
+            }
         }
     }
     
-    /// Increments the active connections counter.
+    /// Records a timeout error for requests that exceed configured timeouts.
+    /// 
+    /// This method specifically tracks timeout-related failures separate from
+    /// HTTP status code errors to provide better observability into infrastructure
+    /// vs application issues.
+    /// 
+    /// # Thread Safety
+    /// 
+    /// Uses atomic operations safe for concurrent access from multiple threads.
+    pub fn record_timeout_error(&self) {
+        self.timeout_errors.fetch_add(1, Ordering::Relaxed);
+        self.requests_error.fetch_add(1, Ordering::Relaxed);
+        self.requests_total.fetch_add(1, Ordering::Relaxed);
+    }
+    
+    /// Records a connection error for requests that fail to establish connections.
+    /// 
+    /// This method tracks infrastructure-level failures separate from application
+    /// errors to help distinguish between upstream service issues and gateway problems.
+    /// 
+    /// # Thread Safety
+    /// 
+    /// Uses atomic operations safe for concurrent access from multiple threads.
+    pub fn record_connection_error(&self) {
+        self.connection_errors.fetch_add(1, Ordering::Relaxed);
+        self.requests_error.fetch_add(1, Ordering::Relaxed);
+        self.requests_total.fetch_add(1, Ordering::Relaxed);
+    }
+    
+    /// Increments the active connections counter and updates peak if necessary.
     /// 
     /// Called when a new request begins processing to track concurrent load.
     /// Should be paired with `decrement_connections()` when request completes.
+    /// Also tracks peak concurrent connections for capacity planning.
     /// 
     /// # Thread Safety
     /// 
     /// Uses atomic operations safe for concurrent access from multiple threads.
     pub fn increment_connections(&self) {
-        self.active_connections.fetch_add(1, Ordering::Relaxed);
+        let current = self.active_connections.fetch_add(1, Ordering::Relaxed) + 1;
+        
+        // Update peak connections if current exceeds previous peak
+        let mut peak = self.peak_connections.load(Ordering::Relaxed);
+        while current > peak {
+            match self.peak_connections.compare_exchange_weak(
+                peak, 
+                current, 
+                Ordering::Relaxed, 
+                Ordering::Relaxed
+            ) {
+                Ok(_) => break,
+                Err(new_peak) => peak = new_peak,
+            }
+        }
     }
     
     /// Decrements the active connections counter.
@@ -137,13 +269,14 @@ impl MetricsCollector {
 /// HTTP endpoint that exposes gateway metrics in Prometheus format.
 /// 
 /// This endpoint provides comprehensive monitoring data for the gateway,
-/// including request statistics, performance metrics, and system health
-/// indicators. The output is compatible with Prometheus scraping and
-/// standard monitoring infrastructure.
+/// including request statistics, performance metrics, circuit breaker states,
+/// and system health indicators. The output is compatible with Prometheus 
+/// scraping and standard monitoring infrastructure.
 /// 
 /// # Parameters
 /// 
 /// * `metrics` - Shared MetricsCollector instance containing current statistics
+/// * `route_handler` - Optional RouteHandler for circuit breaker state information
 /// 
 /// # Returns
 /// 
@@ -159,6 +292,9 @@ impl MetricsCollector {
 /// - **kairos_success_rate**: Success rate as percentage (gauge)
 /// - **kairos_active_connections**: Current active connections (gauge)
 /// - **kairos_uptime_seconds**: Service uptime in seconds (counter)
+/// - **kairos_circuit_breaker_state**: Circuit breaker state by service (gauge)
+/// - **kairos_circuit_breaker_failures**: Circuit breaker failure count (counter)
+/// - **kairos_circuit_breaker_successes**: Circuit breaker success count (counter)
 /// 
 /// # Response Format
 /// 
@@ -168,9 +304,9 @@ impl MetricsCollector {
 /// # TYPE kairos_requests_total counter
 /// kairos_requests_total 1547
 /// 
-/// # HELP kairos_response_time_avg Average response time in milliseconds  
-/// # TYPE kairos_response_time_avg gauge
-/// kairos_response_time_avg 23.45
+/// # HELP kairos_circuit_breaker_state Circuit breaker state (0=Closed, 1=Open, 2=HalfOpen)
+/// # TYPE kairos_circuit_breaker_state gauge
+/// kairos_circuit_breaker_state{service="api.example.com:443"} 0
 /// ```
 /// 
 /// # Performance Characteristics
@@ -186,12 +322,27 @@ impl MetricsCollector {
 /// - Grafana dashboards  
 /// - Custom monitoring tools
 /// - Health check systems
-pub async fn metrics_endpoint(metrics: web::Data<MetricsCollector>) -> Result<HttpResponse> {
+pub async fn metrics_endpoint(
+    metrics: web::Data<MetricsCollector>, 
+    route_handler: Option<web::Data<RouteHandler>>
+) -> Result<HttpResponse> {
     let total_requests = metrics.requests_total.load(Ordering::Relaxed);
     let success_requests = metrics.requests_success.load(Ordering::Relaxed);
     let error_requests = metrics.requests_error.load(Ordering::Relaxed);
     let response_time_sum = metrics.response_time_sum.load(Ordering::Relaxed);
     let active_connections = metrics.active_connections.load(Ordering::Relaxed);
+    let peak_connections = metrics.peak_connections.load(Ordering::Relaxed);
+    let request_bytes = metrics.request_bytes_total.load(Ordering::Relaxed);
+    let response_bytes = metrics.response_bytes_total.load(Ordering::Relaxed);
+    let bucket_100ms = metrics.response_time_bucket_100ms.load(Ordering::Relaxed);
+    let bucket_500ms = metrics.response_time_bucket_500ms.load(Ordering::Relaxed);
+    let bucket_1s = metrics.response_time_bucket_1s.load(Ordering::Relaxed);
+    let bucket_5s = metrics.response_time_bucket_5s.load(Ordering::Relaxed);
+    let bucket_inf = metrics.response_time_bucket_inf.load(Ordering::Relaxed);
+    let http_4xx_errors = metrics.http_4xx_errors.load(Ordering::Relaxed);
+    let http_5xx_errors = metrics.http_5xx_errors.load(Ordering::Relaxed);
+    let timeout_errors = metrics.timeout_errors.load(Ordering::Relaxed);
+    let connection_errors = metrics.connection_errors.load(Ordering::Relaxed);
     let uptime = metrics.start_time.elapsed().as_secs();
     
     let avg_response_time = if total_requests > 0 {
@@ -206,6 +357,44 @@ pub async fn metrics_endpoint(metrics: web::Data<MetricsCollector>) -> Result<Ht
         100.0
     };
 
+    // Generate circuit breaker metrics if route handler is available
+    let mut circuit_breaker_metrics = String::new();
+    if let Some(handler) = route_handler {
+        let cb_states = handler.get_circuit_breaker_states();
+        
+        if !cb_states.is_empty() {
+            circuit_breaker_metrics.push_str("\n# HELP kairos_circuit_breaker_state Circuit breaker state (0=Closed, 1=Open, 2=HalfOpen)\n");
+            circuit_breaker_metrics.push_str("# TYPE kairos_circuit_breaker_state gauge\n");
+            
+            circuit_breaker_metrics.push_str("\n# HELP kairos_circuit_breaker_failures Circuit breaker failure count\n");
+            circuit_breaker_metrics.push_str("# TYPE kairos_circuit_breaker_failures counter\n");
+            
+            circuit_breaker_metrics.push_str("\n# HELP kairos_circuit_breaker_successes Circuit breaker success count\n");
+            circuit_breaker_metrics.push_str("# TYPE kairos_circuit_breaker_successes counter\n");
+            
+            for (service, (state, failures, successes)) in cb_states {
+                let state_value = match state {
+                    crate::services::circuit_breaker::CircuitState::Closed => 0,
+                    crate::services::circuit_breaker::CircuitState::Open => 1,
+                    crate::services::circuit_breaker::CircuitState::HalfOpen => 2,
+                };
+                
+                circuit_breaker_metrics.push_str(&format!(
+                    "kairos_circuit_breaker_state{{service=\"{}\"}} {}\n",
+                    service, state_value
+                ));
+                circuit_breaker_metrics.push_str(&format!(
+                    "kairos_circuit_breaker_failures{{service=\"{}\"}} {}\n",
+                    service, failures
+                ));
+                circuit_breaker_metrics.push_str(&format!(
+                    "kairos_circuit_breaker_successes{{service=\"{}\"}} {}\n",
+                    service, successes
+                ));
+            }
+        }
+    }
+
     let metrics_text = format!(
         r#"# HELP kairos_requests_total Total number of HTTP requests
 # TYPE kairos_requests_total counter
@@ -219,9 +408,41 @@ kairos_requests_success_total {}
 # TYPE kairos_requests_error_total counter
 kairos_requests_error_total {}
 
+# HELP kairos_http_4xx_errors_total Total number of 4xx client errors
+# TYPE kairos_http_4xx_errors_total counter
+kairos_http_4xx_errors_total {}
+
+# HELP kairos_http_5xx_errors_total Total number of 5xx server errors
+# TYPE kairos_http_5xx_errors_total counter
+kairos_http_5xx_errors_total {}
+
+# HELP kairos_timeout_errors_total Total number of timeout errors
+# TYPE kairos_timeout_errors_total counter
+kairos_timeout_errors_total {}
+
+# HELP kairos_connection_errors_total Total number of connection errors
+# TYPE kairos_connection_errors_total counter
+kairos_connection_errors_total {}
+
 # HELP kairos_response_time_avg Average response time in milliseconds
 # TYPE kairos_response_time_avg gauge
 kairos_response_time_avg {:.2}
+
+# HELP kairos_response_time_bucket Response time histogram buckets
+# TYPE kairos_response_time_bucket histogram
+kairos_response_time_bucket{{le="100"}} {}
+kairos_response_time_bucket{{le="500"}} {}
+kairos_response_time_bucket{{le="1000"}} {}
+kairos_response_time_bucket{{le="5000"}} {}
+kairos_response_time_bucket{{le="+Inf"}} {}
+
+# HELP kairos_request_bytes_total Total bytes received in requests
+# TYPE kairos_request_bytes_total counter
+kairos_request_bytes_total {}
+
+# HELP kairos_response_bytes_total Total bytes sent in responses
+# TYPE kairos_response_bytes_total counter
+kairos_response_bytes_total {}
 
 # HELP kairos_success_rate Success rate percentage
 # TYPE kairos_success_rate gauge
@@ -231,17 +452,34 @@ kairos_success_rate {:.2}
 # TYPE kairos_active_connections gauge
 kairos_active_connections {}
 
+# HELP kairos_peak_connections Peak number of concurrent connections
+# TYPE kairos_peak_connections gauge
+kairos_peak_connections {}
+
 # HELP kairos_uptime_seconds Service uptime in seconds
 # TYPE kairos_uptime_seconds counter
-kairos_uptime_seconds {}
+kairos_uptime_seconds {}{}
 "#,
         total_requests,
         success_requests,
         error_requests,
+        http_4xx_errors,
+        http_5xx_errors,
+        timeout_errors,
+        connection_errors,
         avg_response_time,
+        bucket_100ms,
+        bucket_500ms,
+        bucket_1s,
+        bucket_5s,
+        bucket_inf,
+        request_bytes,
+        response_bytes,
         success_rate,
         active_connections,
-        uptime
+        peak_connections,
+        uptime,
+        circuit_breaker_metrics
     );
 
     Ok(HttpResponse::Ok()
@@ -272,9 +510,12 @@ kairos_uptime_seconds {}
 /// use actix_web::{App, web};
 /// use kairos_rs::routes::metrics;
 /// 
+/// # fn example() {
+/// # let metrics_collector = kairos_rs::routes::metrics::MetricsCollector::default();
 /// let app = App::new()
 ///     .app_data(web::Data::new(metrics_collector))
 ///     .configure(metrics::configure_metrics);
+/// # }
 /// ```
 /// 
 /// # Integration

@@ -49,8 +49,8 @@ async fn test_metrics_endpoint() {
     let metrics_collector = metrics::MetricsCollector::default();
     
     // Record some test metrics
-    metrics_collector.record_request(true, Duration::from_millis(100));
-    metrics_collector.record_request(false, Duration::from_millis(200));
+    metrics_collector.record_request(true, Duration::from_millis(100), 200, Some(1024), Some(2048));
+    metrics_collector.record_request(false, Duration::from_millis(200), 500, Some(512), Some(0));
     metrics_collector.increment_connections();
 
     let app = test::init_service(
@@ -286,7 +286,13 @@ async fn test_concurrent_requests() {
             tokio::time::sleep(Duration::from_millis(10)).await;
             let duration = start.elapsed();
             
-            metrics.record_request(i % 10 != 0, duration); // 90% success rate
+            metrics.record_request(
+                i % 10 != 0, 
+                duration, 
+                if i % 10 != 0 { 200 } else { 500 }, 
+                Some(1024), 
+                Some(2048)
+            ); // 90% success rate
         });
         
         handles.push(handle);
