@@ -30,7 +30,7 @@ fn create_test_settings() -> Settings {
             Router {
                 host: "http://httpbin.org".to_string(),
                 port: 80,
-                external_path: "/public/status".to_string(),
+                external_path: "/public/test".to_string(),
                 internal_path: "/status/200".to_string(),
                 methods: vec!["GET".to_string()],
                 auth_required: false,
@@ -59,13 +59,26 @@ async fn test_public_route_no_auth_required() {
     ).await;
 
     let req = test::TestRequest::get()
-        .uri("/public/status")
+        .uri("/public/test")
         .to_request();
 
     let resp = test::call_service(&app, req).await;
+    let status = resp.status();
+    println!("Response status: {}", status);
+    
+    // Let's also try to get the response body to see what error we're getting
+    let body_bytes = actix_web::body::to_bytes(resp.into_body()).await.unwrap();
+    let body_str = String::from_utf8_lossy(&body_bytes);
+    println!("Response body: {}", body_str);
+    
     // The request should be processed (though it may fail due to external dependency)
     // We're testing that no authentication error occurs
-    assert!(resp.status() != 401);
+    // Since this tries to reach an external service, it might fail with 500 or other errors
+    // but it should NOT fail with 401 (authentication error)
+    assert!(
+        status != 401,
+        "Expected non-401 status for public route, got 401. This indicates authentication middleware is incorrectly applied to public routes."
+    );
 }
 
 #[actix_web::test]

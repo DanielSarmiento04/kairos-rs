@@ -8,7 +8,6 @@ use kairos_rs::config::settings::load_settings;
 use kairos_rs::models::settings::Settings;
 use kairos_rs::models::router::Router;
 use std::env;
-use std::fs;
 use std::io::Write;
 use tempfile::{NamedTempFile, TempDir};
 
@@ -39,17 +38,24 @@ fn create_config_file(settings: &Settings) -> NamedTempFile {
 }
 
 #[test]
-fn test_load_settings_default_path() {
-    let settings = create_test_settings();
-    let config_json = serde_json::to_string_pretty(&settings).unwrap();
+fn test_load_settings_with_environment_variable() {
+    // Save original environment variable if it exists
+    let original_path = env::var("KAIROS_CONFIG_PATH").ok();
     
-    // Create config.json in current directory
-    fs::write("./config.json", config_json).unwrap();
+    let settings = create_test_settings();
+    let temp_file = create_config_file(&settings);
+
+    // Test by setting environment variable to our test file
+    env::set_var("KAIROS_CONFIG_PATH", temp_file.path());
     
     let result = load_settings();
     
-    // Clean up
-    let _ = fs::remove_file("./config.json");
+    // Restore original environment variable if it existed
+    if let Some(path) = original_path {
+        env::set_var("KAIROS_CONFIG_PATH", path);
+    } else {
+        env::remove_var("KAIROS_CONFIG_PATH");
+    }
     
     assert!(result.is_ok());
     let loaded_settings = result.unwrap();
@@ -135,7 +141,7 @@ fn test_load_settings_path_traversal_protection() {
     assert!(result.is_err());
     let error_message = result.unwrap_err().to_string();
     assert!(error_message.contains("Cannot resolve config path") || 
-           error_message.contains("outside working directory"));
+           error_message.contains("Config path outside working directory"));
 }
 
 #[test]

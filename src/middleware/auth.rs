@@ -178,6 +178,7 @@ impl JwtConfig {
 /// 
 /// Returns HTTP 401 for invalid, expired, or missing tokens with descriptive
 /// error messages for debugging (while avoiding sensitive information exposure).
+#[derive(Clone)]
 pub struct JwtAuth {
     config: Rc<JwtConfig>,
 }
