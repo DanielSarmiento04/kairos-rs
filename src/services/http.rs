@@ -62,6 +62,7 @@ use tokio::time::{timeout, Duration};
 ///         external_path: "/api/users/{id}".to_string(),
 ///         internal_path: "/v1/user/{id}".to_string(),
 ///         methods: vec!["GET".to_string(), "PUT".to_string()],
+///         auth_required: false,
 ///     }
 /// ];
 /// 
@@ -130,6 +131,7 @@ impl RouteHandler {
     ///         external_path: "/auth/login".to_string(),
     ///         internal_path: "/authenticate".to_string(),
     ///         methods: vec!["POST".to_string()],
+    ///         auth_required: false,
     ///     },
     ///     Router {
     ///         host: "http://user-service".to_string(),
@@ -137,6 +139,7 @@ impl RouteHandler {
     ///         external_path: "/users/{id}".to_string(),
     ///         internal_path: "/api/v1/user/{id}".to_string(),
     ///         methods: vec!["GET".to_string(), "PUT".to_string(), "DELETE".to_string()],
+    ///         auth_required: false,
     ///     }
     /// ];
     /// 

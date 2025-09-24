@@ -121,6 +121,7 @@ impl Router {
     ///     external_path: "/api/users".to_string(),
     ///     internal_path: "/v1/users".to_string(),
     ///     methods: vec!["GET".to_string(), "POST".to_string()],
+    ///     auth_required: false,
     /// };
     /// 
     /// assert!(router.validate().is_ok());

@@ -159,6 +159,7 @@ impl Settings {
     /// let settings = Settings {
     ///     version: 1,
     ///     jwt: None,
+    ///     rate_limit: None,
     ///     routers: vec![
     ///         Router {
     ///             host: "http://localhost".to_string(),

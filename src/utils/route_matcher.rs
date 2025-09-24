@@ -98,6 +98,7 @@ pub struct CompiledRoute {
 ///         external_path: "/users".to_string(),          // Static route
 ///         internal_path: "/v1/users".to_string(),
 ///         methods: vec!["GET".to_string()],
+///         auth_required: false,
 ///     },
 ///     Router {
 ///         host: "http://api".to_string(),
@@ -105,6 +106,7 @@ pub struct CompiledRoute {
 ///         external_path: "/users/{id}".to_string(),     // Dynamic route
 ///         internal_path: "/v1/user/{id}".to_string(),
 ///         methods: vec!["GET".to_string()],
+///         auth_required: false,
 ///     },
 /// ];
 /// 
@@ -173,6 +175,7 @@ impl RouteMatcher {
     ///         external_path: "/health".to_string(),        // Static
     ///         internal_path: "/status".to_string(),
     ///         methods: vec!["GET".to_string()],
+    ///         auth_required: false,
     ///     },
     ///     Router {
     ///         host: "http://localhost".to_string(),
@@ -180,6 +183,7 @@ impl RouteMatcher {
     ///         external_path: "/users/{id}".to_string(),    // Dynamic
     ///         internal_path: "/v1/user/{id}".to_string(),
     ///         methods: vec!["GET".to_string()],
+    ///         auth_required: false,
     ///     },
     /// ];
     /// 
@@ -269,6 +273,7 @@ impl RouteMatcher {
     /// #         external_path: "/health".to_string(),
     /// #         internal_path: "/status".to_string(),
     /// #         methods: vec!["GET".to_string()],
+    /// #         auth_required: false,
     /// #     },
     /// #     Router {
     /// #         host: "http://localhost".to_string(),
@@ -276,6 +281,7 @@ impl RouteMatcher {
     /// #         external_path: "/users/{id}".to_string(),
     /// #         internal_path: "/v1/user/{id}".to_string(),
     /// #         methods: vec!["GET".to_string()],
+    /// #         auth_required: false,
     /// #     }
     /// # ];
     /// # let matcher = RouteMatcher::new(routes)?;

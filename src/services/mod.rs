@@ -56,6 +56,7 @@
 //!         external_path: "/api/users/{id}".to_string(),
 //!         internal_path: "/v1/user/{id}".to_string(),
 //!         methods: vec!["GET".to_string()],
+//!         auth_required: false,
 //!     }
 //! ];
 //! 

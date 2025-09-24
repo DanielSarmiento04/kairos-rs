@@ -112,7 +112,7 @@ impl Default for CircuitBreakerConfig {
 /// // Example operation that might fail
 /// let result = breaker.call(async {
 ///     // Simulated HTTP request
-///     if rand::random::<bool>() {
+///     if true { // For doctest, always succeed
 ///         Ok("Success response")
 ///     } else {
 ///         Err("Network error")
