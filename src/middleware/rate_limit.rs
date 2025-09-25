@@ -14,7 +14,6 @@ use std::{
     sync::{Arc, RwLock},
     time::{Duration, Instant},
     task::{Context, Poll},
-    rc::Rc,
 };
 use serde::{Deserialize, Serialize};
 use log::{debug, warn, info};
@@ -269,9 +268,10 @@ impl RateLimitStore {
 /// Creates middleware instances that apply sophisticated rate limiting
 /// strategies based on configuration. Supports multiple limiting dimensions
 /// and algorithms for fine-grained traffic control.
+#[derive(Clone)]
 pub struct AdvancedRateLimit {
     config: RateLimitConfig,
-    store: Rc<RateLimitStore>,
+    store: Arc<RateLimitStore>,
 }
 
 impl AdvancedRateLimit {
@@ -302,7 +302,7 @@ impl AdvancedRateLimit {
     pub fn new(config: RateLimitConfig) -> Self {
         Self {
             config,
-            store: Rc::new(RateLimitStore::new()),
+            store: Arc::new(RateLimitStore::new()),
         }
     }
 
@@ -373,7 +373,7 @@ where
 
     fn new_transform(&self, service: S) -> Self::Future {
         futures::future::ready(Ok(AdvancedRateLimitMiddleware {
-            service: Rc::new(service),
+            service: Arc::new(service),
             config: self.config.clone(),
             store: self.store.clone(),
         }))
@@ -385,9 +385,9 @@ where
 /// Handles the actual rate limiting logic during request processing,
 /// checking limits and rejecting requests that exceed configured thresholds.
 pub struct AdvancedRateLimitMiddleware<S> {
-    service: Rc<S>,
+    service: Arc<S>,
     config: RateLimitConfig,
-    store: Rc<RateLimitStore>,
+    store: Arc<RateLimitStore>,
 }
 
 impl<S, B> Service<ServiceRequest> for AdvancedRateLimitMiddleware<S>

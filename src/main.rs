@@ -108,6 +108,7 @@ mod utils;
 use crate::config::{settings::load_settings, validation::ConfigValidator};
 use crate::logs::logger::configure_logger;
 use crate::middleware::security::security_headers;
+use crate::middleware::rate_limit::AdvancedRateLimit;
 use crate::models::settings::Settings;
 use crate::routes::{auth_http, health, metrics};
 use crate::services::http::RouteHandler;
@@ -215,7 +216,7 @@ async fn main() -> std::io::Result<()> {
     // Initialize metrics collector
     let metrics_collector = metrics::MetricsCollector::default();
 
-    // Configure rate limiting
+    // Configure basic rate limiting as fallback
     let governor_conf = GovernorConfigBuilder::default()
         .per_second(100) // 100 requests per second
         .burst_size(200) // Allow bursts up to 200 requests
@@ -237,22 +238,43 @@ async fn main() -> std::io::Result<()> {
 
     info!("Starting server on {}:{}", host, port);
 
-    // Start the HTTP server
-    let server = HttpServer::new(move || {
-        App::new()
-            .app_data(actix_web::web::Data::new(metrics_collector.clone()))
-            .wrap(Governor::new(&governor_conf))
-            .wrap(Logger::new(
-                r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#
-            ))
-            .wrap(actix_web::middleware::Compress::default())
-            .wrap(security_headers())
-            .configure(health::configure_health)
-            .configure(metrics::configure_metrics)
-            .configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler.clone(), &config))
-    })
-    .bind((host.as_str(), port))?
-    .run();
+    // Create server with appropriate rate limiting middleware
+    let server = if let Some(rate_limit_config) = config.rate_limit.clone() {
+        info!("Using advanced rate limiting with strategy: {:?}", rate_limit_config.strategy);
+        let advanced_rate_limit = AdvancedRateLimit::new(rate_limit_config);
+        HttpServer::new(move || {
+            App::new()
+                .app_data(actix_web::web::Data::new(metrics_collector.clone()))
+                .wrap(advanced_rate_limit.clone())
+                .wrap(Logger::new(
+                    r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#
+                ))
+                .wrap(actix_web::middleware::Compress::default())
+                .wrap(security_headers())
+                .configure(health::configure_health)
+                .configure(metrics::configure_metrics)
+                .configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler.clone(), &config))
+        })
+        .bind((host.as_str(), port))?
+        .run()
+    } else {
+        info!("Using basic rate limiting (100 req/sec, 200 burst)");
+        HttpServer::new(move || {
+            App::new()
+                .app_data(actix_web::web::Data::new(metrics_collector.clone()))
+                .wrap(Governor::new(&governor_conf))
+                .wrap(Logger::new(
+                    r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#
+                ))
+                .wrap(actix_web::middleware::Compress::default())
+                .wrap(security_headers())
+                .configure(health::configure_health)
+                .configure(metrics::configure_metrics)
+                .configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler.clone(), &config))
+        })
+        .bind((host.as_str(), port))?
+        .run()
+    };
 
     info!("Server started successfully");
 

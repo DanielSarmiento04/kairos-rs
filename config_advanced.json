@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "jwt": {
+    "secret": "your-jwt-secret-key-here-must-be-at-least-32-characters-long",
+    "issuer": "kairos-gateway",
+    "audience": "api-clients"
+  },
+  "rate_limit": {
+    "strategy": "PerIPAndRoute",
+    "requests_per_window": 60,
+    "window_duration": 60,
+    "burst_allowance": 10,
+    "window_type": "SlidingWindow",
+    "enable_redis": false,
+    "redis_key_prefix": "kairos_rl"
+  },
+  "routers": [
+    {
+      "host": "http://httpbin.org",
+      "port": 80,
+      "external_path": "/api/test",
+      "internal_path": "/get",
+      "methods": ["GET"]
+    },
+    {
+      "host": "http://httpbin.org",
+      "port": 80,
+      "external_path": "/api/users/{id}",
+      "internal_path": "/json",
+      "methods": ["GET"]
+    }
+  ]
+}
