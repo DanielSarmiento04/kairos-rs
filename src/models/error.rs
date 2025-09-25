@@ -97,6 +97,7 @@ pub enum GatewayError {
     /// This covers various client-side errors such as malformed requests,
     /// invalid headers, or other request validation failures.
     #[error("Invalid request: {reason}")]
+    #[allow(dead_code)] // Available for request validation features
     BadRequest { 
         /// Specific reason why the request was invalid
         reason: String 

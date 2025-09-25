@@ -77,6 +77,7 @@ use log::warn;
 /// 
 /// The returned middleware is safe to use across multiple threads and
 /// can be applied to multiple routes simultaneously.
+#[allow(dead_code)] // Available for security configuration
 pub fn validate_request_size(max_size: usize) -> impl Fn(&ServiceRequest) -> Result<(), Error> {
     move |req: &ServiceRequest| {
         if let Some(content_length) = req.headers().get("content-length") {
@@ -185,6 +186,7 @@ pub fn validate_request_size(max_size: usize) -> impl Fn(&ServiceRequest) -> Res
 /// 
 /// The returned middleware is safe to use across multiple threads and
 /// requests simultaneously.
+#[allow(dead_code)] // Available for security configuration  
 pub fn validate_headers() -> impl Fn(&ServiceRequest) -> Result<(), Error> {
     |req: &ServiceRequest| {
         // Check for suspicious User-Agent patterns

@@ -128,6 +128,7 @@ impl JwtConfig {
         self
     }
     
+    #[allow(dead_code)] // Used in JWT authentication configuration
     pub fn with_required_claims(mut self, claims: Vec<String>) -> Self {
         self.required_claims = claims.into_iter().collect();
         self
@@ -361,6 +362,7 @@ fn validate_jwt_token(token: &str, config: &JwtConfig) -> Result<Claims, String>
 }
 
 /// Helper function to create JWT tokens for testing
+#[allow(dead_code)] // Used in tests and integration scenarios
 pub fn create_test_token(claims: Claims, secret: &str) -> Result<String, jsonwebtoken::errors::Error> {
     use jsonwebtoken::{encode, EncodingKey, Header};
     

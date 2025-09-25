@@ -13,6 +13,7 @@ pub fn security_headers() -> DefaultHeaders {
 }
 
 /// Creates CORS headers for development (should be configured properly for production)
+#[allow(dead_code)] // Used in development and testing configurations
 pub fn cors_headers() -> DefaultHeaders {
     DefaultHeaders::new()
         .add(("Access-Control-Allow-Origin", "*"))

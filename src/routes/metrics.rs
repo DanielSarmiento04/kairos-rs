@@ -197,15 +197,15 @@ impl MetricsCollector {
         }
     }
     
-    /// Records a timeout error for requests that exceed configured timeouts.
+    /// Records a timeout error for requests that exceed the configured timeout.
     /// 
-    /// This method specifically tracks timeout-related failures separate from
-    /// HTTP status code errors to provide better observability into infrastructure
-    /// vs application issues.
+    /// This method is used to track timeout-related failures which help identify
+    /// upstream service performance issues or network latency problems.
     /// 
     /// # Thread Safety
     /// 
     /// Uses atomic operations safe for concurrent access from multiple threads.
+    #[allow(dead_code)] // Used for specific error tracking
     pub fn record_timeout_error(&self) {
         self.timeout_errors.fetch_add(1, Ordering::Relaxed);
         self.requests_error.fetch_add(1, Ordering::Relaxed);
@@ -220,6 +220,7 @@ impl MetricsCollector {
     /// # Thread Safety
     /// 
     /// Uses atomic operations safe for concurrent access from multiple threads.
+    #[allow(dead_code)] // Used for specific error tracking
     pub fn record_connection_error(&self) {
         self.connection_errors.fetch_add(1, Ordering::Relaxed);
         self.requests_error.fetch_add(1, Ordering::Relaxed);

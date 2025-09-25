@@ -62,6 +62,7 @@ impl From<u8> for CircuitState {
 pub struct CircuitBreakerConfig {
     pub failure_threshold: u64,
     pub success_threshold: u64,
+    #[allow(dead_code)] // Intended for request timeout integration
     pub timeout: Duration,
     pub reset_timeout: Duration,
 }

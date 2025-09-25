@@ -85,6 +85,7 @@ use actix_web::{web, HttpRequest};
 /// 
 /// The route handler is cloned for each request, but shares underlying
 /// resources (HTTP client, route matcher) safely across threads.
+#[allow(dead_code)] // Public API for custom route configuration
 pub fn configure_route(cfg: &mut web::ServiceConfig, handler: RouteHandler) {
     cfg.app_data(web::PayloadConfig::new(1024 * 1024)) // 1MB payload limit (reduced from 10MB)
         .app_data(web::JsonConfig::default().limit(1024 * 1024)) // 1MB JSON limit
