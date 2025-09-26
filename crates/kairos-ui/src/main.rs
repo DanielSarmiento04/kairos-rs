@@ -11,10 +11,9 @@ async fn main() {
     let addr = leptos_options.site_addr;
     let routes = generate_route_list(App);
 
-    // Build our application with a route
+    // Build our application with a route  
     let app = Router::new()
         .leptos_routes(&leptos_options, routes, App)
-        .fallback(leptos_axum::file_and_error_handler(leptos_options.clone()))
         .with_state(leptos_options);
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();

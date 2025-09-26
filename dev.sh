@@ -2,8 +2,6 @@
 
 # Kairos-rs Development Startup Script
 
-set -e
-
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -18,6 +16,12 @@ echo ""
 if ! command -v cargo-leptos &> /dev/null; then
     echo -e "${YELLOW}⚠️  cargo-leptos not found. Installing...${NC}"
     cargo install cargo-leptos
+fi
+
+# Check if wasm32 target is installed
+if ! rustup target list | grep -q "wasm32-unknown-unknown (installed)"; then
+    echo -e "${YELLOW}⚠️  WebAssembly target not found. Installing...${NC}"
+    rustup target add wasm32-unknown-unknown
 fi
 
 # Function to run gateway
@@ -52,7 +56,29 @@ show_help() {
     echo "  $0 gateway      # Start only gateway"
     echo "  $0 ui           # Start only UI"
     echo ""
+    echo "URLs:"
+    echo "  Gateway:  http://localhost:5900"
+    echo "  UI:       http://localhost:3000"
+    echo "  Health:   http://localhost:5900/health"
+    echo "  Metrics:  http://localhost:5900/metrics"
+    echo ""
 }
+
+# Function to cleanup background processes
+cleanup() {
+    echo ""
+    echo -e "${YELLOW}🛑 Stopping services...${NC}"
+    if [ ! -z "$GATEWAY_PID" ]; then
+        kill $GATEWAY_PID 2>/dev/null || true
+    fi
+    if [ ! -z "$UI_PID" ]; then
+        kill $UI_PID 2>/dev/null || true
+    fi
+    exit 0
+}
+
+# Set up signal handling
+trap cleanup SIGINT SIGTERM
 
 # Parse command line arguments
 case "${1:-both}" in
@@ -72,11 +98,19 @@ case "${1:-both}" in
         GATEWAY_PID=$!
         
         # Wait a moment for gateway to start
+        echo -e "${BLUE}⏳ Waiting for gateway to start...${NC}"
         sleep 3
         
-        # Start UI (this will run in foreground)
+        # Start UI in background
         start_ui &
         UI_PID=$!
+        
+        echo ""
+        echo -e "${GREEN}✅ Both services started!${NC}"
+        echo -e "${BLUE}📡 Gateway: http://localhost:5900${NC}"
+        echo -e "${BLUE}🎨 UI:      http://localhost:3000${NC}"
+        echo ""
+        echo -e "${YELLOW}💡 Press Ctrl+C to stop both services${NC}"
         
         # Wait for both processes
         wait $GATEWAY_PID $UI_PID
