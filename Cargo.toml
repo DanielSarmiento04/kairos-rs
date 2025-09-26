@@ -1,31 +1,51 @@
-[package]
-name = "kairos-rs"
-version = "0.2.6"
-edition = "2021"
-description = "A Rust library for interacting with the Kairos Api Gateway"
-license = "MIT"
+[workspace]
+resolver = "2"
+members = [
+    "crates/kairos-rs",
+    "crates/kairos-gateway", 
+    "crates/kairos-cli",
+    "crates/kairos-ui",
+    "crates/kairos-client"
+]
 
-[dependencies]
-serde_json = "1.0"
+# Shared workspace dependencies
+[workspace.dependencies]
+# Core dependencies
 serde = { version = "1.0", features = ["derive"] }
-log = "0.4"
-env_logger = { version = "0.11", features = ["color"] }
-chrono = { version = "0.4", features = ["serde"] }
-actix-web = "4"
-reqwest = { version = "0.12", features = ["json", "gzip", "brotli"] }
+serde_json = "1.0"
 tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "macros", "signal", "fs"] }
+reqwest = { version = "0.12", features = ["json", "gzip", "brotli"] }
 thiserror = "1.0"
+log = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Web framework dependencies
+actix-web = "4"
+actix-governor = "0.5"
+
+# Leptos dependencies for UI
+leptos = { version = "0.6", features = ["csr", "ssr"] }
+leptos_meta = { version = "0.6" }
+leptos_router = { version = "0.6" }
+leptos_axum = { version = "0.6" }
+
+# CLI dependencies  
+clap = { version = "4.0", features = ["derive", "color"] }
+console = "0.15"
+indicatif = "0.17"
+
+# Additional dependencies
 regex = { version = "1.11.2", features = ["std"], default-features = false }
-# Performance and security dependencies
 ahash = "0.8"
 once_cell = "1.19"
-uuid = { version = "1.0", features = ["v4", "serde"] }
-actix-governor = "0.5"
 jsonwebtoken = "9.0"
 base64 = "0.22"
 futures-util = "0.3"
 futures = "0.3"
+env_logger = { version = "0.11", features = ["color"] }
 
-[dev-dependencies]
-tempfile = "3.0"
-
+[workspace.metadata.leptos]
+# Leptos configuration for the UI
+bin-features = ["ssr"]
+lib-features = ["csr"]

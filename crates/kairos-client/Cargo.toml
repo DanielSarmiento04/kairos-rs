@@ -1,0 +1,35 @@
+[package]
+name = "kairos-client"
+version = "0.2.6"
+edition = "2021"
+description = "Client library for interacting with Kairos API Gateway"
+license = "MIT"
+authors = ["Daniel Sarmiento <daniel@example.com>"]
+repository = "https://github.com/DanielSarmiento04/kairos-rs"
+keywords = ["api-gateway", "client", "http", "websocket"]
+categories = ["web-programming", "api-bindings"]
+
+[lib]
+name = "kairos_client"
+
+[dependencies]
+# Local dependencies
+kairos-rs = { path = "../kairos-rs" }
+
+# Workspace dependencies
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+reqwest.workspace = true
+thiserror.workspace = true
+log.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+
+# Client-specific dependencies
+url = "2.5"
+tokio-tungstenite = "0.21"
+futures-util = "0.3"
+
+[dev-dependencies]
+tokio-test = "0.4"
