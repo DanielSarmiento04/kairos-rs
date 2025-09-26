@@ -15,20 +15,24 @@ pub fn App() -> impl IntoView {
     provide_meta_context();
 
     view! {
+        <Html lang="en"/>
         <Stylesheet id="leptos" href="/pkg/kairos-ui.css"/>
+        <Stylesheet id="styles" href="/assets/styles.css"/>
         
         // Sets page title
         <Title text="Kairos Gateway Admin"/>
         
         // Sets meta description
         <Meta name="description" content="Admin interface for Kairos API Gateway"/>
+        <Meta charset="utf-8"/>
+        <Meta name="viewport" content="width=device-width, initial-scale=1"/>
         
         <Router>
-            <main>
-                <Header/>
-                <div class="container">
-                    <Sidebar/>
-                    <div class="main-content">
+            <div class="app-container">
+                <Sidebar/>
+                <div class="main-content">
+                    <Header/>
+                    <div class="content">
                         <Routes>
                             <Route path="" view=Dashboard/>
                             <Route path="/routes" view=RoutesPage/>
@@ -39,7 +43,7 @@ pub fn App() -> impl IntoView {
                         </Routes>
                     </div>
                 </div>
-            </main>
+            </div>
         </Router>
     }
 }
@@ -55,9 +59,11 @@ fn NotFound() -> impl IntoView {
     
     view! {
         <div class="error-page">
-            <h1>"Page Not Found"</h1>
-            <p>"The page you're looking for doesn't exist."</p>
-            <a href="/">"Go Home"</a>
+            <div class="error-content">
+                <h1>"🚫 404 - Page Not Found"</h1>
+                <p>"The page you're looking for doesn't exist."</p>
+                <a href="/" class="btn-primary">"← Back to Dashboard"</a>
+            </div>
         </div>
     }
 }
