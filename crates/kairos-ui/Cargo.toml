@@ -42,7 +42,7 @@ console_error_panic_hook = "0.1"
 tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "macros"], optional = true }
 reqwest = { version = "0.12", features = ["json"], optional = true }
 axum = { version = "0.7", optional = true }
-tower = { version = "0.4", optional = true }
+tower = { version = "0.4", features = ["util"], optional = true }
 tower-http = { version = "0.5", features = ["fs"], optional = true }
 
 [features]

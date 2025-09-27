@@ -35,7 +35,7 @@ start_gateway() {
 start_ui() {
     echo -e "${GREEN}🎨 Starting Kairos UI on port 3000...${NC}"
     cd "$(dirname "$0")/crates/kairos-ui"
-    cargo leptos serve
+    cargo leptos serve --hot-reload
 }
 
 # Function to show help
