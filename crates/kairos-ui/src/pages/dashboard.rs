@@ -1,8 +1,7 @@
 use leptos::*;
 use leptos::logging::log;
-use kairos_client::{GatewayClient, ClientError, MetricsSnapshot, HealthStatus};
+use kairos_client::GatewayClient;
 use wasm_bindgen_futures::spawn_local;
-use wasm_bindgen::JsCast;
 
 #[derive(Debug, Clone)]
 pub struct DashboardMetrics {
@@ -35,8 +34,8 @@ pub fn Dashboard() -> impl IntoView {
     let (is_loading, set_is_loading) = create_signal(true);
     let (error_message, set_error_message) = create_signal(None::<String>);
 
-    // Auto-refresh interval (5 seconds)
-    let refresh_interval = std::time::Duration::from_secs(5);
+    // Auto-refresh interval (5 seconds) - for future use
+    let _refresh_interval = std::time::Duration::from_secs(5);
 
     // Function to fetch data from Kairos Gateway
     let fetch_data = move || {

@@ -1,2 +1,2 @@
 // Re-export health page component  
-pub use crate::pages::routes::HealthPage;
+// Future: Add health-specific components here

@@ -1,4 +1,5 @@
-use leptos::*;
+// Component modules
+// Add components here as needed
 
 mod header;
 mod sidebar;

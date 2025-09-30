@@ -1,26 +1,25 @@
 #[cfg(feature = "ssr")]
 #[tokio::main]
 async fn main() {
-    use axum::Router;
-    use kairos_ui::*;
-    use leptos::*;
-    use leptos_axum::{generate_route_list, LeptosRoutes};
+    use axum::{Router, response::Html, http::StatusCode};
     use tower_http::services::ServeDir;
+    use std::net::SocketAddr;
     
-    let conf = get_configuration(None).await.unwrap();
-    let leptos_options = conf.leptos_options;
-    let addr = leptos_options.site_addr;
-    let routes = generate_route_list(App);
-
-    // Build our application with static file serving
+    println!("🚀 Starting Kairos UI server...");
+    
+    // Simple static file server for the WASM build
     let app = Router::new()
-        .leptos_routes(&leptos_options, routes, App)
-        .nest_service("/pkg", ServeDir::new("target/site/pkg"))
-        .nest_service("/assets", ServeDir::new("assets"))
-        .fallback(leptos_axum::file_and_error_handler);
+        .nest_service("/", ServeDir::new("target/site"))
+        .fallback(|| async { 
+            (StatusCode::OK, Html(include_str!("../index.html")))
+        });
 
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-    println!("🚀 Kairos UI listening on http://{}", &addr);
+    
+    println!("🌐 Kairos UI server listening on http://{}", addr);
+    println!("📦 Serving WASM application from target/site");
+    
     axum::serve(listener, app).await.unwrap();
 }
 
