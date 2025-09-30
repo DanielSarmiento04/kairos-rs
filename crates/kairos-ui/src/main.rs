@@ -1,11 +1,10 @@
 #[cfg(feature = "ssr")]
 #[tokio::main]
 async fn main() {
-    use axum::{http::StatusCode, Router};
+    use axum::Router;
     use kairos_ui::*;
     use leptos::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
-    use tower::ServiceExt;
     use tower_http::services::ServeDir;
     
     let conf = get_configuration(None).await.unwrap();
@@ -18,10 +17,7 @@ async fn main() {
         .leptos_routes(&leptos_options, routes, App)
         .nest_service("/pkg", ServeDir::new("target/site/pkg"))
         .nest_service("/assets", ServeDir::new("assets"))
-        .fallback_service(ServeDir::new(&leptos_options.site_root).handle_error(|error| async move {
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Unhandled internal error: {}", error))
-        }))
-        .with_state(leptos_options);
+        .fallback(leptos_axum::file_and_error_handler);
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     println!("🚀 Kairos UI listening on http://{}", &addr);

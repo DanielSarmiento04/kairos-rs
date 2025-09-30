@@ -1,13 +1,10 @@
-use leptos::*;
+mod dashboard;
+mod dashboard_simple;
+mod routes;
+mod metrics;
+mod config;
+mod health;
 
-pub mod dashboard_simple;
-pub mod routes;
-pub mod metrics;
-pub mod config;
-pub mod health;
-
+// Use the simple dashboard for now
 pub use dashboard_simple::Dashboard;
-pub use routes::*;
-pub use metrics::*;
-pub use config::*;
-pub use health::*;
+pub use routes::{RoutesPage, MetricsPage, ConfigPage, HealthPage};

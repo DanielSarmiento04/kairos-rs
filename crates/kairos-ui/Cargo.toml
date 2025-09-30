@@ -25,6 +25,7 @@ leptos_router = { version = "0.6" }
 leptos_axum = { version = "0.6", optional = true }
 
 # Core dependencies
+kairos-client = { path = "../kairos-client", default-features = false, features = ["wasm"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 log = "0.4"

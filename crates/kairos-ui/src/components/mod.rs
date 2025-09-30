@@ -1,7 +1,7 @@
 use leptos::*;
 
-pub mod header;
-pub mod sidebar;
+mod header;
+mod sidebar;
 
 pub use header::*;
 pub use sidebar::*;
