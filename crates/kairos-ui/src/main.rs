@@ -35,10 +35,9 @@ async fn main() {
 <body>
     <div id="leptos"></div>
     <script type="module">
-        import init, { hydrate } from '/pkg/kairos-ui.js';
+        import init from '/pkg/kairos-ui.js';
         async function main() {
             await init('/pkg/kairos-ui.wasm');
-            hydrate();
         }
         main()
     </script>
