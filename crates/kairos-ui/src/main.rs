@@ -14,32 +14,54 @@ async fn main() {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Kairos UI</title>
-    <link rel="stylesheet" href="/pkg/kairos-ui.css">
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin: 0;
             padding: 20px;
-            background: #f5f5f5;
+            background: #f5f7fa;
+            color: #2d3748;
         }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
+        
+        #leptos {
+            min-height: 90vh;
             background: white;
-            padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
         }
     </style>
 </head>
 <body>
-    <div id="leptos"></div>
+    <h1>🔄 Kairos Gateway</h1>
+    <div id="leptos">
+        <div class="loading">Loading application...</div>
+    </div>
+    
     <script type="module">
+        console.log('Script starting...');
+        
         import init from '/pkg/kairos-ui.js';
+        
         async function main() {
-            await init('/pkg/kairos-ui.wasm');
+            try {
+                console.log('Initializing WASM...');
+                await init('/pkg/kairos-ui.wasm');
+                console.log('WASM initialized successfully!');
+            } catch (error) {
+                console.error('Failed to load WASM:', error);
+                document.getElementById('leptos').innerHTML = 
+                    '<div class="loading" style="color: red;">❌ Failed to load application: ' + error.message + '</div>';
+            }
         }
-        main()
+        
+        main();
     </script>
 </body>
 </html>"#;
@@ -68,5 +90,14 @@ pub fn main() {
     
     console_error_panic_hook::set_once();
     
-    leptos::mount_to_body(App);
+    // Add some debug logging
+    web_sys::console::log_1(&"Starting Leptos app...".into());
+    
+    // Mount to the specific div instead of body
+    leptos::mount_to(
+        leptos::document().get_element_by_id("leptos").unwrap(),
+        App
+    );
+    
+    web_sys::console::log_1(&"Leptos app mounted to #leptos div!".into());
 }
