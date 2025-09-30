@@ -14,7 +14,7 @@ async fn main() {
             (StatusCode::OK, Html(include_str!("../index.html")))
         });
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     
     println!("🌐 Kairos UI server listening on http://{}", addr);
