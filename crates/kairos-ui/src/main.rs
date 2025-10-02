@@ -47,21 +47,30 @@ async fn main() {
     <script type="module">
         console.log('Script starting...');
         
-        import init from '/pkg/kairos-ui.js';
-        
-        async function main() {
-            try {
-                console.log('Initializing WASM...');
-                await init('/pkg/kairos-ui.wasm');
-                console.log('WASM initialized successfully!');
-            } catch (error) {
-                console.error('Failed to load WASM:', error);
-                document.getElementById('leptos').innerHTML = 
-                    '<div class="loading" style="color: red;">❌ Failed to load application: ' + error.message + '</div>';
-            }
+        try {
+            import('/pkg/kairos-ui.js').then(async (module) => {
+                console.log('Module imported successfully:', module);
+                console.log('Available exports:', Object.keys(module));
+                
+                try {
+                    console.log('Initializing WASM...');
+                    await module.default('/pkg/kairos-ui.wasm');
+                    console.log('WASM initialized successfully!');
+                    
+                    // Clear the loading message
+                    document.getElementById('leptos').innerHTML = '<div style="color: green;">✅ WASM loaded! Leptos should mount here...</div>';
+                    
+                } catch (error) {
+                    console.error('Failed to initialize WASM:', error);
+                    document.getElementById('leptos').innerHTML = 
+                        '<div style="color: red;">❌ WASM init failed: ' + error.message + '</div>';
+                }
+            });
+        } catch (error) {
+            console.error('Failed to import module:', error);
+            document.getElementById('leptos').innerHTML = 
+                '<div style="color: red;">❌ Module import failed: ' + error.message + '</div>';
         }
-        
-        main();
     </script>
 </body>
 </html>"#;
