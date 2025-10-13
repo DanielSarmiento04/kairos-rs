@@ -35,7 +35,39 @@ start_gateway() {
 start_ui() {
     echo -e "${GREEN}🎨 Starting Kairos UI on port 3000...${NC}"
     cd "$(dirname "$0")/crates/kairos-ui"
-    cargo leptos serve --hot-reload
+    
+    # First, try to build the WASM version
+    echo -e "${BLUE}📦 Building WASM components...${NC}"
+    if cargo build --lib --target wasm32-unknown-unknown; then
+        echo -e "${GREEN}✅ WASM build successful!${NC}"
+        
+        # Try cargo leptos serve
+        echo -e "${BLUE}🚀 Attempting to start Leptos server...${NC}"
+        if timeout 10s cargo leptos serve 2>/dev/null; then
+            echo -e "${GREEN}✅ Leptos server started successfully!${NC}"
+        else
+            echo -e "${YELLOW}⚠️  Leptos server failed, using fallback Python server...${NC}"
+            
+            # Build the site directory if needed
+            if [ ! -d "target/site" ]; then
+                echo -e "${BLUE}📦 Building site directory...${NC}"
+                cargo leptos build 2>/dev/null || true
+            fi
+            
+            # Use Python fallback server
+            if [ -f "serve.py" ]; then
+                echo -e "${BLUE}🐍 Starting Python server...${NC}"
+                python3 serve.py
+            else
+                echo -e "${BLUE}🌐 Starting simple HTTP server...${NC}"
+                cd target/site 2>/dev/null || mkdir -p target/site
+                python3 -m http.server 3000
+            fi
+        fi
+    else
+        echo -e "${RED}❌ WASM build failed. Please check your code.${NC}"
+        return 1
+    fi
 }
 
 # Function to show help

@@ -1,65 +1,66 @@
-use leptos::*;
-use leptos_meta::*;
-use leptos_router::*;
-
-use crate::components::*;
-use crate::pages::*;
+use leptos::prelude::*;
+use leptos_meta::{provide_meta_context, Stylesheet, Title};
+use leptos_router::{
+    components::{Route, Router, Routes},
+    StaticSegment, WildcardSegment,
+};
 
 #[component]
 pub fn App() -> impl IntoView {
-    // Provides context for the router
+    // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
 
     view! {
-        <Html lang="en"/>
+        // injects a stylesheet into the document <head>
+        // id=leptos means cargo-leptos will hot-reload this stylesheet
         <Stylesheet id="leptos" href="/pkg/kairos-ui.css"/>
-        <Stylesheet id="styles" href="/assets/styles.css"/>
-        
-        // Sets page title
-        <Title text="Kairos Gateway Admin"/>
-        
-        // Sets meta description
-        <Meta name="description" content="Admin interface for Kairos API Gateway"/>
-        <Meta charset="utf-8"/>
-        <Meta name="viewport" content="width=device-width, initial-scale=1"/>
-        
+
+        // sets the document title
+        <Title text="Welcome to Leptos"/>
+
+        // content for this welcome page
         <Router>
-            <div class="app-container">
-                <Sidebar/>
-                <div class="main-content">
-                    <Header/>
-                    <div class="content">
-                        <Routes>
-                            <Route path="" view=Dashboard/>
-                            <Route path="/routes" view=RoutesPage/>
-                            <Route path="/metrics" view=MetricsPage/>
-                            <Route path="/config" view=ConfigPage/>
-                            <Route path="/health" view=HealthPage/>
-                            <Route path="/*any" view=NotFound/>
-                        </Routes>
-                    </div>
-                </div>
-            </div>
+            <main>
+                <Routes fallback=move || "Not found.">
+                    <Route path=StaticSegment("") view=HomePage/>
+                    <Route path=WildcardSegment("any") view=NotFound/>
+                </Routes>
+            </main>
         </Router>
     }
 }
 
+/// Renders the home page of your application.
+#[component]
+fn HomePage() -> impl IntoView {
+    // Creates a reactive value to update the button
+    let count = RwSignal::new(0);
+    let on_click = move |_| *count.write() += 1;
+
+    view! {
+        <h1>"Welcome to Leptos!"</h1>
+        <button on:click=on_click>"Click Me: " {count}</button>
+    }
+}
+
+/// 404 - Not Found
 #[component]
 fn NotFound() -> impl IntoView {
-    // Set an HTTP status code 404
+    // set an HTTP status code 404
+    // this is feature gated because it can only be done during
+    // initial server-side rendering
+    // if you navigate to the 404 page subsequently, the status
+    // code will not be set because there is not a new HTTP request
+    // to the server
     #[cfg(feature = "ssr")]
     {
-        let resp = expect_context::<leptos_axum::ResponseOptions>();
-        resp.set_status(axum::http::StatusCode::NOT_FOUND);
+        // this can be done inline because it's synchronous
+        // if it were async, we'd use a server function
+        let resp = expect_context::<leptos_actix::ResponseOptions>();
+        resp.set_status(actix_web::http::StatusCode::NOT_FOUND);
     }
-    
+
     view! {
-        <div class="error-page">
-            <div class="error-content">
-                <h1>"🚫 404 - Page Not Found"</h1>
-                <p>"The page you're looking for doesn't exist."</p>
-                <a href="/" class="btn-primary">"← Back to Dashboard"</a>
-            </div>
-        </div>
+        <h1>"Not Found"</h1>
     }
 }

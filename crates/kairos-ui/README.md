@@ -4,6 +4,19 @@
 
 The Kairos UI is built with **Leptos 0.6** and provides a modern web-based admin interface for the Kairos API Gateway.
 
+### Quick Start (TL;DR)
+
+```bash
+# 1. Start the gateway (in one terminal)
+cargo run --bin kairos-gateway
+
+# 2. Start the UI dev server (in another terminal)
+cd crates/kairos-ui
+cargo leptos serve
+
+# 3. Open http://localhost:3000
+```
+
 ### Prerequisites
 
 1. **Gateway must be running** on port 5900:
@@ -17,6 +30,11 @@ The Kairos UI is built with **Leptos 0.6** and provides a modern web-based admin
    cargo install cargo-leptos
    ```
 
+3. **Install wasm-bindgen-cli** (if building manually):
+   ```bash
+   cargo install wasm-bindgen-cli
+   ```
+
 ### Development Mode
 
 Start the UI development server with hot reload:
@@ -28,6 +46,31 @@ cargo leptos serve
 ```
 
 The UI will be available at: **http://localhost:3000**
+
+### Building for Production
+
+**Option 1: Using cargo-leptos (Recommended)**
+```bash
+cargo leptos build --release
+./target/release/kairos-ui
+```
+
+**Option 2: Manual build**
+```bash
+# Make the build script executable
+chmod +x build.sh
+
+# Run the build
+./build.sh
+
+# Run the server
+./target/release/kairos-ui
+```
+
+**⚠️ Important:** 
+- The WASM client must be built with `csr` feature (default)
+- The server binary must be built with `ssr` feature
+- **Never** build WASM with `--features ssr` - this will fail because server features like Tokio networking are incompatible with WASM
 
 ### Features Implemented
 
