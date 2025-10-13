@@ -1,4 +1,840 @@
+//! Kairos UI Styles - Professional gateway admin interface
+//! Following Rust llm.txt guidelines for clean, maintainable CSS/SCSS
+
+// ============================================================================
+// Variables
+// ============================================================================
+
+// Color Palette
+$primary-color: #0066cc;
+$primary-dark: #004d99;
+$primary-light: #3385d6;
+
+$success-color: #28a745;
+$warning-color: #ffc107;
+$error-color: #dc3545;
+$info-color: #17a2b8;
+$neutral-color: #6c757d;
+
+$bg-primary: #ffffff;
+$bg-secondary: #f8f9fa;
+$bg-tertiary: #e9ecef;
+$bg-dark: #343a40;
+
+$text-primary: #212529;
+$text-secondary: #6c757d;
+$text-light: #ffffff;
+
+$border-color: #dee2e6;
+$shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+$shadow-md: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+$shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.175);
+
+// Spacing
+$space-xs: 0.25rem;
+$space-sm: 0.5rem;
+$space-md: 1rem;
+$space-lg: 1.5rem;
+$space-xl: 2rem;
+$space-xxl: 3rem;
+
+// Typography
+$font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+$font-size-base: 16px;
+$font-size-sm: 0.875rem;
+$font-size-lg: 1.125rem;
+$font-size-xl: 1.25rem;
+$font-size-xxl: 1.5rem;
+
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-bold: 700;
+
+// Layout
+$sidebar-width: 250px;
+$navbar-height: 60px;
+$border-radius: 0.375rem;
+$transition-speed: 0.2s;
+
+// ============================================================================
+// Base Styles
+// ============================================================================
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  font-family: $font-family;
+  font-size: $font-size-base;
+  color: $text-primary;
+  background-color: $bg-secondary;
+  line-height: 1.5;
+}
+
 body {
-	font-family: sans-serif;
-	text-align: center;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+// ============================================================================
+// Navbar Styles
+// ============================================================================
+
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: $navbar-height;
+  background-color: $bg-dark;
+  color: $text-light;
+  padding: 0 $space-lg;
+  box-shadow: $shadow-md;
+  z-index: 1000;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-title {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+}
+
+.navbar-icon {
+  font-size: $font-size-xxl;
+}
+
+.navbar-center {
+  flex: 1;
+  text-align: center;
+}
+
+.navbar-page-title {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: $space-md;
+}
+
+.navbar-status {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  padding: $space-sm $space-md;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: $border-radius;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  
+  &-active {
+    background-color: $success-color;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  
+  &-inactive {
+    background-color: $error-color;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.status-text {
+  font-size: $font-size-sm;
+}
+
+// ============================================================================
+// Sidebar Styles
+// ============================================================================
+
+.sidebar {
+  width: $sidebar-width;
+  background-color: $bg-primary;
+  border-right: 1px solid $border-color;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  box-shadow: $shadow-sm;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: $space-md 0;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: $space-md;
+  padding: $space-md $space-lg;
+  color: $text-primary;
+  text-decoration: none;
+  transition: all $transition-speed;
+  
+  &:hover {
+    background-color: $bg-secondary;
+    color: $primary-color;
+  }
+  
+  &.active {
+    background-color: rgba($primary-color, 0.1);
+    color: $primary-color;
+    font-weight: $font-weight-medium;
+    border-left: 3px solid $primary-color;
+  }
+}
+
+.sidebar-icon {
+  font-size: $font-size-xl;
+}
+
+.sidebar-text {
+  font-size: $font-size-base;
+}
+
+.sidebar-footer {
+  padding: $space-lg;
+  border-top: 1px solid $border-color;
+}
+
+.sidebar-version {
+  display: flex;
+  flex-direction: column;
+  gap: $space-xs;
+  font-size: $font-size-sm;
+  color: $text-secondary;
+}
+
+.version-label {
+  font-weight: $font-weight-medium;
+}
+
+.version-number {
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+// ============================================================================
+// Content Area
+// ============================================================================
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: $space-xl;
+  background-color: $bg-secondary;
+}
+
+// ============================================================================
+// Page Styles
+// ============================================================================
+
+.page-header {
+  margin-bottom: $space-xl;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.page-title {
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-bold;
+  margin-bottom: $space-sm;
+}
+
+.page-subtitle {
+  font-size: $font-size-base;
+  color: $text-secondary;
+}
+
+.section-title {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  margin-bottom: $space-lg;
+  color: $text-primary;
+}
+
+.subsection-title {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  margin: $space-lg 0 $space-md 0;
+  color: $text-primary;
+}
+
+// ============================================================================
+// Dashboard Styles
+// ============================================================================
+
+.dashboard {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.dashboard-header {
+  position: relative;
+  margin-bottom: $space-xl;
+}
+
+.refresh-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.dashboard-section {
+  background-color: $bg-primary;
+  border-radius: $border-radius;
+  padding: $space-xl;
+  margin-bottom: $space-xl;
+  box-shadow: $shadow-sm;
+}
+
+.health-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: $space-lg;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: $space-lg;
+  margin-bottom: $space-lg;
+}
+
+.error-breakdown, .response-time-distribution, .circuit-breakers, .data-transfer {
+  margin-top: $space-xl;
+}
+
+.dashboard-footer {
+  text-align: center;
+  padding: $space-lg;
+  color: $text-secondary;
+  font-size: $font-size-sm;
+}
+
+// ============================================================================
+// Metric Card Styles
+// ============================================================================
+
+.metric-card {
+  background-color: $bg-primary;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  padding: $space-lg;
+  display: flex;
+  gap: $space-md;
+  align-items: flex-start;
+  transition: transform $transition-speed, box-shadow $transition-speed;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-md;
+  }
+}
+
+.metric-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.metric-content {
+  flex: 1;
+}
+
+.metric-title {
+  font-size: $font-size-sm;
+  color: $text-secondary;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: $space-xs;
+  font-weight: $font-weight-medium;
+}
+
+.metric-value {
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-bold;
+  color: $text-primary;
+  margin-bottom: $space-xs;
+}
+
+.metric-subtitle {
+  font-size: $font-size-sm;
+  color: $text-secondary;
+}
+
+.metric-trend {
+  display: inline-block;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  margin-top: $space-xs;
+  
+  &-up {
+    color: $success-color;
+  }
+  
+  &-down {
+    color: $error-color;
+  }
+  
+  &-neutral {
+    color: $neutral-color;
+  }
+}
+
+// ============================================================================
+// Status Badge Styles
+// ============================================================================
+
+.status-badge {
+  display: inline-block;
+  padding: $space-xs $space-sm;
+  border-radius: $border-radius;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  
+  &-success {
+    background-color: rgba($success-color, 0.1);
+    color: darken($success-color, 10%);
+  }
+  
+  &-warning {
+    background-color: rgba($warning-color, 0.1);
+    color: darken($warning-color, 20%);
+  }
+  
+  &-error {
+    background-color: rgba($error-color, 0.1);
+    color: darken($error-color, 10%);
+  }
+  
+  &-info {
+    background-color: rgba($info-color, 0.1);
+    color: darken($info-color, 10%);
+  }
+  
+  &-neutral {
+    background-color: rgba($neutral-color, 0.1);
+    color: darken($neutral-color, 10%);
+  }
+}
+
+// ============================================================================
+// Histogram Styles
+// ============================================================================
+
+.histogram {
+  background-color: $bg-secondary;
+  border-radius: $border-radius;
+  padding: $space-lg;
+}
+
+.histogram-bar {
+  display: grid;
+  grid-template-columns: 100px 1fr 80px;
+  gap: $space-md;
+  align-items: center;
+  margin-bottom: $space-md;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.histogram-label {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $text-secondary;
+}
+
+.histogram-bar-container {
+  height: 24px;
+  background-color: $bg-tertiary;
+  border-radius: $border-radius;
+  overflow: hidden;
+}
+
+.histogram-bar-fill {
+  height: 100%;
+  transition: width $transition-speed ease-out;
+  
+  &-excellent {
+    background: linear-gradient(90deg, $success-color, lighten($success-color, 10%));
+  }
+  
+  &-good {
+    background: linear-gradient(90deg, $info-color, lighten($info-color, 10%));
+  }
+  
+  &-fair {
+    background: linear-gradient(90deg, $warning-color, lighten($warning-color, 10%));
+  }
+  
+  &-poor {
+    background: linear-gradient(90deg, darken($warning-color, 10%), $warning-color);
+  }
+  
+  &-critical {
+    background: linear-gradient(90deg, $error-color, lighten($error-color, 10%));
+  }
+}
+
+.histogram-value {
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
+  text-align: right;
+  color: $text-primary;
+}
+
+// ============================================================================
+// Circuit Breaker Styles
+// ============================================================================
+
+.circuit-breaker-list {
+  display: flex;
+  flex-direction: column;
+  gap: $space-md;
+}
+
+.circuit-breaker-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $space-md;
+  background-color: $bg-secondary;
+  border-radius: $border-radius;
+  border: 1px solid $border-color;
+}
+
+.cb-service {
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: $font-size-sm;
+  color: $text-primary;
+  flex: 1;
+}
+
+.cb-stats {
+  font-size: $font-size-sm;
+  color: $text-secondary;
+  margin-left: $space-md;
+}
+
+// ============================================================================
+// Health Page Styles
+// ============================================================================
+
+.health-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.health-section {
+  background-color: $bg-primary;
+  border-radius: $border-radius;
+  padding: $space-xl;
+  margin-bottom: $space-xl;
+  box-shadow: $shadow-sm;
+}
+
+.health-details {
+  display: flex;
+  flex-direction: column;
+  gap: $space-md;
+}
+
+.health-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $space-md;
+  background-color: $bg-secondary;
+  border-radius: $border-radius;
+}
+
+.health-label {
+  font-weight: $font-weight-medium;
+  color: $text-secondary;
+}
+
+.health-value {
+  font-weight: $font-weight-medium;
+  color: $text-primary;
+}
+
+// ============================================================================
+// Loading Styles
+// ============================================================================
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $space-xxl;
+  gap: $space-md;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid $bg-tertiary;
+  border-top-color: $primary-color;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-message {
+  color: $text-secondary;
+  font-size: $font-size-base;
+}
+
+// ============================================================================
+// Error Styles
+// ============================================================================
+
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $space-xxl;
+  background-color: rgba($error-color, 0.05);
+  border-radius: $border-radius;
+  border: 1px solid rgba($error-color, 0.2);
+  gap: $space-md;
+  text-align: center;
+}
+
+.error-icon {
+  font-size: 3rem;
+}
+
+.error-title {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $error-color;
+}
+
+.error-message {
+  font-size: $font-size-base;
+  color: $text-secondary;
+  max-width: 600px;
+}
+
+.error-actions {
+  margin-top: $space-md;
+}
+
+// ============================================================================
+// Placeholder Styles
+// ============================================================================
+
+.content-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $space-xxl * 2;
+  text-align: center;
+  background-color: $bg-primary;
+  border-radius: $border-radius;
+  box-shadow: $shadow-sm;
+  
+  h2 {
+    font-size: $font-size-xl;
+    font-weight: $font-weight-bold;
+    margin: $space-lg 0 $space-md 0;
+    color: $text-primary;
+  }
+  
+  p {
+    font-size: $font-size-base;
+    color: $text-secondary;
+    max-width: 600px;
+    margin-bottom: $space-md;
+  }
+}
+
+.placeholder-icon {
+  font-size: 4rem;
+}
+
+.placeholder-features {
+  text-align: left;
+  padding: $space-lg;
+  background-color: $bg-secondary;
+  border-radius: $border-radius;
+  margin-top: $space-lg;
+  line-height: 1.8;
+}
+
+// ============================================================================
+// Button Styles
+// ============================================================================
+
+.btn {
+  display: inline-block;
+  padding: $space-sm $space-lg;
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+  text-align: center;
+  text-decoration: none;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  transition: all $transition-speed;
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: $shadow-md;
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  &-primary {
+    background-color: $primary-color;
+    color: $text-light;
+    
+    &:hover {
+      background-color: $primary-dark;
+    }
+  }
+  
+  &-secondary {
+    background-color: $neutral-color;
+    color: $text-light;
+    
+    &:hover {
+      background-color: darken($neutral-color, 10%);
+    }
+  }
+  
+  &-success {
+    background-color: $success-color;
+    color: $text-light;
+    
+    &:hover {
+      background-color: darken($success-color, 10%);
+    }
+  }
+  
+  &-danger {
+    background-color: $error-color;
+    color: $text-light;
+    
+    &:hover {
+      background-color: darken($error-color, 10%);
+    }
+  }
+}
+
+// ============================================================================
+// Responsive Design
+// ============================================================================
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid $border-color;
+  }
+  
+  main {
+    flex-direction: column;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .navbar-page-title {
+    display: none;
+  }
+  
+  .histogram-bar {
+    grid-template-columns: 80px 1fr 60px;
+    font-size: $font-size-sm;
+  }
+}
+
+// ============================================================================
+// Utility Classes
+// ============================================================================
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.mt-sm {
+  margin-top: $space-sm;
+}
+
+.mt-md {
+  margin-top: $space-md;
+}
+
+.mt-lg {
+  margin-top: $space-lg;
+}
+
+.mb-sm {
+  margin-bottom: $space-sm;
+}
+
+.mb-md {
+  margin-bottom: $space-md;
+}
+
+.mb-lg {
+  margin-bottom: $space-lg;
+}
+
+.auto-refresh-notice {
+  font-size: $font-size-sm;
+  color: $text-secondary;
 }

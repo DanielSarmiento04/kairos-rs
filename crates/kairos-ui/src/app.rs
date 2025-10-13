@@ -1,66 +1,76 @@
+//! Main application component with routing and layout.
+
 use leptos::prelude::*;
-use leptos_meta::{provide_meta_context, Stylesheet, Title};
+use leptos_meta::{provide_meta_context, Stylesheet, Title, Meta};
 use leptos_router::{
     components::{Route, Router, Routes},
-    StaticSegment, WildcardSegment,
+    StaticSegment,
 };
 
+use crate::components::{Navbar, Sidebar};
+use crate::pages::*;
+
+/// Main application component with navigation and routing.
 #[component]
 pub fn App() -> impl IntoView {
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
 
     view! {
-        // injects a stylesheet into the document <head>
-        // id=leptos means cargo-leptos will hot-reload this stylesheet
+        // Inject stylesheet
         <Stylesheet id="leptos" href="/pkg/kairos-ui.css"/>
-
-        // sets the document title
-        <Title text="Welcome to Leptos"/>
-
-        // content for this welcome page
+        
+        // Set document title
+        <Title text="Kairos Gateway - Admin UI"/>
+        
+        // Meta tags for SEO and responsiveness
+        <Meta name="description" content="Kairos Gateway Admin Interface - Real-time monitoring and configuration"/>
+        <Meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        
+        // Main router
         <Router>
+            // Top navigation bar
+            <Navbar />
+            
+            // Main content area with sidebar
             <main>
-                <Routes fallback=move || "Not found.">
-                    <Route path=StaticSegment("") view=HomePage/>
-                    <Route path=WildcardSegment("any") view=NotFound/>
-                </Routes>
+                // Left sidebar navigation
+                <Sidebar />
+                
+                // Content area with routes
+                <div class="content">
+                    <Routes fallback=move || view! { <NotFound /> }>
+                        <Route path=StaticSegment("") view=DashboardPage />
+                        <Route path=StaticSegment("routes") view=RoutesPage />
+                        <Route path=StaticSegment("metrics") view=MetricsPage />
+                        <Route path=StaticSegment("config") view=ConfigPage />
+                        <Route path=StaticSegment("health") view=HealthPage />
+                    </Routes>
+                </div>
             </main>
         </Router>
     }
 }
 
-/// Renders the home page of your application.
-#[component]
-fn HomePage() -> impl IntoView {
-    // Creates a reactive value to update the button
-    let count = RwSignal::new(0);
-    let on_click = move |_| *count.write() += 1;
-
-    view! {
-        <h1>"Welcome to Leptos!"</h1>
-        <button on:click=on_click>"Click Me: " {count}</button>
-    }
-}
-
-/// 404 - Not Found
+/// 404 - Not Found page
 #[component]
 fn NotFound() -> impl IntoView {
-    // set an HTTP status code 404
-    // this is feature gated because it can only be done during
-    // initial server-side rendering
-    // if you navigate to the 404 page subsequently, the status
-    // code will not be set because there is not a new HTTP request
-    // to the server
+    // Set HTTP status code 404 during SSR
     #[cfg(feature = "ssr")]
     {
-        // this can be done inline because it's synchronous
-        // if it were async, we'd use a server function
-        let resp = expect_context::<leptos_actix::ResponseOptions>();
+        use leptos_actix::ResponseOptions;
+        let resp = expect_context::<ResponseOptions>();
         resp.set_status(actix_web::http::StatusCode::NOT_FOUND);
     }
 
     view! {
-        <h1>"Not Found"</h1>
+        <div class="error-container">
+            <div class="error-icon">"🔍"</div>
+            <h1 class="error-title">"404 - Page Not Found"</h1>
+            <p class="error-message">"The page you're looking for doesn't exist."</p>
+            <div class="error-actions">
+                <a href="/" class="btn btn-primary">"Go to Dashboard"</a>
+            </div>
+        </div>
     }
 }

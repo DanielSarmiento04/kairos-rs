@@ -1,0 +1,708 @@
+# Leptos 0.8 SSR + Actix Guidelines (llm.txt)
+
+## Project Configuration
+
+### Version & Dependencies
+```toml
+[package]
+name = "myapp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Leptos core
+leptos = { version = "0.8.2", features = ["ssr"] }
+leptos_meta = { version = "0.8.2", features = ["ssr"] }
+leptos_router = { version = "0.8.2", features = ["ssr"] }
+leptos_actix = { version = "0.8.2", optional = true }
+
+# Server
+actix-web = { version = "4.10", optional = true }
+actix-files = { version = "0.6", optional = true }
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+thiserror = "1"
+anyhow = "1"
+
+# Utilities
+tracing = "0.1"
+tracing-subscriber = "0.3"
+console_error_panic_hook = "0.1"
+wasm-bindgen = "0.2"
+
+[features]
+default = []
+hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
+ssr = [
+    "leptos/ssr",
+    "leptos_meta/ssr",
+    "leptos_router/ssr",
+    "leptos_actix",
+    "actix-web",
+    "actix-files",
+]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+```
+
+### Leptos.toml Configuration
+```toml
+[package]
+name = "myapp"
+version = "0.1.0"
+
+[output]
+# Output directory for SSR artifacts
+output-dir = "target/site"
+# Public path for assets
+site-pkg-dir = "pkg"
+# Assets directory
+assets-dir = "public"
+# Style file for CSS
+style-file = "style/main.scss"
+# Tailwind input file
+tailwind-input-file = "style/tailwind.css"
+# Tailwind config path
+tailwind-config-file = "tailwind.config.js"
+
+[site]
+# Browser target for WASM
+target = "web"
+# Site address for SSR
+site-addr = "127.0.0.1:3000"
+# Reload port for hot reload
+reload-port = 3001
+
+[env]
+# Environment (DEV or PROD)
+LEPTOS_ENV = "DEV"
+```
+
+## Project Structure
+```
+src/
+├── app.rs              # Root component and routing
+├── lib.rs              # Shared lib (SSR + Hydrate)
+├── main.rs             # Server entry (SSR only)
+├── components/         # Reusable components
+│   ├── mod.rs
+│   ├── navbar.rs
+│   └── footer.rs
+├── pages/              # Route pages
+│   ├── mod.rs
+│   ├── home.rs
+│   └── about.rs
+├── server_functions/   # Server-side logic
+│   ├── mod.rs
+│   └── api.rs
+├── state/              # Global state management
+│   ├── mod.rs
+│   └── app_state.rs
+└── utils/              # Utilities
+    ├── mod.rs
+    └── error.rs
+```
+
+## Core Patterns
+
+### 1. App Root Component
+```rust
+// src/app.rs
+use leptos::*;
+use leptos_meta::*;
+use leptos_router::*;
+
+/// Main application component with routing and metadata.
+#[component]
+pub fn App() -> impl IntoView {
+    provide_meta_context();
+
+    view! {
+        <Stylesheet id="leptos" href="/pkg/myapp.css"/>
+        <Title text="My App"/>
+        <Meta name="description" content="App description"/>
+        <Router>
+            <Nav/>
+            <main class="container mx-auto px-4 py-8">
+                <Routes>
+                    <Route path="/" view=HomePage/>
+                    <Route path="/about" view=AboutPage/>
+                    <Route path="/users/:id" view=UserPage/>
+                </Routes>
+            </main>
+            <Footer/>
+        </Router>
+    }
+}
+
+/// Navigation component.
+#[component]
+fn Nav() -> impl IntoView {
+    view! {
+        <nav class="bg-gray-800 text-white p-4">
+            <div class="flex gap-4">
+                <A href="/" class="hover:text-blue-400">"Home"</A>
+                <A href="/about" class="hover:text-blue-400">"About"</A>
+            </div>
+        </nav>
+    }
+}
+```
+
+### 2. Server Functions
+```rust
+// src/server_functions/api.rs
+use leptos::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct User {
+    pub id: u32,
+    pub name: String,
+    pub email: String,
+}
+
+/// Fetch user by ID from database.
+/// 
+/// # Errors
+/// Returns error if user not found or database error occurs.
+#[server(GetUser, "/api")]
+pub async fn get_user(id: u32) -> Result<User, ServerFnError> {
+    use actix_web::web::Data;
+    use leptos_actix::extract;
+    
+    // Extract app state from Actix
+    let state = extract::<Data<AppState>>().await?;
+    
+    state.db
+        .get_user(id)
+        .await
+        .map_err(|e| ServerFnError::ServerError(e.to_string()))
+}
+
+/// Create a new user.
+/// 
+/// # Arguments
+/// * `name` - User's full name
+/// * `email` - User's email address
+#[server(CreateUser, "/api")]
+pub async fn create_user(
+    name: String,
+    email: String,
+) -> Result<User, ServerFnError> {
+    let state = extract::<Data<AppState>>().await?;
+    
+    let user = state.db
+        .create_user(name, email)
+        .await
+        .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+    
+    Ok(user)
+}
+
+/// Delete user by ID.
+#[server(DeleteUser, "/api")]
+pub async fn delete_user(id: u32) -> Result<(), ServerFnError> {
+    let state = extract::<Data<AppState>>().await?;
+    
+    state.db
+        .delete_user(id)
+        .await
+        .map_err(|e| ServerFnError::ServerError(e.to_string()))
+}
+```
+
+### 3. Page Components with Data Fetching
+```rust
+// src/pages/home.rs
+use leptos::*;
+use crate::server_functions::*;
+
+/// Home page with server-side data loading.
+#[component]
+pub fn HomePage() -> impl IntoView {
+    let users = create_resource(
+        || (),
+        |_| async move { get_users().await }
+    );
+
+    view! {
+        <div class="space-y-4">
+            <h1 class="text-3xl font-bold">"Users"</h1>
+            
+            <Suspense fallback=move || view! { <p>"Loading..."</p> }>
+                {move || {
+                    users.get().map(|result| match result {
+                        Ok(users) => view! {
+                            <ul class="space-y-2">
+                                {users.into_iter()
+                                    .map(|user| view! {
+                                        <li class="p-4 bg-gray-100 rounded">
+                                            <A href=format!("/users/{}", user.id)>
+                                                {user.name}
+                                            </A>
+                                        </li>
+                                    })
+                                    .collect_view()
+                                }
+                            </ul>
+                        }.into_view(),
+                        Err(e) => view! {
+                            <p class="text-red-500">"Error: " {e.to_string()}</p>
+                        }.into_view()
+                    })
+                }}
+            </Suspense>
+            
+            <CreateUserForm/>
+        </div>
+    }
+}
+
+/// Form component with server action.
+#[component]
+fn CreateUserForm() -> impl IntoView {
+    let create_user_action = create_server_action::<CreateUser>();
+    let value = create_user_action.value();
+    
+    view! {
+        <ActionForm action=create_user_action class="space-y-4">
+            <div>
+                <input
+                    type="text"
+                    name="name"
+                    placeholder="Name"
+                    class="border p-2 rounded"
+                />
+            </div>
+            <div>
+                <input
+                    type="email"
+                    name="email"
+                    placeholder="Email"
+                    class="border p-2 rounded"
+                />
+            </div>
+            <button
+                type="submit"
+                class="bg-blue-500 text-white px-4 py-2 rounded"
+            >
+                "Create User"
+            </button>
+            
+            {move || value.get().map(|result| match result {
+                Ok(_) => view! { <p class="text-green-500">"User created!"</p> },
+                Err(e) => view! { <p class="text-red-500">{e.to_string()}</p> },
+            })}
+        </ActionForm>
+    }
+}
+```
+
+### 4. Dynamic Route with Params
+```rust
+// src/pages/user.rs
+use leptos::*;
+use leptos_router::*;
+use crate::server_functions::*;
+
+/// User detail page with dynamic ID.
+#[component]
+pub fn UserPage() -> impl IntoView {
+    let params = use_params_map();
+    
+    let user = create_resource(
+        move || params.get().get("id").unwrap_or_default().parse::<u32>().ok(),
+        |id| async move {
+            match id {
+                Some(id) => get_user(id).await,
+                None => Err(ServerFnError::ServerError("Invalid ID".to_string())),
+            }
+        }
+    );
+
+    view! {
+        <div>
+            <Suspense fallback=|| view! { <p>"Loading user..."</p> }>
+                {move || user.get().map(|result| match result {
+                    Ok(user) => view! {
+                        <div class="space-y-4">
+                            <h1 class="text-3xl font-bold">{user.name}</h1>
+                            <p class="text-gray-600">{user.email}</p>
+                            <DeleteUserButton id=user.id/>
+                        </div>
+                    }.into_view(),
+                    Err(e) => view! {
+                        <p class="text-red-500">"Error: " {e.to_string()}</p>
+                    }.into_view()
+                })}
+            </Suspense>
+        </div>
+    }
+}
+
+#[component]
+fn DeleteUserButton(id: u32) -> impl IntoView {
+    let delete_action = create_server_action::<DeleteUser>();
+    let navigate = use_navigate();
+    
+    create_effect(move |_| {
+        if let Some(Ok(_)) = delete_action.value().get() {
+            navigate("/", Default::default());
+        }
+    });
+    
+    view! {
+        <ActionForm action=delete_action>
+            <input type="hidden" name="id" value=id/>
+            <button
+                type="submit"
+                class="bg-red-500 text-white px-4 py-2 rounded"
+            >
+                "Delete User"
+            </button>
+        </ActionForm>
+    }
+}
+```
+
+### 5. Server Main Entry (Actix)
+```rust
+// src/main.rs
+#[cfg(feature = "ssr")]
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    use actix_files::Files;
+    use actix_web::*;
+    use leptos::*;
+    use leptos_actix::{generate_route_list, LeptosRoutes};
+    use myapp::app::*;
+    use myapp::state::AppState;
+
+    // Initialize logging
+    tracing_subscriber::fmt::init();
+
+    // Load config
+    let conf = get_configuration(None).await.unwrap();
+    let addr = conf.leptos_options.site_addr;
+    
+    // Initialize app state
+    let app_state = AppState::new().await;
+
+    // Generate routes from Leptos Router
+    let routes = generate_route_list(App);
+
+    tracing::info!("Server starting at http://{}", addr);
+
+    HttpServer::new(move || {
+        let leptos_options = &conf.leptos_options;
+        let site_root = leptos_options.site_root.clone();
+
+        App::new()
+            .app_data(web::Data::new(app_state.clone()))
+            .route("/api/{tail:.*}", leptos_actix::handle_server_fns())
+            .leptos_routes(leptos_options.to_owned(), routes.to_owned(), App)
+            .service(Files::new("/", site_root))
+            .wrap(middleware::Compress::default())
+    })
+    .bind(&addr)?
+    .run()
+    .await
+}
+
+#[cfg(not(feature = "ssr"))]
+pub fn main() {
+    // Client-side entry point handled by wasm-bindgen
+}
+```
+
+### 6. Lib Entry (Hydration)
+```rust
+// src/lib.rs
+pub mod app;
+pub mod components;
+pub mod pages;
+pub mod server_functions;
+pub mod state;
+pub mod utils;
+
+#[cfg(feature = "hydrate")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn hydrate() {
+    use crate::app::*;
+    
+    console_error_panic_hook::set_once();
+    leptos::mount_to_body(App);
+}
+```
+
+### 7. App State Management
+```rust
+// src/state/app_state.rs
+use std::sync::Arc;
+
+/// Application-wide state shared across requests.
+#[derive(Clone)]
+pub struct AppState {
+    pub db: Arc<Database>,
+    pub config: Arc<Config>,
+}
+
+impl AppState {
+    /// Initialize application state.
+    pub async fn new() -> Self {
+        let db = Database::connect().await.expect("Database connection");
+        let config = Config::load().expect("Config load");
+        
+        Self {
+            db: Arc::new(db),
+            config: Arc::new(config),
+        }
+    }
+}
+```
+
+## SSR Best Practices
+
+### Async Rendering Modes
+```rust
+// Out-of-order streaming (default)
+#[component]
+pub fn StreamingPage() -> impl IntoView {
+    let data = create_resource(|| (), |_| fetch_data());
+    
+    view! {
+        <Suspense fallback=|| view! { <p>"Loading..."</p> }>
+            {move || data.get()}
+        </Suspense>
+    }
+}
+
+// In-order streaming
+#[component]
+pub fn InOrderPage() -> impl IntoView {
+    let data = create_resource(|| (), |_| fetch_data());
+    
+    view! {
+        <Suspense
+            fallback=|| view! { <p>"Loading..."</p> }
+            blocking=true  // Wait for this before sending HTML
+        >
+            {move || data.get()}
+        </Suspense>
+    }
+}
+
+// Async rendering (wait for all resources)
+#[component]
+pub fn AsyncPage() -> impl IntoView {
+    let data = create_blocking_resource(|| (), |_| fetch_data());
+    
+    view! {
+        {move || data.get()}
+    }
+}
+```
+
+### Error Boundaries
+```rust
+use leptos::*;
+
+#[component]
+pub fn ProtectedPage() -> impl IntoView {
+    view! {
+        <ErrorBoundary
+            fallback=|errors| view! {
+                <div class="error">
+                    <h1>"Error"</h1>
+                    <ul>
+                        {move || errors.get()
+                            .into_iter()
+                            .map(|(_, error)| view! { <li>{error.to_string()}</li> })
+                            .collect_view()
+                        }
+                    </ul>
+                </div>
+            }
+        >
+            <DangerousComponent/>
+        </ErrorBoundary>
+    }
+}
+```
+
+### SEO & Meta Tags
+```rust
+use leptos::*;
+use leptos_meta::*;
+
+#[component]
+pub fn BlogPost(id: u32) -> impl IntoView {
+    let post = create_resource(move || id, |id| get_post(id));
+    
+    view! {
+        <Suspense fallback=|| view! { <p>"Loading..."</p> }>
+            {move || post.get().map(|post| {
+                let title = post.title.clone();
+                let description = post.excerpt.clone();
+                
+                view! {
+                    <Title text=title.clone()/>
+                    <Meta name="description" content=description/>
+                    <Meta property="og:title" content=title/>
+                    <Meta property="og:type" content="article"/>
+                    
+                    <article>
+                        <h1>{post.title}</h1>
+                        <div inner_html=post.content/>
+                    </article>
+                }
+            })}
+        </Suspense>
+    }
+}
+```
+
+## Testing
+
+### Component Tests
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use leptos::*;
+
+    #[test]
+    fn test_component_renders() {
+        let runtime = create_runtime();
+        
+        let view = view! { <HomePage/> };
+        
+        runtime.dispose();
+    }
+}
+```
+
+### Integration Tests
+```rust
+// tests/integration_test.rs
+#[cfg(feature = "ssr")]
+#[actix_web::test]
+async fn test_server_function() {
+    let result = get_user(1).await;
+    assert!(result.is_ok());
+}
+```
+
+## Performance Optimization
+
+### Code Splitting
+```rust
+// Lazy load heavy components
+#[component]
+pub fn App() -> impl IntoView {
+    view! {
+        <Router>
+            <Routes>
+                <Route path="/" view=HomePage/>
+                <Route path="/dashboard" view=|| {
+                    // Lazy loaded
+                    view! { <DashboardPage/> }
+                }/>
+            </Routes>
+        </Router>
+    }
+}
+```
+
+### Asset Optimization
+- Use `opt-level = "z"` for WASM size
+- Enable `lto = true` for link-time optimization
+- Configure Tailwind for purging unused CSS
+- Use `wasm-opt` post-processing
+
+## Security Patterns
+
+### CSRF Protection
+```rust
+#[server]
+pub async fn protected_action() -> Result<(), ServerFnError> {
+    use actix_web::HttpRequest;
+    use leptos_actix::extract;
+    
+    let req = extract::<HttpRequest>().await?;
+    
+    // Validate CSRF token from headers/cookies
+    verify_csrf_token(&req)?;
+    
+    // Proceed with action
+    Ok(())
+}
+```
+
+### Input Validation
+```rust
+use validator::Validate;
+
+#[derive(Serialize, Deserialize, Validate)]
+pub struct CreateUserInput {
+    #[validate(length(min = 3, max = 50))]
+    name: String,
+    
+    #[validate(email)]
+    email: String,
+}
+
+#[server]
+pub async fn create_user_validated(
+    input: CreateUserInput
+) -> Result<User, ServerFnError> {
+    input.validate()
+        .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+    
+    // Create user
+    Ok(user)
+}
+```
+
+## Build Commands
+```bash
+# Development (SSR + hot reload)
+cargo leptos watch
+
+# Build for production
+cargo leptos build --release
+
+# Test
+cargo test --features ssr
+
+# Format
+cargo fmt --all
+
+# Lint
+cargo clippy --all-targets --all-features
+```
+
+## Deployment Checklist
+- [ ] Set `LEPTOS_ENV=PROD`
+- [ ] Configure correct `site_addr`
+- [ ] Optimize WASM with `wasm-opt`
+- [ ] Enable compression middleware
+- [ ] Set up HTTPS/TLS
+- [ ] Configure CORS if needed
+- [ ] Set up logging/monitoring
+- [ ] Database connection pooling
+- [ ] CDN for static assets
+
+---
+
+*Reference: Leptos Book, docs.rs/leptos 0.8.2*
