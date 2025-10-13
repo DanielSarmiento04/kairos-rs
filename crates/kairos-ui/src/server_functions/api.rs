@@ -19,7 +19,13 @@ pub async fn get_health() -> Result<HealthResponse, ServerFnError> {
     
     let response = reqwest::get(&url)
         .await
-        .map_err(|e| ServerFnError::new(format!("Failed to connect to gateway: {}", e)))?;
+        .map_err(|e| {
+            let msg = format!(
+                "Failed to connect to Kairos Gateway at {}: {}. Make sure the gateway is running with: cargo run --bin kairos-gateway",
+                GATEWAY_BASE_URL, e
+            );
+            ServerFnError::new(msg)
+        })?;
     
     if !response.status().is_success() {
         return Err(ServerFnError::new(format!("Gateway returned error: {}", response.status())));

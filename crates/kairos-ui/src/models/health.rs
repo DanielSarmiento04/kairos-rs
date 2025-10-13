@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 pub struct HealthResponse {
     pub status: String,
     pub version: String,
-    pub uptime_seconds: u64,
+    #[serde(alias = "uptime_seconds")]
+    pub uptime: u64,
     pub timestamp: String,
 }
 
@@ -19,7 +20,7 @@ impl HealthResponse {
     
     /// Format uptime in human-readable form.
     pub fn format_uptime(&self) -> String {
-        let seconds = self.uptime_seconds;
+        let seconds = self.uptime;
         let days = seconds / 86400;
         let hours = (seconds % 86400) / 3600;
         let minutes = (seconds % 3600) / 60;
