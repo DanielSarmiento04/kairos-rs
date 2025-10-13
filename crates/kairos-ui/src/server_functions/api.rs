@@ -19,15 +19,15 @@ pub async fn get_health() -> Result<HealthResponse, ServerFnError> {
     
     let response = reqwest::get(&url)
         .await
-        .map_err(|e| ServerFnError::ServerError(format!("Failed to connect to gateway: {}", e)))?;
+        .map_err(|e| ServerFnError::new(format!("Failed to connect to gateway: {}", e)))?;
     
     if !response.status().is_success() {
-        return Err(ServerFnError::ServerError(format!("Gateway returned error: {}", response.status())));
+        return Err(ServerFnError::new(format!("Gateway returned error: {}", response.status())));
     }
     
     let health = response.json::<HealthResponse>()
         .await
-        .map_err(|e| ServerFnError::ServerError(format!("Failed to parse health response: {}", e)))?;
+        .map_err(|e| ServerFnError::new(format!("Failed to parse health response: {}", e)))?;
     
     Ok(health)
 }
@@ -39,11 +39,11 @@ pub async fn get_readiness() -> Result<ReadinessResponse, ServerFnError> {
     
     let response = reqwest::get(&url)
         .await
-        .map_err(|e| ServerFnError::ServerError(format!("Failed to connect to gateway: {}", e)))?;
+        .map_err(|e| ServerFnError::new(format!("Failed to connect to gateway: {}", e)))?;
     
     let readiness = response.json::<ReadinessResponse>()
         .await
-        .map_err(|e| ServerFnError::ServerError(format!("Failed to parse readiness response: {}", e)))?;
+        .map_err(|e| ServerFnError::new(format!("Failed to parse readiness response: {}", e)))?;
     
     Ok(readiness)
 }
@@ -55,11 +55,11 @@ pub async fn get_liveness() -> Result<LivenessResponse, ServerFnError> {
     
     let response = reqwest::get(&url)
         .await
-        .map_err(|e| ServerFnError::ServerError(format!("Failed to connect to gateway: {}", e)))?;
+        .map_err(|e| ServerFnError::new(format!("Failed to connect to gateway: {}", e)))?;
     
     let liveness = response.json::<LivenessResponse>()
         .await
-        .map_err(|e| ServerFnError::ServerError(format!("Failed to parse liveness response: {}", e)))?;
+        .map_err(|e| ServerFnError::new(format!("Failed to parse liveness response: {}", e)))?;
     
     Ok(liveness)
 }
@@ -74,18 +74,18 @@ pub async fn get_metrics() -> Result<MetricsData, ServerFnError> {
     
     let response = reqwest::get(&url)
         .await
-        .map_err(|e| ServerFnError::ServerError(format!("Failed to connect to gateway: {}", e)))?;
+        .map_err(|e| ServerFnError::new(format!("Failed to connect to gateway: {}", e)))?;
     
     if !response.status().is_success() {
-        return Err(ServerFnError::ServerError(format!("Gateway returned error: {}", response.status())));
+        return Err(ServerFnError::new(format!("Gateway returned error: {}", response.status())));
     }
     
     let text = response.text()
         .await
-        .map_err(|e| ServerFnError::ServerError(format!("Failed to read metrics response: {}", e)))?;
+        .map_err(|e| ServerFnError::new(format!("Failed to read metrics response: {}", e)))?;
     
     let metrics = MetricsData::parse_prometheus(&text)
-        .map_err(|e| ServerFnError::ServerError(format!("Failed to parse metrics: {}", e)))?;
+        .map_err(|e| ServerFnError::new(format!("Failed to parse metrics: {}", e)))?;
     
     Ok(metrics)
 }
@@ -98,7 +98,7 @@ pub async fn get_metrics() -> Result<MetricsData, ServerFnError> {
 pub async fn get_configuration() -> Result<Settings, ServerFnError> {
     // TODO: Implement configuration endpoint in backend
     // For now, return an error indicating this feature is not yet available
-    Err(ServerFnError::ServerError(
+    Err(ServerFnError::new(
         "Configuration endpoint not yet implemented in gateway backend".to_string()
     ))
 }
@@ -111,10 +111,10 @@ pub async fn get_configuration() -> Result<Settings, ServerFnError> {
 pub async fn update_configuration(settings: Settings) -> Result<(), ServerFnError> {
     // Validate configuration before sending
     settings.validate()
-        .map_err(|e| ServerFnError::ServerError(format!("Invalid configuration: {}", e)))?;
+        .map_err(|e| ServerFnError::new(format!("Invalid configuration: {}", e)))?;
     
     // TODO: Implement configuration update endpoint in backend
-    Err(ServerFnError::ServerError(
+    Err(ServerFnError::new(
         "Configuration update endpoint not yet implemented in gateway backend".to_string()
     ))
 }
@@ -125,16 +125,16 @@ pub async fn update_configuration(settings: Settings) -> Result<(), ServerFnErro
 #[server(ListRoutes, "/api")]
 pub async fn list_routes() -> Result<Vec<Router>, ServerFnError> {
     // TODO: Implement routes list endpoint in backend
-    Err(ServerFnError::ServerError(
+    Err(ServerFnError::new(
         "Routes list endpoint not yet implemented in gateway backend".to_string()
     ))
 }
 
 /// Gets a specific route by its external path.
 #[server(GetRoute, "/api")]
-pub async fn get_route(external_path: String) -> Result<Router, ServerFnError> {
+pub async fn get_route(_external_path: String) -> Result<Router, ServerFnError> {
     // TODO: Implement route get endpoint in backend
-    Err(ServerFnError::ServerError(
+    Err(ServerFnError::new(
         "Route get endpoint not yet implemented in gateway backend".to_string()
     ))
 }
@@ -144,10 +144,10 @@ pub async fn get_route(external_path: String) -> Result<Router, ServerFnError> {
 pub async fn create_route(route: Router) -> Result<(), ServerFnError> {
     // Validate route before sending
     route.validate()
-        .map_err(|e| ServerFnError::ServerError(format!("Invalid route: {}", e)))?;
+        .map_err(|e| ServerFnError::new(format!("Invalid route: {}", e)))?;
     
     // TODO: Implement route create endpoint in backend
-    Err(ServerFnError::ServerError(
+    Err(ServerFnError::new(
         "Route create endpoint not yet implemented in gateway backend".to_string()
     ))
 }
@@ -157,19 +157,19 @@ pub async fn create_route(route: Router) -> Result<(), ServerFnError> {
 pub async fn update_route(route: Router) -> Result<(), ServerFnError> {
     // Validate route before sending
     route.validate()
-        .map_err(|e| ServerFnError::ServerError(format!("Invalid route: {}", e)))?;
+        .map_err(|e| ServerFnError::new(format!("Invalid route: {}", e)))?;
     
     // TODO: Implement route update endpoint in backend
-    Err(ServerFnError::ServerError(
+    Err(ServerFnError::new(
         "Route update endpoint not yet implemented in gateway backend".to_string()
     ))
 }
 
 /// Deletes a route from the gateway configuration.
 #[server(DeleteRoute, "/api")]
-pub async fn delete_route(external_path: String) -> Result<(), ServerFnError> {
+pub async fn delete_route(_external_path: String) -> Result<(), ServerFnError> {
     // TODO: Implement route delete endpoint in backend
-    Err(ServerFnError::ServerError(
+    Err(ServerFnError::new(
         "Route delete endpoint not yet implemented in gateway backend".to_string()
     ))
 }

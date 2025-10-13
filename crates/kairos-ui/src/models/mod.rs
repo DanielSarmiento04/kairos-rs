@@ -1,12 +1,15 @@
-//! Models module - combines kairos-rs models with UI-specific extensions.
+//! Models module - UI-specific models that work in both SSR and WASM contexts.
 
-// Re-export core models from kairos-rs backend
-pub use kairos_rs::models::router::Router;
-pub use kairos_rs::models::settings::Settings;
+// Core models (WASM-compatible)
+pub mod router;
+pub mod settings;
 
 // UI-specific models
 pub mod metrics;
 pub mod health;
 
+// Re-exports
+pub use router::Router;
+pub use settings::{Settings, JwtSettings};
 pub use metrics::{MetricsData, CircuitBreakerMetrics, CircuitBreakerState};
 pub use health::{HealthResponse, ReadinessResponse, LivenessResponse};

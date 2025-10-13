@@ -66,7 +66,7 @@ pub fn DashboardPage() -> impl IntoView {
                                     <MetricCard 
                                         title="Status".to_string()
                                         value=health.status.clone()
-                                        icon=(if health.is_healthy() { "✅" } else { "❌" }.to_string())
+                                        icon=if health.is_healthy() { "✅".to_string() } else { "❌".to_string() }
                                     />
                                     
                                     <MetricCard 
@@ -100,7 +100,12 @@ pub fn DashboardPage() -> impl IntoView {
                 <Suspense fallback=move || view! { <LoadingSpinner message="Loading metrics...".to_string() /> }>
                     {move || {
                         metrics_resource.get().map(|result| match result {
-                            Ok(metrics) => view! {
+                            Ok(metrics) => {
+                                let success_trend = if metrics.success_rate >= 95.0 { "up".to_string() } else if metrics.success_rate >= 80.0 { "neutral".to_string() } else { "down".to_string() };
+                                let response_trend = if metrics.response_time_avg < 100.0 { "up".to_string() } else if metrics.response_time_avg < 500.0 { "neutral".to_string() } else { "down".to_string() };
+                                let peak_subtitle = format!("Peak: {}", metrics.peak_connections);
+                                
+                                view! {
                                 <div class="metrics-grid">
                                     <MetricCard 
                                         title="Total Requests".to_string()
@@ -112,21 +117,21 @@ pub fn DashboardPage() -> impl IntoView {
                                         title="Success Rate".to_string()
                                         value=format!("{:.2}%", metrics.success_rate)
                                         icon="✅".to_string()
-                                        trend=(if metrics.success_rate >= 95.0 { "up" } else if metrics.success_rate >= 80.0 { "neutral" } else { "down" }.to_string())
+                                        trend=success_trend
                                     />
                                     
                                     <MetricCard 
                                         title="Avg Response Time".to_string()
                                         value=format!("{:.2}ms", metrics.response_time_avg)
                                         icon="⚡".to_string()
-                                        trend=(if metrics.response_time_avg < 100.0 { "up" } else if metrics.response_time_avg < 500.0 { "neutral" } else { "down" }.to_string())
+                                        trend=response_trend
                                     />
                                     
                                     <MetricCard 
                                         title="Active Connections".to_string()
                                         value=format!("{}", metrics.active_connections)
                                         icon="🔗".to_string()
-                                        subtitle=(format!("Peak: {}", metrics.peak_connections))
+                                        subtitle=peak_subtitle
                                     />
                                 </div>
                                 
@@ -271,7 +276,8 @@ pub fn DashboardPage() -> impl IntoView {
                                         />
                                     </div>
                                 </div>
-                            }.into_any(),
+                            }.into_any()
+                            },
                             Err(e) => view! {
                                 <ErrorBoundaryView 
                                     error=format!("{}", e)

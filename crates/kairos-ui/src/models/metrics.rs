@@ -46,6 +46,16 @@ impl MetricsData {
             format!("{} B", bytes)
         }
     }
+    
+    /// Parse Prometheus-formatted metrics text.
+    /// 
+    /// This is a simple parser for demo purposes.
+    /// In production, use a proper Prometheus parser library.
+    pub fn parse_prometheus(_text: &str) -> Result<Self, String> {
+        // For now, return default metrics
+        // TODO: Implement proper Prometheus parsing
+        Ok(Self::default())
+    }
 }
 
 impl Default for MetricsData {
