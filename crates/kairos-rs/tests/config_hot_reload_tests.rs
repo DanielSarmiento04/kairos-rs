@@ -6,7 +6,7 @@
 
 use kairos_rs::config::hot_reload::ConfigWatcher;
 use kairos_rs::models::settings::Settings;
-use kairos_rs::models::router::Router;
+use kairos_rs::models::router::{Router, Backend};
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -17,12 +17,20 @@ fn create_test_settings() -> Settings {
         rate_limit: None,
         routers: vec![
             Router {
-                host: "http://localhost".to_string(),
-                port: 3000,
+                host: Some("http://localhost".to_string()),
+                port: Some(3000),
                 external_path: "/test".to_string(),
                 internal_path: "/test".to_string(),
                 methods: vec!["GET".to_string()],
                 auth_required: false,
+                backends: Some(vec![Backend {
+                    host: "http://localhost".to_string(),
+                    port: 3000,
+                    weight: 1,
+                    health_check_path: None,
+                }]),
+                load_balancing_strategy: Default::default(),
+                retry: None,
             }
         ],
     }

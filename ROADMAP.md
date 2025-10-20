@@ -1,16 +1,16 @@
 # Kairos-rs Development Roadmap
 
-> **Version**: 0.2.6  
-> **Last Updated**: October 16, 2025  
-> **Status**: Production Ready with Admin UI
+> **Version**: 0.2.7  
+> **Last Updated**: Octuber 2025  
+> **Status**: Production Ready with Load Balancing & Advanced Routing
 
 ## 🔥 Immediate Priorities (Next 2 Weeks)
 
-1. **Complete Route Management** - Implement backend endpoints for route CRUD operations
-2. **Configuration Editor UI** - Build JWT and rate limiting management interface
-3. **WebSocket Real-time Updates** - Replace polling with WebSocket for live metrics
-4. **Form Validation** - Add comprehensive client and server-side validation
-5. **Historical Metrics** - Store and display time-series data with charts
+1. **Configuration Editor UI** - Build JWT and rate limiting management interface
+2. **WebSocket Real-time Updates** - Replace polling with WebSocket for live metrics
+3. **Form Validation** - Add comprehensive client and server-side validation
+4. **Historical Metrics** - Store and display time-series data with charts
+5. **Request Transformation** - Header manipulation and path rewriting
 
 ## 🤖 AI/LLM Gateway Vision
 
@@ -63,15 +63,19 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 - ✅ JSON configuration with comprehensive validation
 - ✅ **JWT Authentication** - Bearer token validation with configurable claims
 - ✅ **Advanced rate limiting** - Per-route limits with multiple algorithms (fixed window, sliding window, token bucket)
+- ✅ **Load Balancing** - 5 strategies (round-robin, least connections, random, weighted, IP hash)
+- ✅ **Retry Logic** - Exponential backoff with configurable policies and retryable status codes
+- ✅ **Route Management API** - CRUD operations via REST endpoints for dynamic route configuration
+- ✅ **Hot-Reload API** - Manual configuration reload and status endpoints
 - ✅ Request logging with structured output
 - ✅ **Security headers** - CORS, content security policies, request size limits
 - ✅ **Health check endpoints** - `/health`, `/ready`, `/live` for Kubernetes
-- ✅ **Circuit breaker pattern** - Automatic fail-fast when services are down
+- ✅ **Circuit breaker pattern** - Per-backend circuit breakers with fault isolation
 - ✅ **Configuration hot-reload** - Update routes without service restart
 - ✅ **Prometheus metrics** - Comprehensive observability with `/metrics` endpoint
 - ✅ **Web Admin UI** - Modern Leptos-based interface with real-time dashboard
 - ✅ **Workspace Architecture** - Modular crates: gateway, ui, cli, client, core
-- ✅ 85+ comprehensive tests (unit, integration, documentation)
+- ✅ 90+ comprehensive tests (unit, integration, documentation, load balancing)
 
 **Performance**: 
 - ~200k route matches/sec on M1 MacBook Pro
@@ -81,14 +85,14 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 
 ## What's Missing (Honestly)
 
-- No load balancing strategies (round-robin, weighted, health-based)
 - No response caching layer
 - No service discovery integration
-- No request transformation (header manipulation, path rewriting)
+- No request transformation (header manipulation, path rewriting) - planned for next release
 - Limited WebSocket support (proxying planned)
 - No gRPC proxying
 - No distributed tracing integration (OpenTelemetry planned)
-- **Partial Admin UI** - Dashboard and health monitoring working, route management needs backend endpoints
+- **Partial Admin UI** - Dashboard and health monitoring working, configuration editor UI in progress
+- No historical metrics with time-series charts yet
 
 ---
 
@@ -121,32 +125,34 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 - ✅ Won't fall over under normal load
 - ✅ Has security features for public APIs
 
-### Phase 2: Advanced Routing & UI Completion (CURRENT FOCUS - v0.2.7)
+### Phase 2: Advanced Routing & UI Completion ✅ MOSTLY COMPLETED (v0.2.7)
 **Goal**: Complete admin UI and handle complex routing scenarios
 
-#### Weeks 1-2: Route Management Backend
-- [ ] **Route CRUD endpoints** - Implement `/api/routes` endpoints in gateway
-- [ ] **Configuration persistence** - Save changes to config.json
-- [ ] **Hot-reload trigger API** - Endpoint to trigger config reload
-- [ ] **Route validation API** - Server-side validation before saving
+#### Weeks 1-2: Route Management Backend ✅ COMPLETED
+- ✅ **Route CRUD endpoints** - Implemented `/api/routes` endpoints in gateway
+- ✅ **Configuration persistence** - Save changes to config.json
+- ✅ **Hot-reload trigger API** - Endpoint to trigger config reload
+- ✅ **Route validation API** - Server-side validation before saving
 
-#### Weeks 3-4: UI Feature Completion  
+#### Weeks 3-4: UI Feature Completion (IN PROGRESS)
 - [ ] **Route management UI** - Complete CRUD interface for routes
 - [ ] **Configuration editor** - JWT, rate limiting, CORS settings
 - [ ] **Form validation** - Client and server-side validation
 - [ ] **WebSocket support** - Real-time metrics updates
 
-#### Weeks 5-6: Advanced Routing
-- [ ] **Load balancing** - Round robin, weighted, health-based strategies
-- [ ] **Retry logic** - Configurable retry with exponential backoff
-- [ ] **Request transformation** - Modify headers/paths before forwarding
-- [ ] **Response transformation** - Modify response headers and status codes
+#### Weeks 5-6: Advanced Routing ✅ COMPLETED
+- ✅ **Load balancing** - 5 strategies (round-robin, least connections, random, weighted, IP hash)
+- ✅ **Retry logic** - Exponential backoff with configurable policies
+- [ ] **Request transformation** - Modify headers/paths before forwarding (PLANNED)
+- [ ] **Response transformation** - Modify response headers and status codes (PLANNED)
 
-**Success Criteria**:
-- Full route management via UI
-- Configuration changes persist correctly
-- Load balancing with health checks
-- Retry logic with circuit breakers
+**Success Criteria** (Updated):
+- ✅ Full route management API backend completed
+- ✅ Configuration changes persist correctly via API
+- ✅ Load balancing with 5 strategies implemented
+- ✅ Retry logic with exponential backoff and circuit breakers
+- [ ] UI components for route management (in progress)
+- [ ] Request/response transformation (next phase)
 
 ### Phase 3: Performance & Observability (v0.3.x - Months 3-4)
 **Goal**: Handle serious production loads with comprehensive monitoring
@@ -189,11 +195,11 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 
 ## Immediate Priorities (Next 2 Weeks)
 
-1. **Implement route management endpoints** - Backend API for route CRUD operations
-2. **Complete configuration editor UI** - JWT, rate limiting, CORS settings interface
-3. **Add form validation** - Client and server-side validation for all forms
-4. **WebSocket real-time updates** - Replace polling with WebSocket connections
-5. **Write integration tests** - Test UI components and server functions
+1. **Complete configuration editor UI** - JWT, rate limiting, CORS settings interface
+2. **Add form validation** - Client and server-side validation for all forms
+3. **WebSocket real-time updates** - Replace polling with WebSocket connections
+4. **Request transformation middleware** - Header manipulation and path rewriting
+5. **Historical metrics with charts** - Time-series data visualization in UI
 
 ## Feature Requests We've Received
 
@@ -203,8 +209,9 @@ Based on feedback from users and contributors:
 - ✅ **Admin UI** - COMPLETED - Modern web interface with real-time dashboard
 - ✅ **Metrics/monitoring** - COMPLETED - Prometheus metrics and comprehensive observability
 - ✅ **Better error handling** - COMPLETED - Structured errors with helpful messages
-- [ ] **Load balancing** - IN PROGRESS - Needed for HA deployments  
-- [ ] **Request transformation** - PLANNED - Header manipulation, path rewriting
+- ✅ **Load balancing** - COMPLETED - 5 strategies for HA deployments
+- ✅ **Retry logic** - COMPLETED - Exponential backoff with configurable policies
+- [ ] **Request transformation** - IN PROGRESS - Header manipulation, path rewriting
 - [ ] **Historical metrics** - PLANNED - Time-series data with charts
 - [ ] **WebSocket proxying** - PLANNED - Proxy WebSocket connections
 - [ ] **🤖 AI/LLM Integration** - FUTURE - Intelligent routing and request processing
@@ -221,15 +228,14 @@ Based on feedback from users and contributors:
 6. **Performance testing** - Load test and find bottlenecks
 
 **Good first issues:**
-- Add load balancing strategies
 - Implement request transformation middleware
 - Build configuration editor forms in UI
-- Add retry logic with exponential backoff
-- Write examples for JWT authentication
+- Write examples for load balancing configurations
 - Create historical metrics charts
 - Performance testing and optimization
-- **Backend route management API** - Implement CRUD endpoints
 - **WebSocket support** - Replace polling with real-time updates
+- Add more load balancing strategy tests
+- Implement response caching layer
 
 ## Success Metrics
 
@@ -269,7 +275,7 @@ This roadmap will evolve based on:
 - Available contributor time and interest
 - Real-world usage patterns
 
-**Last major update**: October 16, 2025 - Released v0.2.6 with complete web-based admin UI (Leptos 0.8), workspace architecture refactoring, and enhanced models with validation
+**Last major update**: Octuber 2025 - Released v0.2.7 with complete load balancing (5 strategies), retry logic with exponential backoff, route management API (6 REST endpoints), hot-reload API, and per-backend circuit breakers
 
 ---
 

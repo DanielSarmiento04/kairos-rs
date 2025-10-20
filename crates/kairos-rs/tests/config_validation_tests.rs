@@ -6,16 +6,24 @@
 
 use kairos_rs::config::validation::{ConfigValidator, ValidationResult};
 use kairos_rs::models::settings::Settings;
-use kairos_rs::models::router::Router;
+use kairos_rs::models::router::{Router, Backend};
 
 fn create_test_router(host: &str, external_path: &str, methods: Vec<&str>) -> Router {
     Router {
-        host: host.to_string(),
-        port: 80,
+        host: Some(host.to_string()),
+        port: Some(80),
         external_path: external_path.to_string(),
         internal_path: "/test".to_string(),
         methods: methods.iter().map(|s| s.to_string()).collect(),
         auth_required: false,
+        backends: Some(vec![Backend {
+            host: host.to_string(),
+            port: 80,
+            weight: 1,
+            health_check_path: None,
+        }]),
+        load_balancing_strategy: Default::default(),
+        retry: None,
     }
 }
 
@@ -45,7 +53,7 @@ fn test_security_warnings() {
     };
     
     let result = ConfigValidator::validate_comprehensive(&settings);
-    assert!(result.warnings.iter().any(|w| w.contains("HTTP route")));
+    assert!(result.warnings.iter().any(|w| w.contains("Insecure HTTP backend")));
 }
 
 #[test]
@@ -142,12 +150,20 @@ fn test_path_traversal_detection() {
         version: 1,
         routers: vec![
             Router {
-                host: "https://example.com".to_string(),
-                port: 443,
+                host: Some("https://example.com".to_string()),
+                port: Some(443),
                 external_path: "/api/../admin".to_string(),
                 internal_path: "/test".to_string(),
                 methods: vec!["GET".to_string()],
                 auth_required: false,
+                backends: Some(vec![Backend {
+                    host: "https://example.com".to_string(),
+                    port: 443,
+                    weight: 1,
+                    health_check_path: None,
+                }]),
+                load_balancing_strategy: Default::default(),
+                retry: None,
             },
         ],
     };
@@ -187,8 +203,8 @@ fn test_mixed_http_https_warnings() {
     };
     
     let result = ConfigValidator::validate_comprehensive(&settings);
-    // Should have warnings about HTTP routes but not the "all routes use HTTP" warning
-    assert!(result.warnings.iter().any(|w| w.contains("Insecure HTTP route")));
+    // Should have warnings about HTTP backends but not the "all routes use HTTP" warning
+    assert!(result.warnings.iter().any(|w| w.contains("Insecure HTTP backend")));
     assert!(!result.warnings.iter().any(|w| w.contains("All routes use HTTP")));
 }
 

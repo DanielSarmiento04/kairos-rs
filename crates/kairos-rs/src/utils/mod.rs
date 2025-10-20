@@ -35,7 +35,7 @@
 //! 
 //! ```rust
 //! use kairos_rs::utils::{path::format_route, route_matcher::RouteMatcher};
-//! use kairos_rs::models::router::Router;
+//! use kairos_rs::models::router::{Router, Backend};
 //! 
 //! // URL formatting
 //! let url = format_route("http://backend", &8080, "/api/users/123");
@@ -44,12 +44,20 @@
 //! // Route matching with proper route configuration
 //! let routes = vec![
 //!     Router {
-//!         host: "http://localhost".to_string(),
-//!         port: 8080,
+//!         host: Some("http://localhost".to_string()),
+//!         port: Some(8080),
 //!         external_path: "/users/{id}".to_string(),
 //!         internal_path: "/v1/user/{id}".to_string(),
 //!         methods: vec!["GET".to_string()],
 //!         auth_required: false,
+//!         backends: Some(vec![Backend {
+//!             host: "http://localhost".to_string(),
+//!             port: 8080,
+//!             weight: 1,
+//!             health_check_path: None,
+//!         }]),
+//!         load_balancing_strategy: Default::default(),
+//!         retry: None,
 //!     }
 //! ];
 //! let matcher = RouteMatcher::new(routes)?;

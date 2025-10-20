@@ -3,7 +3,7 @@
 use actix_web::{test, App};
 use kairos_rs::{
     middleware::auth::{Claims, create_test_token},
-    models::{settings::{Settings, JwtSettings}, router::Router},
+    models::{settings::{Settings, JwtSettings}, router::{Router, Backend}},
     routes::auth_http,
     services::http::RouteHandler,
 };
@@ -28,21 +28,37 @@ fn create_test_settings() -> Settings {
         routers: vec![
             // Public route - no authentication required
             Router {
-                host: "http://httpbin.org".to_string(),
-                port: 80,
+                host: Some("http://httpbin.org".to_string()),
+                port: Some(80),
                 external_path: "/public/test".to_string(),
                 internal_path: "/status/200".to_string(),
                 methods: vec!["GET".to_string()],
                 auth_required: false,
+                backends: Some(vec![Backend {
+                    host: "http://httpbin.org".to_string(),
+                    port: 80,
+                    weight: 1,
+                    health_check_path: None,
+                }]),
+                load_balancing_strategy: Default::default(),
+                retry: None,
             },
             // Protected route - authentication required
             Router {
-                host: "http://httpbin.org".to_string(),
-                port: 80,
+                host: Some("http://httpbin.org".to_string()),
+                port: Some(80),
                 external_path: "/protected/user/{id}".to_string(),
                 internal_path: "/json".to_string(),
                 methods: vec!["GET".to_string()],
                 auth_required: true,
+                backends: Some(vec![Backend {
+                    host: "http://httpbin.org".to_string(),
+                    port: 80,
+                    weight: 1,
+                    health_check_path: None,
+                }]),
+                load_balancing_strategy: Default::default(),
+                retry: None,
             },
         ],
     }
@@ -163,12 +179,20 @@ async fn test_jwt_config_validation() {
         rate_limit: None,
         routers: vec![
             Router {
-                host: "http://example.com".to_string(),
-                port: 80,
+                host: Some("http://example.com".to_string()),
+                port: Some(80),
                 external_path: "/protected".to_string(),
                 internal_path: "/protected".to_string(),
                 methods: vec!["GET".to_string()],
                 auth_required: true,
+                backends: Some(vec![Backend {
+                    host: "http://example.com".to_string(),
+                    port: 80,
+                    weight: 1,
+                    health_check_path: None,
+                }]),
+                load_balancing_strategy: Default::default(),
+                retry: None,
             }
         ],
     };
@@ -195,12 +219,20 @@ async fn test_jwt_secret_validation() {
         rate_limit: None,
         routers: vec![
             Router {
-                host: "http://example.com".to_string(),
-                port: 80,
+                host: Some("http://example.com".to_string()),
+                port: Some(80),
                 external_path: "/protected".to_string(),
                 internal_path: "/protected".to_string(),
                 methods: vec!["GET".to_string()],
                 auth_required: true,
+                backends: Some(vec![Backend {
+                    host: "http://example.com".to_string(),
+                    port: 80,
+                    weight: 1,
+                    health_check_path: None,
+                }]),
+                load_balancing_strategy: Default::default(),
+                retry: None,
             }
         ],
     };
@@ -220,12 +252,20 @@ async fn test_jwt_secret_validation() {
         rate_limit: None,
         routers: vec![
             Router {
-                host: "http://example.com".to_string(),
-                port: 80,
+                host: Some("http://example.com".to_string()),
+                port: Some(80),
                 external_path: "/protected".to_string(),
                 internal_path: "/protected".to_string(),
                 methods: vec!["GET".to_string()],
                 auth_required: true,
+                backends: Some(vec![Backend {
+                    host: "http://example.com".to_string(),
+                    port: 80,
+                    weight: 1,
+                    health_check_path: None,
+                }]),
+                load_balancing_strategy: Default::default(),
+                retry: None,
             }
         ],
     };

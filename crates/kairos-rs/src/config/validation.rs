@@ -83,21 +83,26 @@ impl ConfigValidator {
         let mut https_routes = 0;
         
         for router in &settings.routers {
-            if router.host.starts_with("http://") {
-                http_routes += 1;
-                if router.host.contains("localhost") || router.host.contains("127.0.0.1") {
-                    result.add_warning(format!(
-                        "HTTP route to localhost detected: {} - consider HTTPS for production", 
-                        router.host
-                    ));
-                } else {
-                    result.add_warning(format!(
-                        "Insecure HTTP route detected: {} - consider HTTPS", 
-                        router.host
-                    ));
+            // Get backends to check hosts
+            let backends = router.get_backends();
+            
+            for backend in backends {
+                if backend.host.starts_with("http://") {
+                    http_routes += 1;
+                    if backend.host.contains("localhost") || backend.host.contains("127.0.0.1") {
+                        result.add_warning(format!(
+                            "HTTP backend to localhost detected: {} - consider HTTPS for production", 
+                            backend.host
+                        ));
+                    } else {
+                        result.add_warning(format!(
+                            "Insecure HTTP backend detected: {} - consider HTTPS", 
+                            backend.host
+                        ));
+                    }
+                } else if backend.host.starts_with("https://") {
+                    https_routes += 1;
                 }
-            } else if router.host.starts_with("https://") {
-                https_routes += 1;
             }
             
             // Check for overly permissive methods

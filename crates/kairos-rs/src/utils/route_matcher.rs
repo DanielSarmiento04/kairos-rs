@@ -89,24 +89,40 @@ pub struct CompiledRoute {
 /// 
 /// ```rust
 /// use kairos_rs::utils::route_matcher::RouteMatcher;
-/// use kairos_rs::models::router::Router;
+/// use kairos_rs::models::router::{Router, Backend};
 /// 
 /// let routes = vec![
 ///     Router {
-///         host: "http://api".to_string(),
-///         port: 8080,
+///         host: Some("http://api".to_string()),
+///         port: Some(8080),
 ///         external_path: "/users".to_string(),          // Static route
 ///         internal_path: "/v1/users".to_string(),
 ///         methods: vec!["GET".to_string()],
 ///         auth_required: false,
+///         backends: Some(vec![Backend {
+///             host: "http://api".to_string(),
+///             port: 8080,
+///             weight: 1,
+///             health_check_path: None,
+///         }]),
+///         load_balancing_strategy: Default::default(),
+///         retry: None,
 ///     },
 ///     Router {
-///         host: "http://api".to_string(),
-///         port: 8080,
+///         host: Some("http://api".to_string()),
+///         port: Some(8080),
 ///         external_path: "/users/{id}".to_string(),     // Dynamic route
 ///         internal_path: "/v1/user/{id}".to_string(),
 ///         methods: vec!["GET".to_string()],
 ///         auth_required: false,
+///         backends: Some(vec![Backend {
+///             host: "http://api".to_string(),
+///             port: 8080,
+///             weight: 1,
+///             health_check_path: None,
+///         }]),
+///         load_balancing_strategy: Default::default(),
+///         retry: None,
 ///     },
 /// ];
 /// 
@@ -166,24 +182,40 @@ impl RouteMatcher {
     /// 
     /// ```rust
     /// use kairos_rs::utils::route_matcher::RouteMatcher;
-    /// use kairos_rs::models::router::Router;
+    /// use kairos_rs::models::router::{Router, Backend};
     /// 
     /// let routes = vec![
     ///     Router {
-    ///         host: "http://localhost".to_string(),
-    ///         port: 8080,
+    ///         host: Some("http://localhost".to_string()),
+    ///         port: Some(8080),
     ///         external_path: "/health".to_string(),        // Static
     ///         internal_path: "/status".to_string(),
     ///         methods: vec!["GET".to_string()],
     ///         auth_required: false,
+    ///         backends: Some(vec![Backend {
+    ///             host: "http://localhost".to_string(),
+    ///             port: 8080,
+    ///             weight: 1,
+    ///             health_check_path: None,
+    ///         }]),
+    ///         load_balancing_strategy: Default::default(),
+    ///         retry: None,
     ///     },
     ///     Router {
-    ///         host: "http://localhost".to_string(),
-    ///         port: 8080,
+    ///         host: Some("http://localhost".to_string()),
+    ///         port: Some(8080),
     ///         external_path: "/users/{id}".to_string(),    // Dynamic
     ///         internal_path: "/v1/user/{id}".to_string(),
     ///         methods: vec!["GET".to_string()],
     ///         auth_required: false,
+    ///         backends: Some(vec![Backend {
+    ///             host: "http://localhost".to_string(),
+    ///             port: 8080,
+    ///             weight: 1,
+    ///             health_check_path: None,
+    ///         }]),
+    ///         load_balancing_strategy: Default::default(),
+    ///         retry: None,
     ///     },
     /// ];
     /// 
@@ -265,23 +297,39 @@ impl RouteMatcher {
     /// 
     /// ```rust
     /// # use kairos_rs::utils::route_matcher::RouteMatcher;
-    /// # use kairos_rs::models::router::Router;
+    /// # use kairos_rs::models::router::{Router, Backend};
     /// # let routes = vec![
     /// #     Router {
-    /// #         host: "http://localhost".to_string(),
-    /// #         port: 8080,
+    /// #         host: Some("http://localhost".to_string()),
+    /// #         port: Some(8080),
     /// #         external_path: "/health".to_string(),
     /// #         internal_path: "/status".to_string(),
     /// #         methods: vec!["GET".to_string()],
     /// #         auth_required: false,
+    /// #         backends: Some(vec![Backend {
+    /// #             host: "http://localhost".to_string(),
+    /// #             port: 8080,
+    /// #             weight: 1,
+    /// #             health_check_path: None,
+    /// #         }]),
+    /// #         load_balancing_strategy: Default::default(),
+    /// #         retry: None,
     /// #     },
     /// #     Router {
-    /// #         host: "http://localhost".to_string(),
-    /// #         port: 8080,
+    /// #         host: Some("http://localhost".to_string()),
+    /// #         port: Some(8080),
     /// #         external_path: "/users/{id}".to_string(),
     /// #         internal_path: "/v1/user/{id}".to_string(),
     /// #         methods: vec!["GET".to_string()],
     /// #         auth_required: false,
+    /// #         backends: Some(vec![Backend {
+    /// #             host: "http://localhost".to_string(),
+    /// #             port: 8080,
+    /// #             weight: 1,
+    /// #             health_check_path: None,
+    /// #         }]),
+    /// #         load_balancing_strategy: Default::default(),
+    /// #         retry: None,
     /// #     }
     /// # ];
     /// # let matcher = RouteMatcher::new(routes)?;

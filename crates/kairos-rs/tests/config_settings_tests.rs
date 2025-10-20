@@ -6,7 +6,7 @@
 
 use kairos_rs::config::settings::load_settings;
 use kairos_rs::models::settings::Settings;
-use kairos_rs::models::router::Router;
+use kairos_rs::models::router::{Router, Backend};
 use std::env;
 use std::io::Write;
 use tempfile::{NamedTempFile, TempDir};
@@ -18,12 +18,20 @@ fn create_test_settings() -> Settings {
         rate_limit: None,
         routers: vec![
             Router {
-                host: "http://localhost".to_string(),
-                port: 3000,
+                host: Some("http://localhost".to_string()),
+                port: Some(3000),
                 external_path: "/api/test".to_string(),
                 internal_path: "/test".to_string(),
                 methods: vec!["GET".to_string(), "POST".to_string()],
                 auth_required: false,
+                backends: Some(vec![Backend {
+                    host: "http://localhost".to_string(),
+                    port: 3000,
+                    weight: 1,
+                    health_check_path: None,
+                }]),
+                load_balancing_strategy: Default::default(),
+                retry: None,
             }
         ],
     }
@@ -171,28 +179,52 @@ fn test_load_settings_complex_configuration() {
         rate_limit: None,
         routers: vec![
             Router {
-                host: "https://api.example.com".to_string(),
-                port: 443,
+                host: Some("https://api.example.com".to_string()),
+                port: Some(443),
                 external_path: "/api/v1/users/{id}".to_string(),
                 internal_path: "/users/{id}".to_string(),
                 methods: vec!["GET".to_string(), "PUT".to_string(), "DELETE".to_string()],
                 auth_required: false,
+                backends: Some(vec![Backend {
+                    host: "https://api.example.com".to_string(),
+                    port: 443,
+                    weight: 1,
+                    health_check_path: None,
+                }]),
+                load_balancing_strategy: Default::default(),
+                retry: None,
             },
             Router {
-                host: "http://internal-service".to_string(),
-                port: 8080,
+                host: Some("http://internal-service".to_string()),
+                port: Some(8080),
                 external_path: "/internal/{service}/{action}".to_string(),
                 internal_path: "/{service}/{action}".to_string(),
                 methods: vec!["POST".to_string()],
                 auth_required: false,
+                backends: Some(vec![Backend {
+                    host: "http://internal-service".to_string(),
+                    port: 8080,
+                    weight: 1,
+                    health_check_path: None,
+                }]),
+                load_balancing_strategy: Default::default(),
+                retry: None,
             },
             Router {
-                host: "https://auth.example.com".to_string(),
-                port: 443,
+                host: Some("https://auth.example.com".to_string()),
+                port: Some(443),
                 external_path: "/auth/login".to_string(),
                 internal_path: "/v2/auth/login".to_string(),
                 methods: vec!["POST".to_string()],
                 auth_required: false,
+                backends: Some(vec![Backend {
+                    host: "https://auth.example.com".to_string(),
+                    port: 443,
+                    weight: 1,
+                    health_check_path: None,
+                }]),
+                load_balancing_strategy: Default::default(),
+                retry: None,
             },
         ],
     };
@@ -211,8 +243,8 @@ fn test_load_settings_complex_configuration() {
     
     // Verify first router details
     let first_router = &loaded_settings.routers[0];
-    assert_eq!(first_router.host, "https://api.example.com");
-    assert_eq!(first_router.port, 443);
+    assert_eq!(first_router.host, Some("https://api.example.com".to_string()));
+    assert_eq!(first_router.port, Some(443));
     assert_eq!(first_router.external_path, "/api/v1/users/{id}");
     assert_eq!(first_router.methods.len(), 3);
 }
@@ -247,12 +279,20 @@ fn test_load_settings_unicode_content() {
         rate_limit: None,
         routers: vec![
             Router {
-                host: "https://测试.example.com".to_string(),
-                port: 443,
+                host: Some("https://测试.example.com".to_string()),
+                port: Some(443),
                 external_path: "/api/用户/{id}".to_string(),
                 internal_path: "/users/{id}".to_string(),
                 methods: vec!["GET".to_string()],
                 auth_required: false,
+                backends: Some(vec![Backend {
+                    host: "https://测试.example.com".to_string(),
+                    port: 443,
+                    weight: 1,
+                    health_check_path: None,
+                }]),
+                load_balancing_strategy: Default::default(),
+                retry: None,
             }
         ],
     };
@@ -266,7 +306,7 @@ fn test_load_settings_unicode_content() {
     
     assert!(result.is_ok());
     let loaded_settings = result.unwrap();
-    assert_eq!(loaded_settings.routers[0].host, "https://测试.example.com");
+    assert_eq!(loaded_settings.routers[0].host, Some("https://测试.example.com".to_string()));
     assert_eq!(loaded_settings.routers[0].external_path, "/api/用户/{id}");
 }
 
