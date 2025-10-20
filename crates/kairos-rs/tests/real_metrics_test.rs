@@ -1,7 +1,7 @@
 use actix_web::{test, web, App, middleware::Logger};
 use kairos_rs::routes::{http, metrics};
 use kairos_rs::services::http::RouteHandler;
-use kairos_rs::models::router::Router;
+use kairos_rs::models::router::{Router, Backend};
 use std::time::Duration;
 
 #[actix_web::test]
@@ -9,12 +9,20 @@ async fn test_real_metrics_collection() {
     // Create a route handler with test routes
     let routes = vec![
         Router {
-            host: "http://localhost".to_string(),
-            port: 8080,
+            host: Some("http://localhost".to_string()),
+            port: Some(8080),
             external_path: "/api/test".to_string(),
             internal_path: "/test".to_string(),
             methods: vec!["GET".to_string()],
             auth_required: false,
+            backends: Some(vec![Backend {
+                host: "http://localhost".to_string(),
+                port: 8080,
+                weight: 1,
+                health_check_path: None,
+            }]),
+            load_balancing_strategy: Default::default(),
+            retry: None,
         }
     ];
     let route_handler = RouteHandler::new(routes, 30);

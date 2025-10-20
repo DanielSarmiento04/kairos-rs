@@ -1,72 +1,96 @@
-use kairos_rs::models::router::Router;
+use kairos_rs::models::router::{Router, Backend};
 use kairos_rs::utils::route_matcher::{RouteMatcher, RouteMatchError};
 
 /// Helper function to create test routes
 fn create_test_routes() -> Vec<Router> {
     vec![
         Router {
-            host: "http://localhost".to_string(),
-            port: 3000,
+            host: Some("http://localhost".to_string()),
+            port: Some(3000),
             external_path: "/api/identity/register/v3".to_string(),
             internal_path: "/api/identity/register".to_string(),
             methods: vec!["POST".to_string(), "GET".to_string()],
             auth_required: false,
+            backends: Some(vec![Backend { host: "http://localhost".to_string(), port: 3000, weight: 1, health_check_path: None }]),
+            load_balancing_strategy: Default::default(),
+            retry: None,
         },
         Router {
-            host: "https://google.com".to_string(),
-            port: 443,
+            host: Some("https://google.com".to_string()),
+            port: Some(443),
             external_path: "/identity/register/v2".to_string(),
             internal_path: "/".to_string(),
             methods: vec!["POST".to_string(), "GET".to_string()],
             auth_required: false,
+            backends: Some(vec![Backend { host: "https://google.com".to_string(), port: 443, weight: 1, health_check_path: None }]),
+            load_balancing_strategy: Default::default(),
+            retry: None,
         },
         Router {
-            host: "https://http.cat".to_string(),
-            port: 443,
+            host: Some("https://http.cat".to_string()),
+            port: Some(443),
             external_path: "/cats/{id}".to_string(),
             internal_path: "/{id}".to_string(),
             methods: vec!["GET".to_string()],
             auth_required: false,
+            backends: Some(vec![Backend { host: "https://http.cat".to_string(), port: 443, weight: 1, health_check_path: None }]),
+            load_balancing_strategy: Default::default(),
+            retry: None,
         },
         Router {
-            host: "http://api.example.com".to_string(),
-            port: 80,
+            host: Some("http://api.example.com".to_string()),
+            port: Some(80),
             external_path: "/api/users/{user_id}".to_string(),
             internal_path: "/users/{user_id}".to_string(),
             methods: vec!["GET".to_string(), "PUT".to_string(), "DELETE".to_string()],
             auth_required: false,
+            backends: Some(vec![Backend { host: "http://api.example.com".to_string(), port: 80, weight: 1, health_check_path: None }]),
+            load_balancing_strategy: Default::default(),
+            retry: None,
         },
         Router {
-            host: "http://api.example.com".to_string(),
-            port: 80,
+            host: Some("http://api.example.com".to_string()),
+            port: Some(80),
             external_path: "/api/products/{product_id}/details".to_string(),
             internal_path: "/products/{product_id}/info".to_string(),
             methods: vec!["GET".to_string()],
             auth_required: false,
+            backends: Some(vec![Backend { host: "http://api.example.com".to_string(), port: 80, weight: 1, health_check_path: None }]),
+            load_balancing_strategy: Default::default(),
+            retry: None,
         },
         Router {
-            host: "http://api.example.com".to_string(),
-            port: 80,
+            host: Some("http://api.example.com".to_string()),
+            port: Some(80),
             external_path: "/api/orders/{order_id}/items/{item_id}".to_string(),
             internal_path: "/orders/{order_id}/items/{item_id}".to_string(),
             methods: vec!["GET".to_string(), "PUT".to_string()],
             auth_required: false,
+            backends: Some(vec![Backend { host: "http://api.example.com".to_string(), port: 80, weight: 1, health_check_path: None }]),
+            load_balancing_strategy: Default::default(),
+            retry: None,
         },
         Router {
-            host: "http://static.example.com".to_string(),
-            port: 80,
+            host: Some("http://static.example.com".to_string()),
+            port: Some(80),
             external_path: "/api/static/path".to_string(),
             internal_path: "/static".to_string(),
             methods: vec!["GET".to_string()],
             auth_required: false,
+            backends: Some(vec![Backend { host: "http://static.example.com".to_string(), port: 80, weight: 1, health_check_path: None }]),
+            load_balancing_strategy: Default::default(),
+            retry: None,
         },
         Router {
-            host: "http://static.example.com".to_string(),
-            port: 80,
+            host: Some("http://static.example.com".to_string()),
+            port: Some(80),
             external_path: "/api/static/path/details".to_string(),
             internal_path: "/static/details".to_string(),
             methods: vec!["GET".to_string()],
             auth_required: false,
+            backends: Some(vec![Backend { host: "http://static.example.com".to_string(), port: 80, weight: 1, health_check_path: None }]),
+            load_balancing_strategy: Default::default(),
+            retry: None,
         },
     ]
 }
@@ -103,7 +127,7 @@ mod route_matcher_tests {
         let (route, internal_path) = result.unwrap();
         assert_eq!(route.external_path, "/api/identity/register/v3");
         assert_eq!(internal_path, "/api/identity/register");
-        assert_eq!(route.host, "http://localhost");
+        assert_eq!(route.host, Some("http://localhost".to_string()));
     }
 
     #[test]
@@ -117,7 +141,7 @@ mod route_matcher_tests {
         let (route, internal_path) = result.unwrap();
         assert_eq!(route.external_path, "/cats/{id}");
         assert_eq!(internal_path, "/200");
-        assert_eq!(route.host, "https://http.cat");
+        assert_eq!(route.host, Some("https://http.cat".to_string()));
 
         // Test user ID route
         let result = matcher.find_match("/api/users/123");
@@ -221,28 +245,37 @@ mod route_matcher_tests {
     fn test_invalid_route_patterns() {
         let invalid_routes = vec![
             Router {
-                host: "http://localhost".to_string(),
-                port: 3000,
+                host: Some("http://localhost".to_string()),
+                port: Some(3000),
                 external_path: "/api/users/{user_id".to_string(), // Missing closing brace
                 internal_path: "/users/{user_id}".to_string(),
                 methods: vec!["GET".to_string()],
-            auth_required: false,
+                auth_required: false,
+                backends: Some(vec![Backend { host: "http://localhost".to_string(), port: 3000, weight: 1, health_check_path: None }]),
+                load_balancing_strategy: Default::default(),
+                retry: None,
             },
             Router {
-                host: "http://localhost".to_string(),
-                port: 3000,
+                host: Some("http://localhost".to_string()),
+                port: Some(3000),
                 external_path: "/api/users/{user id}".to_string(), // Space in parameter name
                 internal_path: "/users/{user_id}".to_string(),
                 methods: vec!["GET".to_string()],
-            auth_required: false,
+                auth_required: false,
+                backends: Some(vec![Backend { host: "http://localhost".to_string(), port: 3000, weight: 1, health_check_path: None }]),
+                load_balancing_strategy: Default::default(),
+                retry: None,
             },
             Router {
-                host: "http://localhost".to_string(),
-                port: 3000,
+                host: Some("http://localhost".to_string()),
+                port: Some(3000),
                 external_path: "/api/users/{}".to_string(), // Empty parameter name
                 internal_path: "/users/{}".to_string(),
                 methods: vec!["GET".to_string()],
-            auth_required: false,
+                auth_required: false,
+                backends: Some(vec![Backend { host: "http://localhost".to_string(), port: 3000, weight: 1, health_check_path: None }]),
+                load_balancing_strategy: Default::default(),
+                retry: None,
             },
         ];
 

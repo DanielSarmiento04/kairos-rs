@@ -1,7 +1,7 @@
 use actix_web::{test, web, App};
 use kairos_rs::routes::{http, metrics};
 use kairos_rs::services::http::RouteHandler;
-use kairos_rs::models::router::Router;
+use kairos_rs::models::router::{Router, Backend};
 use std::time::Duration;
 
 #[actix_web::test]
@@ -9,12 +9,22 @@ async fn test_circuit_breaker_integration() {
     // Create a route handler with a test route pointing to non-existent service
     let routes = vec![
         Router {
-            host: "http://non-existent-service".to_string(),
-            port: 9999,  // Non-existent port
+            host: Some("http://non-existent-service".to_string()),
+            port: Some(9999),
             external_path: "/api/test".to_string(),
             internal_path: "/test".to_string(),
             methods: vec!["GET".to_string()],
             auth_required: false,
+            backends: Some(vec![
+                Backend {
+                    host: "http://non-existent-service".to_string(),
+                    port: 9999,
+                    weight: 1,
+                    health_check_path: None,
+                }
+            ]),
+            load_balancing_strategy: Default::default(),
+            retry: None,
         }
     ];
     let route_handler = RouteHandler::new(routes, 5); // 5 second timeout
@@ -80,20 +90,40 @@ async fn test_multiple_service_circuit_breakers() {
     // Create routes for multiple services to test independent circuit breakers
     let routes = vec![
         Router {
-            host: "http://service-a".to_string(),
-            port: 8001,
+            host: Some("http://service-a".to_string()),
+            port: Some(8001),
             external_path: "/api/service-a".to_string(),
             internal_path: "/test".to_string(),
             methods: vec!["GET".to_string()],
             auth_required: false,
+            backends: Some(vec![
+                Backend {
+                    host: "http://service-a".to_string(),
+                    port: 8001,
+                    weight: 1,
+                    health_check_path: None,
+                }
+            ]),
+            load_balancing_strategy: Default::default(),
+            retry: None,
         },
         Router {
-            host: "http://service-b".to_string(),
-            port: 8002,
+            host: Some("http://service-b".to_string()),
+            port: Some(8002),
             external_path: "/api/service-b".to_string(),
             internal_path: "/test".to_string(),
             methods: vec!["GET".to_string()],
             auth_required: false,
+            backends: Some(vec![
+                Backend {
+                    host: "http://service-b".to_string(),
+                    port: 8002,
+                    weight: 1,
+                    health_check_path: None,
+                }
+            ]),
+            load_balancing_strategy: Default::default(),
+            retry: None,
         }
     ];
     let route_handler = RouteHandler::new(routes, 5);
