@@ -54,16 +54,24 @@ use tokio::time::{sleep, timeout, Duration};
 /// 
 /// ```rust
 /// use kairos_rs::services::http::RouteHandler;
-/// use kairos_rs::models::router::Router;
+/// use kairos_rs::models::router::{Router, Backend};
 /// 
 /// let routes = vec![
 ///     Router {
-///         host: "http://backend".to_string(),
-///         port: 8080,
+///         host: Some("http://backend".to_string()),
+///         port: Some(8080),
 ///         external_path: "/api/users/{id}".to_string(),
 ///         internal_path: "/v1/user/{id}".to_string(),
 ///         methods: vec!["GET".to_string(), "PUT".to_string()],
 ///         auth_required: false,
+///         backends: Some(vec![Backend {
+///             host: "http://backend".to_string(),
+///             port: 8080,
+///             weight: 1,
+///             health_check_path: None,
+///         }]),
+///         load_balancing_strategy: Default::default(),
+///         retry: None,
 ///     }
 /// ];
 /// 
@@ -125,24 +133,40 @@ impl RouteHandler {
     /// 
     /// ```rust
     /// use kairos_rs::services::http::RouteHandler;
-    /// use kairos_rs::models::router::Router;
+    /// use kairos_rs::models::router::{Router, Backend};
     /// 
     /// let routes = vec![
     ///     Router {
-    ///         host: "http://auth-service".to_string(),
-    ///         port: 8080,
+    ///         host: Some("http://auth-service".to_string()),
+    ///         port: Some(8080),
     ///         external_path: "/auth/login".to_string(),
     ///         internal_path: "/authenticate".to_string(),
     ///         methods: vec!["POST".to_string()],
     ///         auth_required: false,
+    ///         backends: Some(vec![Backend {
+    ///             host: "http://auth-service".to_string(),
+    ///             port: 8080,
+    ///             weight: 1,
+    ///             health_check_path: None,
+    ///         }]),
+    ///         load_balancing_strategy: Default::default(),
+    ///         retry: None,
     ///     },
     ///     Router {
-    ///         host: "http://user-service".to_string(),
-    ///         port: 8080,
+    ///         host: Some("http://user-service".to_string()),
+    ///         port: Some(8080),
     ///         external_path: "/users/{id}".to_string(),
     ///         internal_path: "/api/v1/user/{id}".to_string(),
     ///         methods: vec!["GET".to_string(), "PUT".to_string(), "DELETE".to_string()],
     ///         auth_required: false,
+    ///         backends: Some(vec![Backend {
+    ///             host: "http://user-service".to_string(),
+    ///             port: 8080,
+    ///             weight: 1,
+    ///             health_check_path: None,
+    ///         }]),
+    ///         load_balancing_strategy: Default::default(),
+    ///         retry: None,
     ///     }
     /// ];
     /// 

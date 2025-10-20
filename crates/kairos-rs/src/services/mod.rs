@@ -45,18 +45,26 @@
 //! 
 //! ```rust
 //! use kairos_rs::services::http::RouteHandler;
-//! use kairos_rs::models::router::Router;
+//! use kairos_rs::models::router::{Router, Backend};
 //! use actix_web::{web, HttpRequest};
 //! 
 //! // Create a route handler
 //! let routes = vec![
 //!     Router {
-//!         host: "http://backend".to_string(),
-//!         port: 8080,
+//!         host: Some("http://backend".to_string()),
+//!         port: Some(8080),
 //!         external_path: "/api/users/{id}".to_string(),
 //!         internal_path: "/v1/user/{id}".to_string(),
 //!         methods: vec!["GET".to_string()],
 //!         auth_required: false,
+//!         backends: Some(vec![Backend {
+//!             host: "http://backend".to_string(),
+//!             port: 8080,
+//!             weight: 1,
+//!             health_check_path: None,
+//!         }]),
+//!         load_balancing_strategy: Default::default(),
+//!         retry: None,
 //!     }
 //! ];
 //! 

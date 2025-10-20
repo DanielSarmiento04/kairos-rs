@@ -154,7 +154,7 @@ impl Settings {
     /// 
     /// ```rust
     /// use kairos_rs::models::settings::Settings;
-    /// use kairos_rs::models::router::Router;
+    /// use kairos_rs::models::router::{Router, Backend};
     /// 
     /// let settings = Settings {
     ///     version: 1,
@@ -162,12 +162,20 @@ impl Settings {
     ///     rate_limit: None,
     ///     routers: vec![
     ///         Router {
-    ///             host: "http://localhost".to_string(),
-    ///             port: 8080,
+    ///             host: Some("http://localhost".to_string()),
+    ///             port: Some(8080),
     ///             external_path: "/api/test".to_string(),
     ///             internal_path: "/test".to_string(),
     ///             methods: vec!["GET".to_string()],
     ///             auth_required: false,
+    ///             backends: Some(vec![Backend {
+    ///                 host: "http://localhost".to_string(),
+    ///                 port: 8080,
+    ///                 weight: 1,
+    ///                 health_check_path: None,
+    ///             }]),
+    ///             load_balancing_strategy: Default::default(),
+    ///             retry: None,
     ///         }
     ///     ],
     /// };

@@ -22,16 +22,24 @@
 //! # Examples
 //! 
 //! ```rust
-//! use kairos_rs::models::{router::Router, settings::Settings, error::GatewayError};
+//! use kairos_rs::models::{router::{Router, Backend}, settings::Settings, error::GatewayError};
 //! 
 //! // Create a route configuration
 //! let route = Router {
-//!     host: "http://backend".to_string(),
-//!     port: 8080,
+//!     host: Some("http://backend".to_string()),
+//!     port: Some(8080),
 //!     external_path: "/api/users/{id}".to_string(),
 //!     internal_path: "/v1/user/{id}".to_string(),
 //!     methods: vec!["GET".to_string(), "PUT".to_string()],
 //!     auth_required: false,
+//!     backends: Some(vec![Backend {
+//!         host: "http://backend".to_string(),
+//!         port: 8080,
+//!         weight: 1,
+//!         health_check_path: None,
+//!     }]),
+//!     load_balancing_strategy: Default::default(),
+//!     retry: None,
 //! };
 //! 
 //! // Validate the configuration
