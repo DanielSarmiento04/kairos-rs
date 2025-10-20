@@ -1,0 +1,13 @@
+WebSocket Implementation Note
+==============================
+
+The WebSocket service requires proper integration with actix-ws.
+The actix-ws::Session API doesn't provide a split() method like futures streams.
+
+Proper implementation should:
+1. Use actix_ws::handle() to upgrade the HTTP connection
+2. Forward messages bidirectionally using session.text(), session.binary(), etc.
+3. Handle the MessageStream from actix-ws for receiving client messages
+4. Connect to backend using tokio-tungstenite
+
+Current implementation needs refactoring to use the correct actix-ws API patterns.

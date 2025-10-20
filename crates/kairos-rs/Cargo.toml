@@ -34,6 +34,13 @@ futures.workspace = true
 env_logger.workspace = true
 rand.workspace = true
 
+# Protocol-specific dependencies
+tokio-tungstenite = { version = "0.21" }
+actix-ws = { version = "0.2" }
+hickory-proto = { version = "0.24" }
+suppaftp = { version = "5.3", features = ["async", "async-secure"] }
+hex = "0.4"
+
 [dev-dependencies]
 tempfile = "3.0"
 tokio-test = "0.4"

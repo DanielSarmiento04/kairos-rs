@@ -1,5 +1,53 @@
 use serde::{Deserialize, Serialize};
 
+/// Protocol type for the gateway route.
+/// 
+/// Defines which protocol the gateway should use when handling requests
+/// for a specific route. Different protocols have different handling requirements.
+/// 
+/// # Protocols
+/// 
+/// - **HTTP**: Standard HTTP/HTTPS protocol (default)
+/// - **WebSocket**: Bidirectional, real-time communication protocol
+/// - **FTP**: File Transfer Protocol for file operations
+/// - **DNS**: Domain Name System for DNS query forwarding
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum Protocol {
+    /// HTTP/HTTPS protocol (default).
+    /// Used for standard REST APIs and web applications.
+    Http,
+    
+    /// WebSocket protocol.
+    /// Enables bidirectional, real-time communication.
+    WebSocket,
+    
+    /// File Transfer Protocol.
+    /// Used for file upload/download operations.
+    Ftp,
+    
+    /// Domain Name System protocol.
+    /// Used for DNS query forwarding and caching.
+    Dns,
+}
+
+impl Default for Protocol {
+    fn default() -> Self {
+        Self::Http
+    }
+}
+
+impl std::fmt::Display for Protocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Protocol::Http => write!(f, "http"),
+            Protocol::WebSocket => write!(f, "websocket"),
+            Protocol::Ftp => write!(f, "ftp"),
+            Protocol::Dns => write!(f, "dns"),
+        }
+    }
+}
+
 /// Load balancing strategy for distributing requests across multiple backends.
 /// 
 /// This enum defines different algorithms for selecting which backend server
@@ -343,6 +391,11 @@ pub struct Router {
     /// At least one backend must be specified (or use legacy host/port).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub backends: Option<Vec<Backend>>,
+    
+    /// Protocol type for this route (http, websocket, ftp, dns).
+    /// Defaults to HTTP if not specified.
+    #[serde(default)]
+    pub protocol: Protocol,
     
     /// Load balancing strategy for distributing requests.
     /// Only used when multiple backends are configured.
