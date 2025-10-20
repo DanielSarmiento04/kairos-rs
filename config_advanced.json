@@ -1,33 +1,115 @@
 {
   "version": 1,
   "jwt": {
-    "secret": "your-jwt-secret-key-here-must-be-at-least-32-characters-long",
+    "secret": "your-super-secret-key-change-this-in-production-minimum-32-characters",
     "issuer": "kairos-gateway",
-    "audience": "api-clients"
+    "audience": "api-clients",
+    "required_claims": ["sub", "exp", "iat"]
   },
   "rate_limit": {
     "strategy": "PerIPAndRoute",
-    "requests_per_window": 60,
+    "requests_per_window": 100,
     "window_duration": 60,
-    "burst_allowance": 10,
+    "burst_allowance": 50,
     "window_type": "SlidingWindow",
     "enable_redis": false,
     "redis_key_prefix": "kairos_rl"
   },
   "routers": [
     {
+      "_comment": "Legacy single backend configuration (backward compatible)",
       "host": "http://httpbin.org",
       "port": 80,
-      "external_path": "/api/test",
+      "external_path": "/api/legacy/get",
       "internal_path": "/get",
-      "methods": ["GET"]
+      "methods": ["GET"],
+      "auth_required": false
     },
     {
-      "host": "http://httpbin.org",
-      "port": 80,
+      "_comment": "Load balanced route with round-robin strategy",
+      "backends": [
+        {
+          "host": "http://httpbin.org",
+          "port": 80,
+          "weight": 1
+        },
+        {
+          "host": "http://httpbin.org",
+          "port": 80,
+          "weight": 1
+        }
+      ],
+      "load_balancing_strategy": "round_robin",
       "external_path": "/api/users/{id}",
       "internal_path": "/json",
-      "methods": ["GET"]
+      "methods": ["GET"],
+      "auth_required": false,
+      "retry": {
+        "max_retries": 3,
+        "initial_backoff_ms": 100,
+        "max_backoff_ms": 5000,
+        "backoff_multiplier": 2.0,
+        "retry_on_status_codes": [502, 503, 504],
+        "retry_on_connection_error": true
+      }
+    },
+    {
+      "_comment": "Weighted load balancing example",
+      "backends": [
+        {
+          "host": "http://httpbin.org",
+          "port": 80,
+          "weight": 2
+        },
+        {
+          "host": "http://httpbin.org",
+          "port": 80,
+          "weight": 1
+        }
+      ],
+      "load_balancing_strategy": "weighted",
+      "external_path": "/api/weighted/test",
+      "internal_path": "/anything",
+      "methods": ["GET", "POST"],
+      "auth_required": false,
+      "retry": {
+        "max_retries": 2,
+        "initial_backoff_ms": 50,
+        "max_backoff_ms": 2000,
+        "backoff_multiplier": 2.0,
+        "retry_on_status_codes": [503, 504],
+        "retry_on_connection_error": true
+      }
+    },
+    {
+      "_comment": "IP hash for session persistence",
+      "backends": [
+        {
+          "host": "http://httpbin.org",
+          "port": 80,
+          "weight": 1
+        }
+      ],
+      "load_balancing_strategy": "ip_hash",
+      "external_path": "/api/session/{id}",
+      "internal_path": "/uuid",
+      "methods": ["GET"],
+      "auth_required": false
+    },
+    {
+      "_comment": "Random load balancing",
+      "backends": [
+        {
+          "host": "http://httpbin.org",
+          "port": 80,
+          "weight": 1
+        }
+      ],
+      "load_balancing_strategy": "random",
+      "external_path": "/api/random/test",
+      "internal_path": "/delay/1",
+      "methods": ["GET"],
+      "auth_required": false
     }
   ]
 }
