@@ -3,7 +3,7 @@
 use actix_web::{test, App};
 use kairos_rs::{
     middleware::auth::{Claims, create_test_token},
-    models::{settings::{Settings, JwtSettings}, router::{Router, Backend}},
+    models::{settings::{Settings, JwtSettings}, router::{Router, Backend, Protocol}},
     routes::auth_http,
     services::http::RouteHandler,
 };
@@ -42,6 +42,7 @@ fn create_test_settings() -> Settings {
                 }]),
                 load_balancing_strategy: Default::default(),
                 retry: None,
+                protocol: Protocol::Http,
             },
             // Protected route - authentication required
             Router {
@@ -59,6 +60,7 @@ fn create_test_settings() -> Settings {
                 }]),
                 load_balancing_strategy: Default::default(),
                 retry: None,
+                protocol: Protocol::Http,
             },
         ],
     }
@@ -193,6 +195,7 @@ async fn test_jwt_config_validation() {
                 }]),
                 load_balancing_strategy: Default::default(),
                 retry: None,
+                protocol: Protocol::Http,
             }
         ],
     };
@@ -233,6 +236,7 @@ async fn test_jwt_secret_validation() {
                 }]),
                 load_balancing_strategy: Default::default(),
                 retry: None,
+                protocol: Protocol::Http,
             }
         ],
     };
@@ -266,6 +270,7 @@ async fn test_jwt_secret_validation() {
                 }]),
                 load_balancing_strategy: Default::default(),
                 retry: None,
+                protocol: Protocol::Http,
             }
         ],
     };

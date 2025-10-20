@@ -2,6 +2,7 @@ use actix_web::{test, web, App, middleware::Logger};
 use kairos_rs::routes::{http, metrics};
 use kairos_rs::services::http::RouteHandler;
 use kairos_rs::models::router::{Router, Backend};
+use kairos_rs::models::router::Protocol;
 use std::time::Duration;
 
 #[actix_web::test]
@@ -23,6 +24,7 @@ async fn test_real_metrics_collection() {
             }]),
             load_balancing_strategy: Default::default(),
             retry: None,
+            protocol: Protocol::Http,
         }
     ];
     let route_handler = RouteHandler::new(routes, 30);

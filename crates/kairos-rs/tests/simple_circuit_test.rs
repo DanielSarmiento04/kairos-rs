@@ -2,6 +2,7 @@ use actix_web::{test, web, App};
 use kairos_rs::routes::{http, metrics};
 use kairos_rs::services::http::RouteHandler;
 use kairos_rs::models::router::{Router, Backend};
+use kairos_rs::models::router::Protocol;
 
 #[actix_web::test]
 async fn test_simple_circuit_breaker() {
@@ -24,6 +25,7 @@ async fn test_simple_circuit_breaker() {
             ]),
             load_balancing_strategy: Default::default(),
             retry: None,
+            protocol: Protocol::Http,
         }
     ];
     let route_handler = RouteHandler::new(routes, 5);

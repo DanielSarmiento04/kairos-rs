@@ -1,5 +1,6 @@
 use kairos_rs::models::router::{Router, Backend};
 use kairos_rs::utils::route_matcher::{RouteMatcher, RouteMatchError};
+use kairos_rs::models::router::Protocol;
 
 /// Helper function to create test routes
 fn create_test_routes() -> Vec<Router> {
@@ -248,6 +249,21 @@ mod route_matcher_tests {
                 host: Some("http://localhost".to_string()),
                 port: Some(3000),
                 external_path: "/api/users/{user_id".to_string(), // Missing closing brace
+                internal_path: "/users/{user_id,
+                protocol: Protocol::Http
+            }".to_string(),
+                methods: vec!["GET".to_string()],
+                auth_required: false,
+                backends: Some(vec![Backend { host: "http://localhost".to_string(), port: 3000, weight: 1, health_check_path: None }]),
+                load_balancing_strategy: Default::default(),
+                retry: None,
+            },
+            Router {
+                host: Some("http://localhost".to_string()),
+                port: Some(3000),
+                external_path: "/api/users/{user id,
+                protocol: Protocol::Http
+            }".to_string(), // Space in parameter name
                 internal_path: "/users/{user_id}".to_string(),
                 methods: vec!["GET".to_string()],
                 auth_required: false,
@@ -258,18 +274,9 @@ mod route_matcher_tests {
             Router {
                 host: Some("http://localhost".to_string()),
                 port: Some(3000),
-                external_path: "/api/users/{user id}".to_string(), // Space in parameter name
-                internal_path: "/users/{user_id}".to_string(),
-                methods: vec!["GET".to_string()],
-                auth_required: false,
-                backends: Some(vec![Backend { host: "http://localhost".to_string(), port: 3000, weight: 1, health_check_path: None }]),
-                load_balancing_strategy: Default::default(),
-                retry: None,
-            },
-            Router {
-                host: Some("http://localhost".to_string()),
-                port: Some(3000),
-                external_path: "/api/users/{}".to_string(), // Empty parameter name
+                external_path: "/api/users/{,
+                protocol: Protocol::Http
+            }".to_string(), // Empty parameter name
                 internal_path: "/users/{}".to_string(),
                 methods: vec!["GET".to_string()],
                 auth_required: false,

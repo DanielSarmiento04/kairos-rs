@@ -7,6 +7,7 @@
 use kairos_rs::config::settings::load_settings;
 use kairos_rs::models::settings::Settings;
 use kairos_rs::models::router::{Router, Backend};
+use kairos_rs::models::router::Protocol;
 use std::env;
 use std::io::Write;
 use tempfile::{NamedTempFile, TempDir};
@@ -32,6 +33,7 @@ fn create_test_settings() -> Settings {
                 }]),
                 load_balancing_strategy: Default::default(),
                 retry: None,
+                protocol: Protocol::Http,
             }
         ],
     }
@@ -193,6 +195,7 @@ fn test_load_settings_complex_configuration() {
                 }]),
                 load_balancing_strategy: Default::default(),
                 retry: None,
+                protocol: Protocol::Http,
             },
             Router {
                 host: Some("http://internal-service".to_string()),
@@ -209,6 +212,7 @@ fn test_load_settings_complex_configuration() {
                 }]),
                 load_balancing_strategy: Default::default(),
                 retry: None,
+                protocol: Protocol::Http,
             },
             Router {
                 host: Some("https://auth.example.com".to_string()),
@@ -225,6 +229,7 @@ fn test_load_settings_complex_configuration() {
                 }]),
                 load_balancing_strategy: Default::default(),
                 retry: None,
+                protocol: Protocol::Http,
             },
         ],
     };
@@ -293,6 +298,7 @@ fn test_load_settings_unicode_content() {
                 }]),
                 load_balancing_strategy: Default::default(),
                 retry: None,
+                protocol: Protocol::Http,
             }
         ],
     };

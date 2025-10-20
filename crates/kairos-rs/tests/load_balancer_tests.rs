@@ -1,6 +1,6 @@
 //! Integration tests for load balancing functionality.
 
-use kairos_rs::models::router::{Backend, LoadBalancingStrategy, Router};
+use kairos_rs::models::router::{Backend, LoadBalancingStrategy, Protocol, Router};
 use kairos_rs::services::load_balancer::{
     LoadBalancerFactory, RoundRobinBalancer, WeightedBalancer, LoadBalancer,
 };
@@ -65,6 +65,7 @@ fn test_router_with_backends() {
         methods: vec!["GET".to_string()],
         auth_required: false,
         retry: None,
+        protocol: Protocol::Http,
     };
 
     assert!(router.validate().is_ok());
@@ -87,6 +88,7 @@ fn test_router_legacy_mode() {
         methods: vec!["GET".to_string()],
         auth_required: false,
         retry: None,
+        protocol: Protocol::Http,
     };
 
     assert!(router.validate().is_ok());

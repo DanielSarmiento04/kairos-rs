@@ -5,8 +5,11 @@
 
 use actix_web::{test, web, App, HttpResponse, Result};
 use kairos_rs::middleware::auth::{JwtAuth, JwtConfig, Claims, create_test_token};
+use kairos_rs::models::router::Protocol;
 use kairos_rs::routes::{health, metrics};
+use kairos_rs::models::router::Protocol;
 use kairos_rs::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
+use kairos_rs::models::router::Protocol;
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
 
 async fn mock_upstream_handler() -> Result<HttpResponse> {

@@ -2,6 +2,7 @@ use actix_web::{test, web, App};
 use kairos_rs::routes::{http, metrics};
 use kairos_rs::services::http::RouteHandler;
 use kairos_rs::models::router::{Router, Backend};
+use kairos_rs::models::router::Protocol;
 use std::time::Duration;
 
 #[actix_web::test]
@@ -25,6 +26,7 @@ async fn test_circuit_breaker_integration() {
             ]),
             load_balancing_strategy: Default::default(),
             retry: None,
+            protocol: Protocol::Http,
         }
     ];
     let route_handler = RouteHandler::new(routes, 5); // 5 second timeout
@@ -106,6 +108,7 @@ async fn test_multiple_service_circuit_breakers() {
             ]),
             load_balancing_strategy: Default::default(),
             retry: None,
+            protocol: Protocol::Http,
         },
         Router {
             host: Some("http://service-b".to_string()),
@@ -124,6 +127,7 @@ async fn test_multiple_service_circuit_breakers() {
             ]),
             load_balancing_strategy: Default::default(),
             retry: None,
+            protocol: Protocol::Http,
         }
     ];
     let route_handler = RouteHandler::new(routes, 5);
