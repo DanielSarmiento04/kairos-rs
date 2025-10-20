@@ -53,7 +53,7 @@ fn test_security_warnings() {
     };
     
     let result = ConfigValidator::validate_comprehensive(&settings);
-    assert!(result.warnings.iter().any(|w| w.contains("HTTP route")));
+    assert!(result.warnings.iter().any(|w| w.contains("Insecure HTTP backend")));
 }
 
 #[test]
@@ -203,8 +203,8 @@ fn test_mixed_http_https_warnings() {
     };
     
     let result = ConfigValidator::validate_comprehensive(&settings);
-    // Should have warnings about HTTP routes but not the "all routes use HTTP" warning
-    assert!(result.warnings.iter().any(|w| w.contains("Insecure HTTP route")));
+    // Should have warnings about HTTP backends but not the "all routes use HTTP" warning
+    assert!(result.warnings.iter().any(|w| w.contains("Insecure HTTP backend")));
     assert!(!result.warnings.iter().any(|w| w.contains("All routes use HTTP")));
 }
 
