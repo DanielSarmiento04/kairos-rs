@@ -44,6 +44,7 @@ base64 = "0.22"
 futures-util = "0.3"
 futures = "0.3"
 env_logger = { version = "0.11", features = ["color"] }
+rand = "0.8"
 
 [workspace.metadata.leptos]
 # Leptos configuration for the UI

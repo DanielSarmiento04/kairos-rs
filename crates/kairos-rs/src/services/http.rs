@@ -2,6 +2,7 @@ use crate::models::error::GatewayError;
 use crate::models::router::Router;
 use crate::routes::metrics::MetricsCollector;
 use crate::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
+use crate::services::load_balancer::{LoadBalancer, LoadBalancerFactory};
 use crate::utils::path::format_route;
 use crate::utils::route_matcher::RouteMatcher;
 
@@ -9,7 +10,7 @@ use actix_web::{
     http::{Method as ActixMethod, StatusCode},
     web, Error as ActixError, HttpRequest, HttpResponse,
 };
-use log::log;
+use log::{debug, info, warn};
 use reqwest::{
     header::HeaderMap as ReqwestHeaderMap, header::HeaderName, header::HeaderValue, Client,
     Method as ReqwestMethod,
@@ -17,7 +18,7 @@ use reqwest::{
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::time::{timeout, Duration};
+use tokio::time::{sleep, timeout, Duration};
 
 /// High-performance HTTP request handler for the kairos-rs gateway.
 /// 
@@ -78,6 +79,8 @@ pub struct RouteHandler {
     timeout_seconds: u64,
     /// Circuit breakers for upstream services (keyed by host:port)
     circuit_breakers: Arc<HashMap<String, Arc<CircuitBreaker>>>,
+    /// Load balancers for each route (keyed by external_path)
+    load_balancers: Arc<HashMap<String, Arc<dyn LoadBalancer>>>,
 }
 
 impl RouteHandler {
@@ -167,14 +170,34 @@ impl RouteHandler {
             RouteMatcher::new(routes.clone()).expect("Failed to create route matcher")
         );
 
-        // Create circuit breakers for each unique upstream service
+        // Create circuit breakers for each unique backend
         let mut circuit_breakers = HashMap::new();
+        let mut load_balancers = HashMap::new();
+        
         for route in &routes {
-            let service_key = format!("{}:{}", route.host, route.port);
-            if !circuit_breakers.contains_key(&service_key) {
-                let config = CircuitBreakerConfig::default();
-                let circuit_breaker = CircuitBreaker::new(service_key.clone(), config);
-                circuit_breakers.insert(service_key, circuit_breaker);
+            // Get all backends for this route
+            let backends = route.get_backends();
+            
+            // Create circuit breakers for each backend
+            for backend in &backends {
+                let service_key = format!("{}:{}", backend.host, backend.port);
+                if !circuit_breakers.contains_key(&service_key) {
+                    let config = CircuitBreakerConfig::default();
+                    let circuit_breaker = CircuitBreaker::new(service_key.clone(), config);
+                    circuit_breakers.insert(service_key, circuit_breaker);
+                }
+            }
+            
+            // Create load balancer for this route if multiple backends
+            if backends.len() > 1 {
+                let balancer = LoadBalancerFactory::create(&route.load_balancing_strategy);
+                load_balancers.insert(route.external_path.clone(), balancer);
+                info!(
+                    "Created {:?} load balancer for route {} with {} backends",
+                    route.load_balancing_strategy,
+                    route.external_path,
+                    backends.len()
+                );
             }
         }
 
@@ -183,6 +206,7 @@ impl RouteHandler {
             route_matcher,
             timeout_seconds,
             circuit_breakers: Arc::new(circuit_breakers),
+            load_balancers: Arc::new(load_balancers),
         }
     }
 
@@ -361,95 +385,178 @@ impl RouteHandler {
             }.into());
         }
 
-        let target_url = format_route(&route.host, &route.port, &transformed_internal_path);
+        // Get all backends for this route
+        let backends = route.get_backends();
+        if backends.is_empty() {
+            return Err(GatewayError::Config {
+                message: "No backends configured for route".to_string(),
+                route: path.clone(),
+            }.into());
+        }
 
-        log!(log::Level::Info, "Forwarding request to: {}", target_url);
-        log!(
-            log::Level::Debug,
-            "Request details: method={}, path={}, headers={:?}",
-            method,
-            path,
-            reqwest_headers
-        );
-        // print route details
-        log!(
-            log::Level::Debug,
-            "Route details: host={}, port={}, external_path={}, internal_path={}, methods={:?}",
-            route.host,
-            route.port,
-            route.external_path,
-            route.internal_path,
-            route.methods
-        );
+        // Get client IP for IP hash load balancing
+        let client_ip = req
+            .connection_info()
+            .realip_remote_addr()
+            .map(|s| s.to_string());
 
-        // Forward the request with converted method
-        let forwarded_req = self
-            .client
-            .request(reqwest_method, &target_url)
-            .body(body.to_vec())
-            .headers(reqwest_headers);
+        // Try with retry logic if configured
+        let retry_config = route.retry.clone();
+        let max_attempts = retry_config.as_ref().map(|c| c.max_retries + 1).unwrap_or(1);
 
-        // Get circuit breaker for this upstream service
-        let service_key = format!("{}:{}", route.host, route.port);
-        let circuit_breaker = self.circuit_breakers.get(&service_key)
-            .ok_or_else(|| GatewayError::Config { 
-                message: format!("No circuit breaker found for service: {}", service_key),
-                route: path.clone()
-            })?;
+        for attempt in 0..max_attempts {
+            // Select backend using load balancing strategy
+            let backend = if backends.len() == 1 {
+                backends[0].clone()
+            } else if let Some(load_balancer) = self.load_balancers.get(&route.external_path) {
+                load_balancer
+                    .select_backend(&backends, client_ip.as_deref())
+                    .ok_or_else(|| GatewayError::Config {
+                        message: "Load balancer failed to select backend".to_string(),
+                        route: path.clone(),
+                    })?
+            } else {
+                // Fallback to first backend if no load balancer
+                backends[0].clone()
+            };
 
-        // Execute request with timeout and circuit breaker protection
-        let response = match circuit_breaker.call(async {
-            // Wrap the timeout and HTTP request in a simplified error type
-            match timeout(
-                Duration::from_secs(self.timeout_seconds),
-                forwarded_req.send(),
-            ).await {
-                Ok(Ok(resp)) => Ok(resp),
-                Ok(Err(e)) => Err(GatewayError::Upstream { 
-                    message: e.to_string(),
-                    url: target_url.clone(),
-                    status: None,
-                }),
-                Err(_) => Err(GatewayError::Timeout { 
-                    timeout: self.timeout_seconds 
-                }),
+            let target_url = format_route(&backend.host, &backend.port, &transformed_internal_path);
+            
+            if attempt > 0 {
+                warn!("Retry attempt {} for {}", attempt, target_url);
+            } else {
+                debug!("Forwarding request to: {}", target_url);
             }
-        }).await {
-            Ok(resp) => resp,
-            Err(CircuitBreakerError::CircuitOpen) => {
-                return Err(GatewayError::CircuitOpen { 
-                    service: service_key 
-                }.into());
-            },
-            Err(CircuitBreakerError::OperationFailed(gateway_error)) => {
-                return Err(gateway_error.into());
-            }
-        };
 
-        // Convert upstream response to HttpResponse
-        let mut builder =
-            HttpResponse::build(StatusCode::from_u16(response.status().as_u16()).unwrap());
+            // Get circuit breaker for this backend
+            let service_key = format!("{}:{}", backend.host, backend.port);
+            let circuit_breaker = self.circuit_breakers.get(&service_key)
+                .ok_or_else(|| GatewayError::Config { 
+                    message: format!("No circuit breaker found for backend: {}", service_key),
+                    route: path.clone()
+                })?;
 
-        // Forward headers with proper conversion
-        for (key, value) in response.headers() {
-            if !key.as_str().starts_with("connection") {
-                if let Ok(header_value) =
-                    actix_web::http::header::HeaderValue::from_bytes(value.as_bytes())
-                {
-                    builder.insert_header((key.as_str(), header_value));
+            // Prepare request
+            let forwarded_req = self
+                .client
+                .request(reqwest_method.clone(), &target_url)
+                .body(body.to_vec())
+                .headers(reqwest_headers.clone());
+
+            // Execute request with timeout and circuit breaker protection
+            let result = circuit_breaker.call(async {
+                match timeout(
+                    Duration::from_secs(self.timeout_seconds),
+                    forwarded_req.send(),
+                ).await {
+                    Ok(Ok(resp)) => Ok(resp),
+                    Ok(Err(e)) => Err(GatewayError::Upstream { 
+                        message: e.to_string(),
+                        url: target_url.clone(),
+                        status: None,
+                    }),
+                    Err(_) => Err(GatewayError::Timeout { 
+                        timeout: self.timeout_seconds 
+                    }),
+                }
+            }).await;
+
+            match result {
+                Ok(response) => {
+                    let status_code = response.status().as_u16();
+                    
+                    // Check if we should retry based on status code
+                    if let Some(retry_cfg) = &retry_config {
+                        if retry_cfg.retry_on_status_codes.contains(&status_code) 
+                            && attempt < max_attempts - 1 {
+                            warn!(
+                                "Retryable status {} from {}, attempt {}/{}",
+                                status_code, target_url, attempt + 1, max_attempts
+                            );
+                            
+                            // Exponential backoff
+                            let backoff_ms = retry_cfg.calculate_backoff(attempt);
+                            sleep(Duration::from_millis(backoff_ms)).await;
+                            continue;
+                        }
+                    }
+                    
+                    // Success - record and return response
+                    if let Some(lb) = self.load_balancers.get(&route.external_path) {
+                        lb.record_success(&backend);
+                    }
+                    
+                    // Convert upstream response to HttpResponse
+                    let mut builder = HttpResponse::build(
+                        StatusCode::from_u16(status_code).unwrap()
+                    );
+
+                    // Forward headers with proper conversion
+                    for (key, value) in response.headers() {
+                        if !key.as_str().starts_with("connection") {
+                            if let Ok(header_value) =
+                                actix_web::http::header::HeaderValue::from_bytes(value.as_bytes())
+                            {
+                                builder.insert_header((key.as_str(), header_value));
+                            }
+                        }
+                    }
+
+                    // Handle the response body
+                    match response.bytes().await {
+                        Ok(bytes) => return Ok(builder.body(bytes)),
+                        Err(e) => return Err(GatewayError::Upstream { 
+                            message: e.to_string(),
+                            url: target_url,
+                            status: None,
+                        }.into()),
+                    }
+                }
+                Err(CircuitBreakerError::CircuitOpen) => {
+                    // Circuit is open, try next backend or fail
+                    warn!("Circuit breaker open for {}", service_key);
+                    
+                    if backends.len() > 1 && attempt < max_attempts - 1 {
+                        // Try another backend
+                        continue;
+                    }
+                    
+                    return Err(GatewayError::CircuitOpen { 
+                        service: service_key 
+                    }.into());
+                }
+                Err(CircuitBreakerError::OperationFailed(gateway_error)) => {
+                    // Request failed, record failure
+                    if let Some(lb) = self.load_balancers.get(&route.external_path) {
+                        lb.record_failure(&backend);
+                    }
+                    
+                    // Check if we should retry
+                    if let Some(retry_cfg) = &retry_config {
+                        if retry_cfg.retry_on_connection_error && attempt < max_attempts - 1 {
+                            warn!(
+                                "Connection error to {}, retrying (attempt {}/{})",
+                                target_url, attempt + 1, max_attempts
+                            );
+                            
+                            // Exponential backoff
+                            let backoff_ms = retry_cfg.calculate_backoff(attempt);
+                            sleep(Duration::from_millis(backoff_ms)).await;
+                            continue;
+                        }
+                    }
+                    
+                    return Err(gateway_error.into());
                 }
             }
         }
 
-        // Handle the response body
-        match response.bytes().await {
-            Ok(bytes) => Ok(builder.body(bytes)),
-            Err(e) => Err(GatewayError::Upstream { 
-                message: e.to_string(),
-                url: target_url,
-                status: None,
-            }.into()),
-        }
+        // All retries exhausted
+        Err(GatewayError::Upstream {
+            message: format!("All {} retry attempts exhausted", max_attempts),
+            url: path,
+            status: None,
+        }.into())
     }
 
     /// Efficiently converts and filters HTTP headers for upstream forwarding.

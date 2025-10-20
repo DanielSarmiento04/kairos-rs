@@ -85,7 +85,9 @@
 //! - Advanced routing features (rate limiting per route, caching)
 
 pub mod auth_http;
+pub mod config_reload;
 pub mod health;
 pub mod http;
+pub mod management;
 pub mod metrics;
 pub mod websocket;

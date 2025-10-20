@@ -32,6 +32,7 @@ base64.workspace = true
 futures-util.workspace = true
 futures.workspace = true
 env_logger.workspace = true
+rand.workspace = true
 
 [dev-dependencies]
 tempfile = "3.0"
