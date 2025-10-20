@@ -1,3 +1,4 @@
+
 //! Integration tests for JWT authentication functionality.
 
 use actix_web::{test, App};
