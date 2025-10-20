@@ -82,6 +82,36 @@ impl LoadBalancer for RoundRobinBalancer {
 /// 
 /// Routes requests to the backend with the fewest active connections.
 /// Best for backends with varying capacity or long-running requests.
+/// 
+/// # Algorithm
+/// 
+/// 1. Tracks active connection count per backend in a HashMap
+/// 2. On each request, selects backend with minimum connection count
+/// 3. Increments count on selection, decrements on success/failure
+/// 
+/// # Concurrency
+/// 
+/// Uses `RwLock<HashMap>` for thread-safe connection tracking:
+/// - **Read lock** during backend selection (majority of operations)
+/// - **Write lock** only for recording success/failure
+/// - Each connection count uses `AtomicU64` for lock-free updates
+/// 
+/// # Performance Characteristics
+/// 
+/// - Selection: O(n) where n = number of backends (needs to compare all)
+/// - Memory: O(n) for connection tracking HashMap
+/// - Lock contention: Minimal due to read-heavy workload with RwLock
+/// 
+/// # Example
+/// 
+/// ```text
+/// Initial state:
+/// - Backend A: 2 active connections
+/// - Backend B: 5 active connections
+/// - Backend C: 3 active connections
+/// 
+/// Next request → Backend A (minimum: 2 connections)
+/// ```
 #[derive(Debug)]
 pub struct LeastConnectionsBalancer {
     connections: Arc<RwLock<HashMap<String, AtomicU64>>>,
@@ -94,10 +124,13 @@ impl LeastConnectionsBalancer {
         }
     }
     
+    /// Creates a unique key for a backend (host:port).
     fn get_backend_key(backend: &Backend) -> String {
         format!("{}:{}", backend.host, backend.port)
     }
     
+    /// Gets the current connection count for a backend.
+    /// Returns 0 if the backend hasn't been tracked yet.
     fn get_connection_count(&self, backend: &Backend) -> u64 {
         let key = Self::get_backend_key(backend);
         let connections = self.connections.read().unwrap();
@@ -195,6 +228,29 @@ impl LoadBalancer for RandomBalancer {
 /// 
 /// Distributes requests based on configured backend weights.
 /// Backends with higher weights receive proportionally more traffic.
+/// 
+/// # Algorithm
+/// 
+/// The weighted balancer uses a "weighted list" approach:
+/// 1. Creates a list where each backend appears N times (N = its weight)
+/// 2. Uses round-robin selection on this expanded list
+/// 
+/// # Example
+/// 
+/// ```text
+/// Backends:
+/// - Backend A (weight: 3)
+/// - Backend B (weight: 1)
+/// 
+/// Weighted list: [A, A, A, B]
+/// Distribution: 75% to A, 25% to B
+/// ```
+/// 
+/// # Performance Note
+/// 
+/// The current implementation rebuilds the weighted list on every request.
+/// For high-throughput scenarios with stable backends, consider caching
+/// the weighted list. See PERFORMANCE_ANALYSIS.md for optimization details.
 #[derive(Debug)]
 pub struct WeightedBalancer {
     counter: AtomicUsize,
@@ -207,6 +263,20 @@ impl WeightedBalancer {
         }
     }
     
+    /// Builds a weighted list where each backend appears N times (N = weight).
+    /// 
+    /// # Algorithm Complexity
+    /// 
+    /// - Time: O(sum of all weights)
+    /// - Space: O(sum of all weights)
+    /// 
+    /// # Examples
+    /// 
+    /// ```text
+    /// Input:  [Backend(weight=3), Backend(weight=2)]
+    /// Output: [Backend, Backend, Backend, Backend, Backend]
+    ///         (first backend 3 times, second backend 2 times)
+    /// ```
     fn build_weighted_list(backends: &[Backend]) -> Vec<Backend> {
         let mut weighted_list = Vec::new();
         

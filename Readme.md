@@ -15,14 +15,18 @@ Kairos-rs is a production-ready HTTP gateway with modern web UI that:
 - ✅ Supports dynamic path parameters (e.g., `/users/{id}` → `/users/123`)
 - ✅ **JWT Authentication** - Validate bearer tokens with configurable claims and required fields
 - ✅ **Advanced rate limiting** - Per-route limits with multiple algorithms (fixed window, sliding window, token bucket)
-- ✅ **Circuit breaker pattern** - Automatic failure detection and recovery
+- ✅ **Circuit breaker pattern** - Automatic failure detection and recovery with per-backend isolation
+- ✅ **Load Balancing** - 5 strategies (round-robin, least connections, random, weighted, IP hash)
+- ✅ **Retry Logic** - Exponential backoff with configurable policies and retryable status codes
+- ✅ **Route Management API** - Dynamic CRUD operations for routes via REST endpoints
+- ✅ **Hot-Reload API** - Manual configuration reload and status endpoints
 - ✅ **Security features** - CORS policies, request size limits, security headers
 - ✅ **Observability** - Prometheus metrics, structured logging, health checks
 - ✅ **Configuration hot-reload** - Update routes without service restart
 - ✅ **Web Admin UI** - Modern Leptos-based interface with real-time dashboard and metrics
 - ✅ **Modular Architecture** - Workspace with separate crates for gateway, UI, CLI, and client
 
-**Current status:** Ready for production use with comprehensive security, reliability features, and web-based management interface.
+**Current status:** Ready for production use with comprehensive security, reliability, load balancing, and web-based management interface.
 
 ## Quick Start
 
@@ -48,7 +52,7 @@ cargo leptos serve
 Admin UI available at `http://localhost:3000`
 
 ### 3. Configure Routes
-Create a `config.json` file:
+Create a `config.json` file with advanced features:
 
 ```json
 {
@@ -61,20 +65,33 @@ Create a `config.json` file:
   },
   "routers": [
     {
-      "host": "https://http.cat",
-      "port": 443,
       "external_path": "/cats/{id}",
       "internal_path": "/{id}",
       "methods": ["GET"],
-      "auth_required": false
+      "auth_required": false,
+      "backends": [
+        {"host": "https://http.cat", "port": 443, "weight": 1}
+      ],
+      "load_balancing_strategy": "round_robin"
     },
     {
-      "host": "https://api.example.com",
-      "port": 443,
-      "external_path": "/api/secure/{id}",
-      "internal_path": "/v1/data/{id}",
+      "external_path": "/api/users/{id}",
+      "internal_path": "/v1/user/{id}",
       "methods": ["GET", "POST"],
-      "auth_required": true
+      "auth_required": true,
+      "backends": [
+        {"host": "http://api1.example.com", "port": 8080, "weight": 3},
+        {"host": "http://api2.example.com", "port": 8080, "weight": 2},
+        {"host": "http://api3.example.com", "port": 8080, "weight": 1}
+      ],
+      "load_balancing_strategy": "weighted",
+      "retry_config": {
+        "max_retries": 3,
+        "initial_backoff_ms": 100,
+        "max_backoff_ms": 5000,
+        "backoff_multiplier": 2.0,
+        "retryable_status_codes": [502, 503, 504]
+      }
     }
   ]
 }
@@ -162,7 +179,7 @@ kairos-rs/
 
 ## Configuration
 
-### Full Configuration Example
+### Full Configuration Example with Load Balancing & Retry Logic
 ```json
 {
   "version": 1,
@@ -174,22 +191,77 @@ kairos-rs/
   },
   "routers": [
     {
-      "host": "http://backend-service.com",
-      "port": 8080,
       "external_path": "/api/v1/users/{id}",
       "internal_path": "/users/{id}",
       "methods": ["GET", "PUT", "DELETE"],
-      "auth_required": true
+      "auth_required": true,
+      "backends": [
+        {"host": "http://backend1.example.com", "port": 8080, "weight": 2, "health_check_path": "/health"},
+        {"host": "http://backend2.example.com", "port": 8080, "weight": 1, "health_check_path": "/health"}
+      ],
+      "load_balancing_strategy": "weighted",
+      "retry_config": {
+        "max_retries": 3,
+        "initial_backoff_ms": 100,
+        "max_backoff_ms": 5000,
+        "backoff_multiplier": 2.0,
+        "retryable_status_codes": [502, 503, 504]
+      }
     },
     {
-      "host": "https://public-api.com",
-      "port": 443,
       "external_path": "/public/status",
       "internal_path": "/health",
       "methods": ["GET"],
-      "auth_required": false
+      "auth_required": false,
+      "backends": [
+        {"host": "https://public-api.com", "port": 443}
+      ],
+      "load_balancing_strategy": "round_robin"
     }
   ]
+}
+```
+
+### Load Balancing Strategies
+
+Kairos-rs supports 5 load balancing strategies:
+
+1. **Round Robin** (`round_robin`) - Distributes requests evenly in circular order
+   - Best for: Backends with similar capacity
+   - Pros: Simple, stateless, fair distribution
+   - Cons: Doesn't consider backend load
+
+2. **Least Connections** (`least_connections`) - Routes to backend with fewest active connections
+   - Best for: Backends with varying capacity or long-running requests
+   - Pros: Adapts to backend load automatically
+   - Cons: Requires connection tracking overhead
+
+3. **Random** (`random`) - Randomly selects a backend
+   - Best for: Simple setups, testing
+   - Pros: Zero state, no lock contention
+   - Cons: May cause uneven distribution with few requests
+
+4. **Weighted** (`weighted`) - Distributes based on backend weights
+   - Best for: Backends with different capacities
+   - Pros: Fine-grained control over distribution
+   - Cons: Requires manual weight configuration
+
+5. **IP Hash** (`ip_hash`) - Routes based on client IP address
+   - Best for: Session affinity, sticky sessions
+   - Pros: Consistent routing for same client
+   - Cons: May cause imbalance with few clients
+
+### Retry Configuration
+
+Configure exponential backoff retry logic per route:
+
+```json
+"retry_config": {
+  "max_retries": 3,              // Maximum retry attempts
+  "initial_backoff_ms": 100,     // Initial delay in milliseconds
+  "max_backoff_ms": 5000,        // Maximum backoff delay
+  "backoff_multiplier": 2.0,     // Multiplier for exponential backoff
+  "retryable_status_codes": [502, 503, 504]  // Which HTTP status codes to retry
 }
 ```
 
@@ -202,6 +274,50 @@ kairos-rs/
 - Supports standard JWT claims validation
 - Configurable required claims and audience
 - Bearer token extraction from Authorization header
+
+### Route Management API
+
+Kairos-rs provides REST endpoints for dynamic route management:
+
+```bash
+# List all routes
+GET /api/routes
+
+# Get specific route
+GET /api/routes/{path}
+
+# Create new route
+POST /api/routes
+Content-Type: application/json
+{
+  "external_path": "/api/new",
+  "internal_path": "/v1/new",
+  "methods": ["GET"],
+  "backends": [{"host": "http://backend", "port": 8080}],
+  "load_balancing_strategy": "round_robin"
+}
+
+# Update existing route
+PUT /api/routes/{path}
+
+# Delete route
+DELETE /api/routes/{path}
+
+# Validate route configuration
+POST /api/routes/validate
+```
+
+### Hot-Reload API
+
+Trigger configuration reload without restarting:
+
+```bash
+# Reload configuration from disk
+POST /api/config/reload
+
+# Check reload status
+GET /api/config/status
+```
 
 ### Environment Variables
 ```bash
@@ -251,18 +367,23 @@ Current test coverage: **85+ comprehensive tests** covering:
 
 ## What's Next? (Roadmap)
 
-This project has completed Phase 1 (Gateway Core) and is now working on Phase 2 (UI Completion & Advanced Routing)! Here's what's planned:
+This project has completed Phase 1 (Gateway Core) and Phase 2 (Load Balancing & Advanced Routing)! Here's what's planned:
 
-**Current focus (Phase 2 - v0.2.7):**
-- [ ] Route management backend endpoints (CRUD operations via API)
+**Recently completed (v0.2.7):**
+- ✅ **Load balancing** - 5 strategies (round-robin, least connections, random, weighted, IP hash)
+- ✅ **Retry logic** - Exponential backoff with configurable policies
+- ✅ **Route management API** - CRUD operations via REST endpoints
+- ✅ **Hot-reload API** - Manual configuration reload endpoints
+- ✅ **Per-backend circuit breakers** - Fault isolation for each backend server
+
+**Current focus (Phase 2 continued - v0.2.8):**
 - [ ] Configuration editor UI (JWT, rate limiting, CORS settings)
 - [ ] WebSocket real-time updates (replace polling with live connections)
 - [ ] Form validation (client and server-side)
-- [ ] Load balancing strategies (round-robin, weighted, health-based)
 - [ ] Request transformation (header manipulation, path rewriting)
-- [ ] Retry logic with exponential backoff
+- [ ] Historical metrics with charts
 
-**Recently completed (Phase 1 + UI Foundation):**
+**Previously completed (Phase 1 + UI Foundation):**
 - ✅ JWT authentication with configurable claims
 - ✅ Advanced rate limiting with multiple algorithms  
 - ✅ Circuit breaker pattern implementation
@@ -419,8 +540,8 @@ Built with these excellent Rust crates:
 
 ---
 
-**Status**: Production ready with comprehensive security, reliability features, and modern web admin interface  
-**Version**: 0.2.6  
+**Status**: Production ready with comprehensive security, reliability, load balancing features, and modern web admin interface  
+**Version**: 0.2.8  
 **Maintainer**: [@DanielSarmiento04](https://github.com/DanielSarmiento04)  
 **Community**: Issues and PRs welcome!
 

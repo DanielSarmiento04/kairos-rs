@@ -107,15 +107,55 @@ impl Backend {
 /// Defines how the gateway should retry failed requests to backends,
 /// including backoff strategies and which errors should trigger retries.
 /// 
+/// # Exponential Backoff Algorithm
+/// 
+/// The backoff delay for retry attempt N is calculated as:
+/// ```text
+/// delay = min(initial_backoff * multiplier^N, max_backoff)
+/// ```
+/// 
+/// Example with default settings (initial=100ms, multiplier=2.0, max=5000ms):
+/// - Attempt 1: 100ms * 2^0 = 100ms
+/// - Attempt 2: 100ms * 2^1 = 200ms
+/// - Attempt 3: 100ms * 2^2 = 400ms
+/// - Attempt 4: 100ms * 2^3 = 800ms
+/// - Attempt 5: 100ms * 2^4 = 1600ms
+/// - Attempt 6+: Capped at 5000ms
+/// 
+/// # Retryable Conditions
+/// 
+/// Requests are retried when:
+/// 1. HTTP status code matches `retry_on_status_codes` (e.g., 502, 503, 504)
+/// 2. Connection/network errors occur (if `retry_on_connection_error = true`)
+/// 
+/// # Best Practices
+/// 
+/// - Keep `max_retries` low (≤5) to avoid excessive latency
+/// - Use exponential backoff to prevent thundering herd
+/// - Only retry idempotent operations (GET, PUT, DELETE)
+/// - Avoid retrying POST unless the backend is idempotent
+/// 
 /// # Examples
 /// 
+/// Conservative retry (quick failure):
 /// ```json
 /// {
-///   "max_retries": 3,
-///   "initial_backoff_ms": 100,
-///   "max_backoff_ms": 5000,
+///   "max_retries": 2,
+///   "initial_backoff_ms": 50,
+///   "max_backoff_ms": 1000,
 ///   "backoff_multiplier": 2.0,
 ///   "retry_on_status_codes": [502, 503, 504]
+/// }
+/// ```
+/// 
+/// Aggressive retry (more resilient):
+/// ```json
+/// {
+///   "max_retries": 5,
+///   "initial_backoff_ms": 100,
+///   "max_backoff_ms": 10000,
+///   "backoff_multiplier": 2.5,
+///   "retry_on_status_codes": [408, 429, 502, 503, 504]
 /// }
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -201,7 +241,41 @@ impl RetryConfig {
         Ok(())
     }
     
-    /// Calculates the backoff delay for a given retry attempt.
+    /// Calculates the backoff delay for a given retry attempt using exponential backoff.
+    /// 
+    /// # Algorithm
+    /// 
+    /// ```text
+    /// delay = min(initial_backoff * multiplier^attempt, max_backoff)
+    /// ```
+    /// 
+    /// # Parameters
+    /// 
+    /// * `attempt` - Zero-indexed retry attempt number (0 = first retry)
+    /// 
+    /// # Returns
+    /// 
+    /// Backoff delay in milliseconds, capped at `max_backoff_ms`
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust
+    /// use kairos_rs::models::router::RetryConfig;
+    /// 
+    /// let config = RetryConfig {
+    ///     max_retries: 3,
+    ///     initial_backoff_ms: 100,
+    ///     max_backoff_ms: 5000,
+    ///     backoff_multiplier: 2.0,
+    ///     retry_on_status_codes: vec![502, 503, 504],
+    ///     retry_on_connection_error: true,
+    /// };
+    /// 
+    /// assert_eq!(config.calculate_backoff(0), 100);   // 100 * 2^0
+    /// assert_eq!(config.calculate_backoff(1), 200);   // 100 * 2^1
+    /// assert_eq!(config.calculate_backoff(2), 400);   // 100 * 2^2
+    /// assert_eq!(config.calculate_backoff(3), 800);   // 100 * 2^3
+    /// ```
     pub fn calculate_backoff(&self, attempt: u32) -> u64 {
         let backoff = (self.initial_backoff_ms as f64) 
             * self.backoff_multiplier.powi(attempt as i32);
