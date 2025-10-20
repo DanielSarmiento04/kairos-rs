@@ -1,8 +1,8 @@
 # Kairos-rs Development Roadmap
 
-> **Version**: 0.2.7  
-> **Last Updated**: Octuber 2025  
-> **Status**: Production Ready with Load Balancing & Advanced Routing
+> **Version**: 0.2.9  
+> **Last Updated**: October 2025  
+> **Status**: Production Ready with Multi-Protocol Support
 
 ## 🔥 Immediate Priorities (Next 2 Weeks)
 
@@ -58,6 +58,7 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 
 ## Current Status (What Actually Works)
 
+- ✅ **Multi-protocol support** - HTTP/HTTPS, WebSocket, FTP, and DNS proxying
 - ✅ Basic HTTP request routing with regex pattern matching
 - ✅ Dynamic path parameters (`/users/{id}` → `/users/123`)
 - ✅ JSON configuration with comprehensive validation
@@ -75,6 +76,9 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 - ✅ **Prometheus metrics** - Comprehensive observability with `/metrics` endpoint
 - ✅ **Web Admin UI** - Modern Leptos-based interface with real-time dashboard
 - ✅ **Workspace Architecture** - Modular crates: gateway, ui, cli, client, core
+- ✅ **WebSocket proxying** - Real-time bidirectional communication support
+- ✅ **FTP proxying** - File operations through HTTP APIs
+- ✅ **DNS proxying** - DNS query forwarding with caching
 - ✅ 90+ comprehensive tests (unit, integration, documentation, load balancing)
 
 **Performance**: 
@@ -85,14 +89,23 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 
 ## What's Missing (Honestly)
 
-- No response caching layer
+- No response caching layer (HTTP only)
 - No service discovery integration
 - No request transformation (header manipulation, path rewriting) - planned for next release
-- Limited WebSocket support (proxying planned)
-- No gRPC proxying
+- No gRPC proxying (planned for future)
 - No distributed tracing integration (OpenTelemetry planned)
 - **Partial Admin UI** - Dashboard and health monitoring working, configuration editor UI in progress
 - No historical metrics with time-series charts yet
+- **Protocol-specific features**:
+  - WebSocket: Advanced compression and custom protocol extensions
+  - FTP: FTPS/SFTP support and advanced file operations
+  - DNS: TCP support and DNSSEC validation
+
+**Recently Added (v0.2.9):**
+- ✅ **Multi-protocol support** - WebSocket, FTP, and DNS proxying
+- ✅ **Protocol-specific validation** - Comprehensive validation for each protocol
+- ✅ **Protocol services** - WebSocket handler, FTP operations, DNS forwarding with cache
+- ✅ **HTTP API wrappers** - FTP and DNS operations accessible via REST APIs
 
 ---
 
@@ -125,32 +138,43 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 - ✅ Won't fall over under normal load
 - ✅ Has security features for public APIs
 
-### Phase 2: Advanced Routing & UI Completion ✅ MOSTLY COMPLETED (v0.2.7)
-**Goal**: Complete admin UI and handle complex routing scenarios
+### Phase 2: Multi-Protocol Support & Advanced Routing ✅ COMPLETED (v0.2.9 - October 2025)
+**Goal**: Extend beyond HTTP with multi-protocol support and complete admin UI
 
-#### Weeks 1-2: Route Management Backend ✅ COMPLETED
+#### Multi-Protocol Implementation ✅ COMPLETED
+- ✅ **WebSocket proxying** - Real-time bidirectional communication with connection lifecycle management
+- ✅ **FTP gateway** - File operations through proxy with active/passive mode support
+- ✅ **DNS forwarding** - DNS query proxying with intelligent caching and TTL handling
+- ✅ **Protocol abstraction layer** - Unified protocol enum (Http, WebSocket, Ftp, Dns)
+- ✅ **Protocol-aware routing** - Router configuration with protocol field support
+- ✅ **Comprehensive testing** - 90+ tests across all protocol types
+
+#### Route Management Backend ✅ COMPLETED
 - ✅ **Route CRUD endpoints** - Implemented `/api/routes` endpoints in gateway
 - ✅ **Configuration persistence** - Save changes to config.json
 - ✅ **Hot-reload trigger API** - Endpoint to trigger config reload
 - ✅ **Route validation API** - Server-side validation before saving
 
-#### Weeks 3-4: UI Feature Completion (IN PROGRESS)
+#### UI Feature Completion (IN PROGRESS)
 - [ ] **Route management UI** - Complete CRUD interface for routes
 - [ ] **Configuration editor** - JWT, rate limiting, CORS settings
 - [ ] **Form validation** - Client and server-side validation
 - [ ] **WebSocket support** - Real-time metrics updates
 
-#### Weeks 5-6: Advanced Routing ✅ COMPLETED
+#### Advanced Routing ✅ COMPLETED
 - ✅ **Load balancing** - 5 strategies (round-robin, least connections, random, weighted, IP hash)
 - ✅ **Retry logic** - Exponential backoff with configurable policies
 - [ ] **Request transformation** - Modify headers/paths before forwarding (PLANNED)
 - [ ] **Response transformation** - Modify response headers and status codes (PLANNED)
 
 **Success Criteria** (Updated):
+- ✅ Multi-protocol support (HTTP, WebSocket, FTP, DNS) fully implemented
+- ✅ Protocol-aware routing and load balancing
 - ✅ Full route management API backend completed
 - ✅ Configuration changes persist correctly via API
 - ✅ Load balancing with 5 strategies implemented
 - ✅ Retry logic with exponential backoff and circuit breakers
+- ✅ 90+ comprehensive tests across all protocols
 - [ ] UI components for route management (in progress)
 - [ ] Request/response transformation (next phase)
 

@@ -60,6 +60,9 @@ impl ConfigValidator {
         // Route conflicts
         Self::validate_route_conflicts(settings, &mut result);
         
+        // Protocol-specific validation
+        Self::validate_protocols(settings, &mut result);
+        
         // Log results
         Self::log_validation_results(&result);
         
@@ -212,6 +215,88 @@ impl ConfigValidator {
         
         // If we get here, routes could potentially conflict
         true
+    }
+    
+    fn validate_protocols(settings: &Settings, result: &mut ValidationResult) {
+        use crate::models::router::Protocol;
+        
+        for router in &settings.routers {
+            match router.protocol {
+                Protocol::WebSocket => {
+                    // Validate WebSocket-specific requirements
+                    let backends = router.get_backends();
+                    for backend in backends {
+                        if !backend.host.starts_with("ws://") 
+                            && !backend.host.starts_with("wss://") 
+                            && !backend.host.starts_with("http://")
+                            && !backend.host.starts_with("https://") {
+                            result.add_error(format!(
+                                "WebSocket route {} requires backend URL with ws://, wss://, http://, or https:// protocol",
+                                router.external_path
+                            ));
+                        }
+                    }
+                    
+                    if !router.methods.contains(&"GET".to_string()) {
+                        result.add_warning(format!(
+                            "WebSocket route {} should allow GET method for upgrade",
+                            router.external_path
+                        ));
+                    }
+                }
+                Protocol::Ftp => {
+                    // Validate FTP-specific requirements
+                    let backends = router.get_backends();
+                    for backend in backends {
+                        if !backend.host.starts_with("ftp://") 
+                            && !backend.host.starts_with("ftps://")
+                            && !backend.host.contains("ftp") {
+                            result.add_warning(format!(
+                                "FTP route {} backend may require ftp:// or ftps:// protocol: {}",
+                                router.external_path, backend.host
+                            ));
+                        }
+                        
+                        if backend.port != 21 && backend.port != 22 {
+                            result.add_recommendation(format!(
+                                "FTP route {} uses non-standard port {} (standard is 21)",
+                                router.external_path, backend.port
+                            ));
+                        }
+                    }
+                }
+                Protocol::Dns => {
+                    // Validate DNS-specific requirements
+                    let backends = router.get_backends();
+                    for backend in backends {
+                        if backend.port != 53 {
+                            result.add_warning(format!(
+                                "DNS route {} uses non-standard port {} (standard is 53)",
+                                router.external_path, backend.port
+                            ));
+                        }
+                        
+                        // Validate DNS server address format
+                        if backend.host.starts_with("http://") || backend.host.starts_with("https://") {
+                            result.add_error(format!(
+                                "DNS route {} backend should not use HTTP/HTTPS protocol: {}",
+                                router.external_path, backend.host
+                            ));
+                        }
+                    }
+                    
+                    if !router.methods.contains(&"POST".to_string()) {
+                        result.add_warning(format!(
+                            "DNS route {} should allow POST method for query forwarding",
+                            router.external_path
+                        ));
+                    }
+                }
+                Protocol::Http => {
+                    // Existing HTTP validation (already covered above)
+                }
+            }
+        }
     }
     
     fn log_validation_results(result: &ValidationResult) {

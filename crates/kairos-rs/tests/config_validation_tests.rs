@@ -7,6 +7,7 @@
 use kairos_rs::config::validation::{ConfigValidator, ValidationResult};
 use kairos_rs::models::settings::Settings;
 use kairos_rs::models::router::{Router, Backend};
+use kairos_rs::models::router::Protocol;
 
 fn create_test_router(host: &str, external_path: &str, methods: Vec<&str>) -> Router {
     Router {
@@ -24,6 +25,7 @@ fn create_test_router(host: &str, external_path: &str, methods: Vec<&str>) -> Ro
         }]),
         load_balancing_strategy: Default::default(),
         retry: None,
+        protocol: Protocol::Http,
     }
 }
 
@@ -164,6 +166,7 @@ fn test_path_traversal_detection() {
                 }]),
                 load_balancing_strategy: Default::default(),
                 retry: None,
+                protocol: Protocol::Http,
             },
         ],
     };

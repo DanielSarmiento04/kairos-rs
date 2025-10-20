@@ -77,3 +77,6 @@
 pub mod circuit_breaker;
 pub mod http;
 pub mod load_balancer;
+pub mod websocket;
+pub mod ftp;
+pub mod dns;

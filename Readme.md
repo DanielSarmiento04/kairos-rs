@@ -10,8 +10,11 @@ A production-ready HTTP gateway and reverse proxy built with Rust, featuring a *
 
 ## What it actually does (right now)
 
-Kairos-rs is a production-ready HTTP gateway with modern web UI that:
-- ✅ Routes incoming HTTP requests to backend services based on path patterns
+Kairos-rs is a production-ready multi-protocol gateway with modern web UI that:
+- ✅ **HTTP/HTTPS**: Routes incoming HTTP requests to backend services based on path patterns
+- ✅ **WebSocket**: Real-time bidirectional communication with connection upgrading and message forwarding
+- ✅ **FTP**: File Transfer Protocol support with HTTP API wrappers for list/download/upload operations
+- ✅ **DNS**: DNS query forwarding with response caching and load balancing across DNS servers
 - ✅ Supports dynamic path parameters (e.g., `/users/{id}` → `/users/123`)
 - ✅ **JWT Authentication** - Validate bearer tokens with configurable claims and required fields
 - ✅ **Advanced rate limiting** - Per-route limits with multiple algorithms (fixed window, sliding window, token bucket)
@@ -26,7 +29,20 @@ Kairos-rs is a production-ready HTTP gateway with modern web UI that:
 - ✅ **Web Admin UI** - Modern Leptos-based interface with real-time dashboard and metrics
 - ✅ **Modular Architecture** - Workspace with separate crates for gateway, UI, CLI, and client
 
-**Current status:** Ready for production use with comprehensive security, reliability, load balancing, and web-based management interface.
+**Current status:** Production-ready multi-protocol gateway supporting HTTP, WebSocket, FTP, and DNS with comprehensive security, reliability, load balancing, and web-based management interface.
+
+## Protocol Support
+
+Kairos-rs now supports multiple protocols beyond HTTP:
+
+| Protocol | Status | Features |
+|----------|--------|----------|
+| **HTTP/HTTPS** | ✅ Production Ready | Load balancing, circuit breakers, retry logic, JWT auth, rate limiting |
+| **WebSocket** | ✅ Beta | Bidirectional messaging, connection upgrading, binary/text support |
+| **FTP** | ✅ Beta | File operations via HTTP API (list, download, upload), authentication |
+| **DNS** | ✅ Beta | Query forwarding, response caching, load balancing across DNS servers |
+
+See [MULTI_PROTOCOL_GUIDE.md](./MULTI_PROTOCOL_GUIDE.md) for detailed protocol documentation and examples.
 
 ## Quick Start
 
@@ -376,14 +392,23 @@ This project has completed Phase 1 (Gateway Core) and Phase 2 (Load Balancing & 
 - ✅ **Hot-reload API** - Manual configuration reload endpoints
 - ✅ **Per-backend circuit breakers** - Fault isolation for each backend server
 
-**Current focus (Phase 2 continued - v0.2.8):**
+**Recently completed (v0.2.9 - October 2025):**
+- ✅ **Multi-Protocol Support** - WebSocket, FTP, and DNS protocol handling
+- ✅ **WebSocket Proxy** - Bidirectional message forwarding with connection upgrading
+- ✅ **FTP Gateway** - File operations (list, download, upload) via HTTP API
+- ✅ **DNS Forwarding** - Query forwarding with caching and load balancing
+- ✅ **Protocol-specific routing** - Configure protocol type per route
+- ✅ **Comprehensive test coverage** - Integration tests for all protocols
+
+**Current focus (Phase 3 - v0.3.0):**
 - [ ] Configuration editor UI (JWT, rate limiting, CORS settings)
 - [ ] WebSocket real-time updates (replace polling with live connections)
 - [ ] Form validation (client and server-side)
 - [ ] Request transformation (header manipulation, path rewriting)
 - [ ] Historical metrics with charts
+- [ ] Response caching layer
 
-**Previously completed (Phase 1 + UI Foundation):**
+**Previously completed (Phase 1 + 2 + UI Foundation):**
 - ✅ JWT authentication with configurable claims
 - ✅ Advanced rate limiting with multiple algorithms  
 - ✅ Circuit breaker pattern implementation
@@ -393,9 +418,11 @@ This project has completed Phase 1 (Gateway Core) and Phase 2 (Load Balancing & 
 - ✅ **Web Admin UI** with real-time dashboard
 - ✅ **Workspace architecture** with modular crates
 - ✅ **Health monitoring** pages
+- ✅ **Load balancing** - 5 strategies (round-robin, least connections, random, weighted, IP hash)
+- ✅ **Retry logic** - Exponential backoff with configurable policies
 
 **Future phases:**
-- **Phase 3:** Response caching, historical metrics, distributed tracing
+- **Phase 3:** Response caching, historical metrics, distributed tracing, WebSocket UI updates
 - **Phase 4:** AI-powered routing, LLM integration, smart load balancing
 - **Phase 5:** Enterprise features (auth, RBAC, multi-gateway support)
 
@@ -540,8 +567,8 @@ Built with these excellent Rust crates:
 
 ---
 
-**Status**: Production ready with comprehensive security, reliability, load balancing features, and modern web admin interface  
-**Version**: 0.2.8  
+**Status**: Production ready with multi-protocol support (HTTP, WebSocket, FTP, DNS), comprehensive security, reliability, load balancing features, and modern web admin interface  
+**Version**: 0.2.9 (October 2025)  
 **Maintainer**: [@DanielSarmiento04](https://github.com/DanielSarmiento04)  
 **Community**: Issues and PRs welcome!
 

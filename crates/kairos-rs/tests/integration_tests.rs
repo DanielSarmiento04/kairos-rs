@@ -5,6 +5,7 @@
 
 use actix_web::{test, web, App, HttpResponse, Result};
 use kairos_rs::middleware::auth::{JwtAuth, JwtConfig, Claims, create_test_token};
+use kairos_rs::models::router::Protocol;
 use kairos_rs::routes::{health, metrics};
 use kairos_rs::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
 use std::time::{SystemTime, UNIX_EPOCH, Duration};

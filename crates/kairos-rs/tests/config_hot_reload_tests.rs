@@ -7,6 +7,7 @@
 use kairos_rs::config::hot_reload::ConfigWatcher;
 use kairos_rs::models::settings::Settings;
 use kairos_rs::models::router::{Router, Backend};
+use kairos_rs::models::router::Protocol;
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -31,6 +32,7 @@ fn create_test_settings() -> Settings {
                 }]),
                 load_balancing_strategy: Default::default(),
                 retry: None,
+                protocol: Protocol::Http,
             }
         ],
     }

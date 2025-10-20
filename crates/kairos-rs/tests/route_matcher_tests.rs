@@ -1,5 +1,6 @@
 use kairos_rs::models::router::{Router, Backend};
 use kairos_rs::utils::route_matcher::{RouteMatcher, RouteMatchError};
+use kairos_rs::models::router::Protocol;
 
 /// Helper function to create test routes
 fn create_test_routes() -> Vec<Router> {
@@ -14,6 +15,7 @@ fn create_test_routes() -> Vec<Router> {
             backends: Some(vec![Backend { host: "http://localhost".to_string(), port: 3000, weight: 1, health_check_path: None }]),
             load_balancing_strategy: Default::default(),
             retry: None,
+            protocol: Protocol::Http,
         },
         Router {
             host: Some("https://google.com".to_string()),
@@ -25,6 +27,7 @@ fn create_test_routes() -> Vec<Router> {
             backends: Some(vec![Backend { host: "https://google.com".to_string(), port: 443, weight: 1, health_check_path: None }]),
             load_balancing_strategy: Default::default(),
             retry: None,
+            protocol: Protocol::Http,
         },
         Router {
             host: Some("https://http.cat".to_string()),
@@ -36,6 +39,7 @@ fn create_test_routes() -> Vec<Router> {
             backends: Some(vec![Backend { host: "https://http.cat".to_string(), port: 443, weight: 1, health_check_path: None }]),
             load_balancing_strategy: Default::default(),
             retry: None,
+            protocol: Protocol::Http,
         },
         Router {
             host: Some("http://api.example.com".to_string()),
@@ -47,6 +51,7 @@ fn create_test_routes() -> Vec<Router> {
             backends: Some(vec![Backend { host: "http://api.example.com".to_string(), port: 80, weight: 1, health_check_path: None }]),
             load_balancing_strategy: Default::default(),
             retry: None,
+            protocol: Protocol::Http,
         },
         Router {
             host: Some("http://api.example.com".to_string()),
@@ -58,6 +63,7 @@ fn create_test_routes() -> Vec<Router> {
             backends: Some(vec![Backend { host: "http://api.example.com".to_string(), port: 80, weight: 1, health_check_path: None }]),
             load_balancing_strategy: Default::default(),
             retry: None,
+            protocol: Protocol::Http,
         },
         Router {
             host: Some("http://api.example.com".to_string()),
@@ -69,6 +75,7 @@ fn create_test_routes() -> Vec<Router> {
             backends: Some(vec![Backend { host: "http://api.example.com".to_string(), port: 80, weight: 1, health_check_path: None }]),
             load_balancing_strategy: Default::default(),
             retry: None,
+            protocol: Protocol::Http,
         },
         Router {
             host: Some("http://static.example.com".to_string()),
@@ -80,6 +87,7 @@ fn create_test_routes() -> Vec<Router> {
             backends: Some(vec![Backend { host: "http://static.example.com".to_string(), port: 80, weight: 1, health_check_path: None }]),
             load_balancing_strategy: Default::default(),
             retry: None,
+            protocol: Protocol::Http,
         },
         Router {
             host: Some("http://static.example.com".to_string()),
@@ -91,6 +99,7 @@ fn create_test_routes() -> Vec<Router> {
             backends: Some(vec![Backend { host: "http://static.example.com".to_string(), port: 80, weight: 1, health_check_path: None }]),
             load_balancing_strategy: Default::default(),
             retry: None,
+            protocol: Protocol::Http,
         },
     ]
 }
@@ -254,6 +263,7 @@ mod route_matcher_tests {
                 backends: Some(vec![Backend { host: "http://localhost".to_string(), port: 3000, weight: 1, health_check_path: None }]),
                 load_balancing_strategy: Default::default(),
                 retry: None,
+                protocol: Protocol::Http,
             },
             Router {
                 host: Some("http://localhost".to_string()),
@@ -265,6 +275,7 @@ mod route_matcher_tests {
                 backends: Some(vec![Backend { host: "http://localhost".to_string(), port: 3000, weight: 1, health_check_path: None }]),
                 load_balancing_strategy: Default::default(),
                 retry: None,
+                protocol: Protocol::Http,
             },
             Router {
                 host: Some("http://localhost".to_string()),
@@ -276,6 +287,7 @@ mod route_matcher_tests {
                 backends: Some(vec![Backend { host: "http://localhost".to_string(), port: 3000, weight: 1, health_check_path: None }]),
                 load_balancing_strategy: Default::default(),
                 retry: None,
+                protocol: Protocol::Http,
             },
         ];
 
