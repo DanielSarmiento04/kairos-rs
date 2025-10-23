@@ -17,7 +17,7 @@ use kairos_rs::services::http::RouteHandler;
 
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{middleware::Logger, App, HttpServer};
-use log::{debug, error, info, trace, warn};
+use log::{error, info};
 use tokio::signal;
 
 #[actix_web::main]
@@ -53,11 +53,6 @@ async fn main() -> std::io::Result<()> {
         .finish()
         .unwrap();
 
-    info!("Logger initialized");
-    warn!("This is a warning message");
-    error!("This is an error message");
-    debug!("This is a debug message");
-    trace!("This is a trace message");
 
     // Get server configuration from environment
     let host = std::env::var("KAIROS_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());

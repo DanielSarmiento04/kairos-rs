@@ -1,11 +1,9 @@
-ARG RUST_VERSION=1.87.0
-ARG APP_NAME=ben
+ARG RUST_VERSION=1.90.0
 
 ################################################################################
 # Create a stage for building the application.
 
 FROM rust:${RUST_VERSION}-slim AS build
-ARG APP_NAME
 WORKDIR /app
 
 # Install only essential build dependencies
@@ -15,44 +13,32 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency manifests first for better layer caching
+# Copy workspace configuration
 COPY Cargo.toml Cargo.lock ./
 
-# Create a dummy main.rs to build dependencies (cargo chef alternative)
-RUN mkdir src && echo "fn main() {}" > src/main.rs
+# Copy all crates
+COPY crates/ ./crates/
 
-# Build dependencies only (cached layer if deps don't change)
+# Build the application with caching
 RUN --mount=type=cache,target=/app/target/ \
     --mount=type=cache,target=/usr/local/cargo/git/db \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
-    cargo build --release && \
-    rm src/main.rs
-
-# Copy source code
-COPY src ./src
-
-# Build the actual application
-RUN --mount=type=cache,target=/app/target/ \
-    --mount=type=cache,target=/usr/local/cargo/git/db \
-    --mount=type=cache,target=/usr/local/cargo/registry/ \
-    cargo build --locked --release && \
-    cp ./target/release/$APP_NAME /usr/local/bin/server
+    cargo build --release --bin kairos-gateway && \
+    cp ./target/release/kairos-gateway /usr/local/bin/kairos-gateway
 
 ################################################################################
 # Create a minimal runtime stage using distroless
 
 FROM gcr.io/distroless/cc-debian12:latest AS runtime
-ARG APP_NAME
 
-# Create a non-root user (distroless already provides nonroot user)
 # Copy CA certificates for HTTPS requests
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Copy the compiled binary
-COPY --from=build /usr/local/bin/server /usr/local/bin/server
+COPY --from=build /usr/local/bin/kairos-gateway /usr/local/bin/kairos-gateway
 
 # Copy config file
-COPY --chown=nonroot:nonroot config.yml /app/config.yml
+COPY --chown=nonroot:nonroot config.json /app/config.json
 
 # Switch to non-root user
 USER nonroot
@@ -64,4 +50,4 @@ WORKDIR /app
 EXPOSE 5900
 
 # Use exec form for better signal handling
-ENTRYPOINT ["/usr/local/bin/server"]
+ENTRYPOINT ["/usr/local/bin/kairos-gateway"]

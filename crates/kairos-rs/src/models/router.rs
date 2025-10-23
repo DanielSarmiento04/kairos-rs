@@ -134,8 +134,15 @@ fn default_weight() -> u32 {
 impl Backend {
     /// Validates backend configuration.
     pub fn validate(&self) -> Result<(), String> {
-        if !self.host.starts_with("http://") && !self.host.starts_with("https://") {
-            return Err(format!("Backend host must start with http:// or https://: {}", self.host));
+        // Accept http://, https://, ws://, and wss:// schemes
+        let valid_schemes = ["http://", "https://", "ws://", "wss://"];
+        let has_valid_scheme = valid_schemes.iter().any(|scheme| self.host.starts_with(scheme));
+        
+        if !has_valid_scheme {
+            return Err(format!(
+                "Backend host must start with http://, https://, ws://, or wss://: {}", 
+                self.host
+            ));
         }
         
         if self.port == 0 {
@@ -532,6 +539,11 @@ impl Router {
             if backends.is_empty() {
                 return Err("At least one backend must be specified".to_string());
             }
+            
+            log::debug!(
+                "Validating Router with {} backend(s): protocol={}, external_path={}, internal_path={}, methods={:?}",
+                backends.len(), self.protocol, self.external_path, self.internal_path, self.methods
+            );
             
             for (i, backend) in backends.iter().enumerate() {
                 backend.validate().map_err(|e| {
