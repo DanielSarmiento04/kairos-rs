@@ -53,12 +53,7 @@ async fn main() -> std::io::Result<()> {
         .finish()
         .unwrap();
 
-    info!("Logger initialized");
-    warn!("This is a warning message");
-    error!("This is an error message");
-    debug!("This is a debug message");
-    trace!("This is a trace message");
-
+        
     // Get server configuration from environment
     let host = std::env::var("KAIROS_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let port = std::env::var("KAIROS_PORT")
