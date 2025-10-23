@@ -14,7 +14,7 @@ members = [
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "macros", "signal", "fs"] }
-reqwest = { version = "0.12", features = ["json", "gzip", "brotli"] }
+reqwest = { version = "0.12", features = ["json", "gzip", "brotli"], default-features = false }
 thiserror = "1.0"
 log = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
@@ -55,3 +55,11 @@ suppaftp = { version = "5.3", features = ["async", "async-secure"] }
 # Leptos configuration for the UI
 bin-features = ["ssr"]
 lib-features = ["csr"]
+
+# Workspace-wide profile configurations
+[profile.wasm-release]
+inherits = "release"
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = "abort"

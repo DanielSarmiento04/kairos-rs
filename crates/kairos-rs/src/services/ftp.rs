@@ -45,6 +45,7 @@ use log::info;
 #[derive(Clone)]
 pub struct FtpHandler {
     /// Request timeout in seconds
+    #[allow(dead_code)]
     pub(crate) timeout_seconds: u64,
 }
 

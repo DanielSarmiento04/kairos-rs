@@ -30,7 +30,7 @@ pub fn configure_auth_routes(cfg: &mut web::ServiceConfig, handler: RouteHandler
             
             // Handle WebSocket routes separately
             if matches!(protocol, Protocol::WebSocket) {
-                debug!("Configuring WebSocket route: {}", path);
+                // Configuring WebSocket route (logged per worker thread - this is normal)
                 let ws_handler_clone = ws_handler.clone();
                 let router_clone = router.clone();
                 

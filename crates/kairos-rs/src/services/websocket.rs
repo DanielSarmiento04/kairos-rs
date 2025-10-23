@@ -68,7 +68,7 @@ impl WebSocketHandler {
         let (mut backend_write, mut backend_read) = backend_ws.split();
 
         // Spawn task to forward messages from client to backend
-        let mut client_session_clone = client_session.clone();
+        let client_session_clone = client_session.clone();
         actix_rt::spawn(async move {
             while let Some(Ok(msg)) = client_msg_stream.next().await {
                 let backend_msg = match msg {
