@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "jwt": {
+    "secret": "your-super-secret-jwt-key-change-this-in-production",
+    "issuer": "kairos-gateway",
+    "audience": "api-clients",
+    "required_claims": ["sub", "exp"]
+  },
+  "rate_limit": {
+    "strategy": "sliding_window",
+    "requests_per_minute": 100,
+    "burst_size": 150
+  },
+  "routers": [
+    {
+      "protocol": "http",
+      "backends": [
+        {
+          "host": "http://backend-1",
+          "port": 8080,
+          "weight": 2
+        },
+        {
+          "host": "http://backend-2",
+          "port": 8080,
+          "weight": 1
+        }
+      ],
+      "load_balancing_strategy": "weighted",
+      "external_path": "/api/users/{id}",
+      "internal_path": "/v1/user/{id}",
+      "methods": ["GET", "PUT", "DELETE"],
+      "auth_required": true,
+      "retry": {
+        "max_retries": 3,
+        "initial_backoff_ms": 100,
+        "max_backoff_ms": 5000,
+        "backoff_multiplier": 2.0,
+        "retry_on_status_codes": [502, 503, 504],
+        "retry_on_connection_error": true
+      }
+    },
+    {
+      "protocol": "websocket",
+      "backends": [
+        {
+          "host": "ws://websocket-backend",
+          "port": 8080,
+          "weight": 1
+        }
+      ],
+      "external_path": "/ws/chat",
+      "internal_path": "/realtime/chat",
+      "methods": ["GET"],
+      "auth_required": false
+    },
+    {
+      "protocol": "ftp",
+      "backends": [
+        {
+          "host": "ftp://ftp.example.com",
+          "port": 21,
+          "weight": 1
+        }
+      ],
+      "external_path": "/ftp",
+      "internal_path": "/",
+      "methods": ["GET", "POST"],
+      "auth_required": true
+    },
+    {
+      "protocol": "dns",
+      "backends": [
+        {
+          "host": "8.8.8.8",
+          "port": 53,
+          "weight": 1
+        },
+        {
+          "host": "1.1.1.1",
+          "port": 53,
+          "weight": 1
+        }
+      ],
+      "load_balancing_strategy": "round_robin",
+      "external_path": "/dns",
+      "internal_path": "/",
+      "methods": ["POST"],
+      "auth_required": false
+    }
+  ]
+}

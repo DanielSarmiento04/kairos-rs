@@ -42,7 +42,7 @@ Kairos-rs now supports multiple protocols beyond HTTP:
 | **FTP** | ✅ Beta | File operations via HTTP API (list, download, upload), authentication |
 | **DNS** | ✅ Beta | Query forwarding, response caching, load balancing across DNS servers |
 
-See [MULTI_PROTOCOL_GUIDE.md](./MULTI_PROTOCOL_GUIDE.md) for detailed protocol documentation and examples.
+See [MULTI_PROTOCOL_GUIDE.md](./docs/MULTI_PROTOCOL_GUIDE.md) for detailed protocol documentation and examples.
 
 ## Quick Start
 
@@ -114,6 +114,8 @@ Create a `config.json` file with advanced features:
 ```
 
 ### 3. Test It
+
+#### HTTP Endpoints
 ```bash
 # Public endpoint (no auth required)
 curl http://localhost:5900/cats/200
@@ -121,13 +123,49 @@ curl http://localhost:5900/cats/200
 # Secure endpoint (requires JWT)
 curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
      http://localhost:5900/api/secure/123
-
-# Or use the Admin UI at http://localhost:3000 to:
-# - View real-time metrics and dashboard
-# - Monitor health status
-# - See request/response statistics
-# - Track circuit breaker status
 ```
+
+#### WebSocket Connection
+```bash
+# Install wscat
+npm install -g wscat
+
+# Connect to WebSocket route
+wscat -c "ws://localhost:5900/ws/chat"
+```
+
+**Or use the Admin UI** at `http://localhost:3000` to:
+- View real-time metrics and dashboard
+- Monitor health status
+- See request/response statistics
+- Track circuit breaker status
+
+### 4. WebSocket Configuration Example
+
+Add to your `config.json`:
+
+```json
+{
+  "routers": [
+    {
+      "protocol": "websocket",
+      "backends": [
+        {
+          "host": "ws://localhost",
+          "port": 3000,
+          "weight": 1
+        }
+      ],
+      "external_path": "/ws/chat",
+      "internal_path": "/ws",
+      "methods": ["GET"],
+      "auth_required": false
+    }
+  ]
+}
+```
+
+**📖 See [WEBSOCKET_GUIDE.md](./docs/WEBSOCKET_GUIDE.md) for comprehensive WebSocket documentation.**
 
 ## How Dynamic Routing Works
 

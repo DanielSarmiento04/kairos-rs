@@ -540,6 +540,11 @@ impl Router {
                 return Err("At least one backend must be specified".to_string());
             }
             
+            log::debug!(
+                "Validating Router with {} backend(s): protocol={}, external_path={}, internal_path={}, methods={:?}",
+                backends.len(), self.protocol, self.external_path, self.internal_path, self.methods
+            );
+            
             for (i, backend) in backends.iter().enumerate() {
                 backend.validate().map_err(|e| {
                     format!("Backend {} validation failed: {}", i, e)

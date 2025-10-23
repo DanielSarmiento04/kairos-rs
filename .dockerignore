@@ -1,32 +1,50 @@
-# Include any files or directories that you don't want to be copied to your
-# container here (e.g., local build artifacts, temporary files, etc.).
-#
-# For more help, visit the .dockerignore file reference guide at
-# https://docs.docker.com/go/build-context-dockerignore/
+# Build artifacts
+target/
+**/target/
 
+# Git
+.git/
+.gitignore
+.github/
+
+# Docker
+Dockerfile*
+docker-compose*
+compose.y*ml
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
 **/.DS_Store
-**/.classpath
-**/.dockerignore
-**/.env
-**/.git
-**/.gitignore
-**/.project
-**/.settings
-**/.toolstarget
-**/.vs
-**/.vscode
-**/*.*proj.user
-**/*.dbmdl
-**/*.jfm
-**/charts
-**/docker-compose*
-**/compose.y*ml
-**/Dockerfile*
-**/node_modules
-**/npm-debug.log
-**/secrets.dev.yaml
-**/values.dev.yaml
-/bin
-/target
+
+# Documentation (not needed in container)
+*.md
+!config.json
+docs/
+
+# Development files
+.env
+.env.*
+dev.sh
+run.sh
+build.sh
+fix_*.sh
+
+# Test files
+tests/
+**/tests/
+
+# Examples
+examples/
+
+# Temporary files
+*.log
+*.tmp
+*.swp
+*~
+
+# Package metadata not needed for build
 LICENSE
-README.md
+llm.txt
+
