@@ -35,7 +35,7 @@
 //! 
 //! ```rust
 //! use kairos_rs::utils::{path::format_route, route_matcher::RouteMatcher};
-//! use kairos_rs::models::router::{Router, Backend};
+//! use kairos_rs::models::router::{Router, Backend, Protocol};
 //! 
 //! // URL formatting
 //! let url = format_route("http://backend", &8080, "/api/users/123");
@@ -58,6 +58,7 @@
 //!         }]),
 //!         load_balancing_strategy: Default::default(),
 //!         retry: None,
+//!         protocol: Protocol::Http,
 //!     }
 //! ];
 //! let matcher = RouteMatcher::new(routes)?;

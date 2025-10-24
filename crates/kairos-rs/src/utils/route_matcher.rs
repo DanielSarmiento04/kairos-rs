@@ -89,7 +89,7 @@ pub struct CompiledRoute {
 /// 
 /// ```rust
 /// use kairos_rs::utils::route_matcher::RouteMatcher;
-/// use kairos_rs::models::router::{Router, Backend};
+/// use kairos_rs::models::router::{Router, Backend, Protocol};
 /// 
 /// let routes = vec![
 ///     Router {
@@ -107,6 +107,7 @@ pub struct CompiledRoute {
 ///         }]),
 ///         load_balancing_strategy: Default::default(),
 ///         retry: None,
+///         protocol: Protocol::Http,
 ///     },
 ///     Router {
 ///         host: Some("http://api".to_string()),
@@ -123,6 +124,7 @@ pub struct CompiledRoute {
 ///         }]),
 ///         load_balancing_strategy: Default::default(),
 ///         retry: None,
+///         protocol: Protocol::Http,
 ///     },
 /// ];
 /// 
@@ -182,7 +184,7 @@ impl RouteMatcher {
     /// 
     /// ```rust
     /// use kairos_rs::utils::route_matcher::RouteMatcher;
-    /// use kairos_rs::models::router::{Router, Backend};
+    /// use kairos_rs::models::router::{Router, Backend, Protocol};
     /// 
     /// let routes = vec![
     ///     Router {
@@ -200,6 +202,7 @@ impl RouteMatcher {
     ///         }]),
     ///         load_balancing_strategy: Default::default(),
     ///         retry: None,
+    ///         protocol: Protocol::Http,
     ///     },
     ///     Router {
     ///         host: Some("http://localhost".to_string()),
@@ -216,6 +219,7 @@ impl RouteMatcher {
     ///         }]),
     ///         load_balancing_strategy: Default::default(),
     ///         retry: None,
+    ///         protocol: Protocol::Http,
     ///     },
     /// ];
     /// 
@@ -297,7 +301,7 @@ impl RouteMatcher {
     /// 
     /// ```rust
     /// # use kairos_rs::utils::route_matcher::RouteMatcher;
-    /// # use kairos_rs::models::router::{Router, Backend};
+    /// # use kairos_rs::models::router::{Router, Backend, Protocol};
     /// # let routes = vec![
     /// #     Router {
     /// #         host: Some("http://localhost".to_string()),
@@ -314,6 +318,7 @@ impl RouteMatcher {
     /// #         }]),
     /// #         load_balancing_strategy: Default::default(),
     /// #         retry: None,
+    /// #         protocol: Protocol::Http,
     /// #     },
     /// #     Router {
     /// #         host: Some("http://localhost".to_string()),
@@ -330,6 +335,7 @@ impl RouteMatcher {
     /// #         }]),
     /// #         load_balancing_strategy: Default::default(),
     /// #         retry: None,
+    /// #         protocol: Protocol::Http,
     /// #     }
     /// # ];
     /// # let matcher = RouteMatcher::new(routes)?;

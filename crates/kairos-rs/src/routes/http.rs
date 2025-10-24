@@ -49,7 +49,7 @@ use actix_web::{web, HttpRequest};
 /// use actix_web::{App, web};
 /// use kairos_rs::routes::http::configure_route;
 /// use kairos_rs::services::http::RouteHandler;
-/// use kairos_rs::models::router::{Router, Backend};
+/// use kairos_rs::models::router::{Router, Backend, Protocol};
 /// 
 /// // Create route handler with configuration
 /// let routes = vec![
@@ -68,6 +68,7 @@ use actix_web::{web, HttpRequest};
 ///         }]),
 ///         load_balancing_strategy: Default::default(),
 ///         retry: None,
+///         protocol: Protocol::Http,
 ///     }
 /// ];
 /// let handler = RouteHandler::new(routes, 30);

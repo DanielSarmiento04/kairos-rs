@@ -82,11 +82,11 @@ pub async fn handle_dns_query(
 
 /// Handles cache cleanup requests.
 ///
-/// Triggers manual cleanup of expired DNS cache entries.
+/// Clears expired entries from the DNS cache to free up memory.
 ///
 /// # Request
 ///
-/// ```
+/// ```text
 /// POST /dns/cache/cleanup
 /// ```
 ///
@@ -118,7 +118,7 @@ pub async fn handle_dns_cache_cleanup(
 ///
 /// # Request
 ///
-/// ```
+/// ```text
 /// GET /dns/cache/stats
 /// ```
 ///
