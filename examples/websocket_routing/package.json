@@ -1,7 +1,8 @@
 {
   "name": "websocket_routing",
   "scripts": {
-    "dev": "bun run --hot src/index.ts"
+    "dev": "bun run --hot src/index.ts",
+    "build": "bun build src/index.ts --compile --outfile server"
   },
   "dependencies": {
     "hono": "^4.10.2"
