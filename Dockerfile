@@ -37,14 +37,14 @@ COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 # Copy the compiled binary
 COPY --from=build /usr/local/bin/kairos-gateway /usr/local/bin/kairos-gateway
 
-# Copy config file
-COPY --chown=nonroot:nonroot config.json /app/config.json
-
 # Switch to non-root user
 USER nonroot
 
 # Set working directory
 WORKDIR /app
+
+# Note: config.json should be mounted as a volume at runtime
+# Example: -v ./config.json:/app/config.json:ro
 
 # Expose port
 EXPOSE 5900

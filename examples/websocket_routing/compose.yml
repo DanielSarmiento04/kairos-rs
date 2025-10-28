@@ -10,8 +10,9 @@ services:
       - kairos-network
 
   gateway:
-  #docker pull ghcr.io/danielsarmiento04/kairos-rs:sha256-ef6605933ee6413c01fb73309fba45008a76664181d6e704b5cd8a5ce523f2af.sig
-    image: ghcr.io/danielsarmiento04/kairos-rs:sha256-ef6605933ee6413c01fb73309fba45008a76664181d6e704b5cd8a5ce523f2af
+    # Multi-platform image supporting linux/amd64 and linux/arm64
+    # After the GitHub Actions workflow is updated, this will work on both Intel and Apple Silicon Macs
+    image: ghcr.io/danielsarmiento04/kairos-rs:main
     container_name: gateway
     ports:
       - "5900:5900"
@@ -19,8 +20,12 @@ services:
       - ./config.json:/app/config.json:ro
     environment:
       - RUST_LOG=info
-      
-
+      - KAIROS_HOST=0.0.0.0
+      - KAIROS_PORT=5900
+    depends_on:
+      - api_websocket
+    networks:
+      - kairos-network
 
 networks:
   kairos-network:

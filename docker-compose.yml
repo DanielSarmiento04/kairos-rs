@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  kairos-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kairos-rs:latest
+    container_name: kairos-gateway
+    ports:
+      - "5900:5900"
+    volumes:
+      # Mount config.json from host to container
+      - ./config.json:/app/config.json:ro
+    environment:
+      - RUST_LOG=info
+      - KAIROS_HOST=0.0.0.0
+      - KAIROS_PORT=5900
+    restart: unless-stopped
+    networks:
+      - kairos-network
+
+  # Optional: WebSocket test backend
+  # ws-backend:
+  #   build:
+  #     context: ./examples/websocket_routing
+  #     dockerfile: Dockerfile
+  #   container_name: ws-backend
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - kairos-network
+
+networks:
+  kairos-network:
+    driver: bridge
