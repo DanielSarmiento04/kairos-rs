@@ -22,7 +22,7 @@
 //! # Examples
 //! 
 //! ```rust
-//! use kairos_rs::models::{router::{Router, Backend}, settings::Settings, error::GatewayError};
+//! use kairos_rs::models::{router::{Router, Backend, Protocol}, settings::Settings, error::GatewayError};
 //! 
 //! // Create a route configuration
 //! let route = Router {
@@ -40,6 +40,7 @@
 //!     }]),
 //!     load_balancing_strategy: Default::default(),
 //!     retry: None,
+//!     protocol: Protocol::Http,
 //! };
 //! 
 //! // Validate the configuration

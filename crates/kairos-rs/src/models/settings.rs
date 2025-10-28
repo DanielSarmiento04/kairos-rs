@@ -154,7 +154,7 @@ impl Settings {
     /// 
     /// ```rust
     /// use kairos_rs::models::settings::Settings;
-    /// use kairos_rs::models::router::{Router, Backend};
+    /// use kairos_rs::models::router::{Router, Backend, Protocol};
     /// 
     /// let settings = Settings {
     ///     version: 1,
@@ -176,6 +176,7 @@ impl Settings {
     ///             }]),
     ///             load_balancing_strategy: Default::default(),
     ///             retry: None,
+    ///             protocol: Protocol::Http,
     ///         }
     ///     ],
     /// };

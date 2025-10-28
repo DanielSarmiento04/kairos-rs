@@ -45,7 +45,7 @@
 //! 
 //! ```rust
 //! use kairos_rs::services::http::RouteHandler;
-//! use kairos_rs::models::router::{Router, Backend};
+//! use kairos_rs::models::router::{Router, Backend, Protocol};
 //! use actix_web::{web, HttpRequest};
 //! 
 //! // Create a route handler
@@ -65,6 +65,7 @@
 //!         }]),
 //!         load_balancing_strategy: Default::default(),
 //!         retry: None,
+//!         protocol: Protocol::Http,
 //!     }
 //! ];
 //! 

@@ -484,7 +484,7 @@ impl Router {
     /// 
     /// Legacy configuration:
     /// ```rust
-    /// use kairos_rs::models::router::Router;
+    /// use kairos_rs::models::router::{Router, Protocol};
     /// 
     /// let router = Router {
     ///     host: Some("http://localhost".to_string()),
@@ -496,6 +496,7 @@ impl Router {
     ///     methods: vec!["GET".to_string(), "POST".to_string()],
     ///     auth_required: false,
     ///     retry: None,
+    ///     protocol: Protocol::Http,
     /// };
     /// 
     /// assert!(router.validate().is_ok());

@@ -14,5 +14,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag kairos-rs:$(date +%s)
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build the Docker image (multi-platform)
+      run: docker buildx build --platform linux/amd64,linux/arm64 --file Dockerfile --tag kairos-rs:$(date +%s) .

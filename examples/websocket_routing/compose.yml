@@ -1,0 +1,27 @@
+services:
+  api_websocket:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api_websocket
+    ports:
+      - "3000:3000"
+    networks:
+      - kairos-network
+
+  gateway:
+  #docker pull ghcr.io/danielsarmiento04/kairos-rs:sha256-ef6605933ee6413c01fb73309fba45008a76664181d6e704b5cd8a5ce523f2af.sig
+    image: ghcr.io/danielsarmiento04/kairos-rs:sha256-ef6605933ee6413c01fb73309fba45008a76664181d6e704b5cd8a5ce523f2af
+    container_name: gateway
+    ports:
+      - "5900:5900"
+    volumes:
+      - ./config.json:/app/config.json:ro
+    environment:
+      - RUST_LOG=info
+      
+
+
+networks:
+  kairos-network:
+    driver: bridge

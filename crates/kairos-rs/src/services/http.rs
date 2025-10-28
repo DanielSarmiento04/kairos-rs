@@ -54,7 +54,7 @@ use tokio::time::{sleep, timeout, Duration};
 /// 
 /// ```rust
 /// use kairos_rs::services::http::RouteHandler;
-/// use kairos_rs::models::router::{Router, Backend};
+/// use kairos_rs::models::router::{Router, Backend, Protocol};
 /// 
 /// let routes = vec![
 ///     Router {
@@ -72,6 +72,7 @@ use tokio::time::{sleep, timeout, Duration};
 ///         }]),
 ///         load_balancing_strategy: Default::default(),
 ///         retry: None,
+///         protocol: Protocol::Http,
 ///     }
 /// ];
 /// 
@@ -133,7 +134,7 @@ impl RouteHandler {
     /// 
     /// ```rust
     /// use kairos_rs::services::http::RouteHandler;
-    /// use kairos_rs::models::router::{Router, Backend};
+    /// use kairos_rs::models::router::{Router, Backend, Protocol};
     /// 
     /// let routes = vec![
     ///     Router {
@@ -151,6 +152,7 @@ impl RouteHandler {
     ///         }]),
     ///         load_balancing_strategy: Default::default(),
     ///         retry: None,
+    ///         protocol: Protocol::Http,
     ///     },
     ///     Router {
     ///         host: Some("http://user-service".to_string()),
@@ -167,6 +169,7 @@ impl RouteHandler {
     ///         }]),
     ///         load_balancing_strategy: Default::default(),
     ///         retry: None,
+    ///         protocol: Protocol::Http,
     ///     }
     /// ];
     /// 
