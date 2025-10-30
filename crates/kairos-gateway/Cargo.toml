@@ -1,6 +1,6 @@
 [package]
 name = "kairos-gateway"
-version = "0.2.9"
+version = "0.2.10"
 edition = "2021"
 description = "High-performance HTTP API gateway built with Rust"
 license = "MIT"
