@@ -1,6 +1,6 @@
 # Kairos-rs Development Roadmap
 
-> **Version**: 0.2.9  
+> **Version**: 0.2.10  
 > **Last Updated**: October 2025  
 > **Status**: Production Ready with Multi-Protocol Support
 
@@ -101,7 +101,13 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
   - FTP: FTPS/SFTP support and advanced file operations
   - DNS: TCP support and DNSSEC validation
 
-**Recently Added (v0.2.9):**
+**Recently Added (v0.2.10):**
+- ✅ Docker multi-platform support (AMD64 and ARM64)
+- ✅ Automated version tagging from Cargo.toml
+- ✅ Distroless debug containers with shell access
+- ✅ Docker deployment documentation and examples
+
+**Previously Added (v0.2.9):**
 - ✅ **Multi-protocol support** - WebSocket, FTP, and DNS proxying
 - ✅ **Protocol-specific validation** - Comprehensive validation for each protocol
 - ✅ **Protocol services** - WebSocket handler, FTP operations, DNS forwarding with cache
@@ -210,7 +216,7 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 - ✅ **Admin UI** - COMPLETED - Web interface for configuration and monitoring
 - [ ] **Enhanced CLI tool** - Command-line management with interactive mode
 - [ ] **Better documentation** - Interactive tutorials, video guides
-- [ ] **Deployment guides** - Docker, Kubernetes, cloud-native deployments
+- [x] **Deployment guides** - Docker, Kubernetes, cloud-native deployments (Docker completed v0.2.10)
 - [ ] **Plugin system** - Custom middleware and extensions
 - [ ] **API versioning** - Support multiple API versions
 - [ ] **Dark mode** - Theme switching in admin UI
