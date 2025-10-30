@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { upgradeWebSocket } from 'hono/bun'
+import { upgradeWebSocket, websocket } from 'hono/bun'
 
 const app = new Hono()
 
@@ -13,7 +13,7 @@ app.get(
     return {
       onMessage(event, ws) {
         console.log(`Message from client: ${event.data}`)
-        ws.send('Hello from server!')
+        ws.send(`Echo: ${event.data}`)
       },
       onClose: () => {
         console.log('Connection closed')
@@ -26,11 +26,7 @@ const port = 3000
 
 Bun.serve({
   fetch: app.fetch,
-  websocket: {
-    message(ws, message) {}, // required but handled by Hono
-    open(ws) {}, // required but handled by Hono
-    close(ws) {}, // required but handled by Hono
-  },
+  websocket,
   port,
 })
 
