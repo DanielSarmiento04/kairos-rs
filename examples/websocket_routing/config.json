@@ -1,0 +1,30 @@
+{
+    "version": 1,
+    "jwt": {
+        "secret": "your-super-secure-jwt-secret-key-must-be-at-least-32-characters-long",
+        "issuer": "kairos-gateway",
+        "audience": "api-clients",
+        "required_claims": [
+            "sub",
+            "exp"
+        ]
+    },
+    "routers": [
+        {
+            "protocol": "websocket",
+            "backends": [
+                {
+                    "host": "ws://api_websocket",
+                    "port": 3000,
+                    "weight": 1
+                }
+            ],
+            "external_path": "/ws/chat",
+            "internal_path": "/ws",
+            "methods": [
+                "GET"
+            ],
+            "auth_required": false
+        }
+    ]
+}
