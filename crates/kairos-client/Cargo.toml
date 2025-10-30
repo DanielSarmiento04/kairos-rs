@@ -25,7 +25,7 @@ url = "2.5"
 uuid = { workspace = true, features = ["js"] }
 
 # Local dependencies - only needed for native builds (server-side deps)
-kairos-rs = { path = "../kairos-rs", optional = true }
+kairos-rs = { version = "0.2.10", path = "../kairos-rs", optional = true }
 
 # HTTP client - native only (reqwest pulls in mio which doesn't support WASM)
 reqwest = { workspace = true, default-features = false, features = ["json", "rustls-tls"], optional = true }
