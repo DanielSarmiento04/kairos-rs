@@ -1,6 +1,6 @@
 [package]
 name = "kairos-gateway"
-version = "0.2.9"
+version = "0.2.10"
 edition = "2021"
 description = "High-performance HTTP API gateway built with Rust"
 license = "MIT"
@@ -15,7 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 # Local dependencies
-kairos-rs = { path = "../kairos-rs" }
+kairos-rs = { version = "0.2.10", path = "../kairos-rs" }
 
 # Workspace dependencies
 actix-web.workspace = true

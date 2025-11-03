@@ -46,7 +46,50 @@ See [MULTI_PROTOCOL_GUIDE.md](./docs/MULTI_PROTOCOL_GUIDE.md) for detailed proto
 
 ## Quick Start
 
-### 1. Install & Run Gateway
+### Option 1: Using Docker (Recommended)
+
+```bash
+# Pull the latest multi-platform image (supports AMD64 and ARM64)
+docker pull ghcr.io/danielsarmiento04/kairos-rs:latest
+
+# Run with your config.json
+docker run -d \
+  -p 5900:5900 \
+  -v $(pwd)/config.json:/app/config.json:ro \
+  -e RUST_LOG=info \
+  ghcr.io/danielsarmiento04/kairos-rs:latest
+
+# Or use a specific version
+docker pull ghcr.io/danielsarmiento04/kairos-rs:0.2.10
+```
+
+**With Docker Compose:**
+
+```yaml
+services:
+  kairos-gateway:
+    image: ghcr.io/danielsarmiento04/kairos-rs:latest
+    container_name: kairos-gateway
+    restart: unless-stopped
+    ports:
+      - "5900:5900"
+    volumes:
+      - ./config.json:/app/config.json:ro
+    environment:
+      - RUST_LOG=info
+      - KAIROS_HOST=0.0.0.0
+      - KAIROS_PORT=5900
+```
+
+**Debugging containers:**
+```bash
+# The image uses distroless:debug with busybox shell
+docker exec -it kairos-gateway sh
+```
+
+### Option 2: Build from Source
+
+### 1. Clone and Build
 ```bash
 git clone https://github.com/DanielSarmiento04/kairos-rs.git
 cd kairos-rs
@@ -430,9 +473,12 @@ This project has completed Phase 1 (Gateway Core) and Phase 2 (Load Balancing & 
 - ✅ **Hot-reload API** - Manual configuration reload endpoints
 - ✅ **Per-backend circuit breakers** - Fault isolation for each backend server
 
-**Recently completed (v0.2.9 - October 2025):**
+**Recently completed (v0.2.10 - October 2025):**
 - ✅ **Multi-Protocol Support** - WebSocket, FTP, and DNS protocol handling
 - ✅ **WebSocket Proxy** - Bidirectional message forwarding with connection upgrading
+- ✅ **Docker Multi-Platform Support** - AMD64 and ARM64 container images
+- ✅ **Automated Versioning** - Docker images tagged from Cargo.toml version
+- ✅ **Debug-Enabled Containers** - Distroless debug images with shell access for troubleshooting
 - ✅ **FTP Gateway** - File operations (list, download, upload) via HTTP API
 - ✅ **DNS Forwarding** - Query forwarding with caching and load balancing
 - ✅ **Protocol-specific routing** - Configure protocol type per route
@@ -606,7 +652,7 @@ Built with these excellent Rust crates:
 ---
 
 **Status**: Production ready with multi-protocol support (HTTP, WebSocket, FTP, DNS), comprehensive security, reliability, load balancing features, and modern web admin interface  
-**Version**: 0.2.9 (October 2025)  
+**Version**: 0.2.10 (October 2025)  
 **Maintainer**: [@DanielSarmiento04](https://github.com/DanielSarmiento04)  
 **Community**: Issues and PRs welcome!
 
