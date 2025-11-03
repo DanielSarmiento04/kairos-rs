@@ -10,6 +10,9 @@ pub mod health;
 
 // Re-exports
 pub use router::Router;
-pub use settings::{Settings, JwtSettings};
+pub use settings::{
+    Settings, JwtSettings, RateLimitConfig, LimitStrategy, WindowType,
+    CorsConfig, MetricsConfig, ServerConfig
+};
 pub use metrics::{MetricsData, CircuitBreakerMetrics, CircuitBreakerState};
 pub use health::{HealthResponse, ReadinessResponse, LivenessResponse};

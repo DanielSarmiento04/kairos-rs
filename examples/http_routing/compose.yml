@@ -1,0 +1,32 @@
+services:
+  app_http:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app_http
+    ports:
+      - "80:80"
+    networks:
+      - kairos-network
+
+  gateway:
+    # Multi-platform image supporting linux/amd64 and linux/arm64
+    # After the GitHub Actions workflow is updated, this will work on both Intel and Apple Silicon Macs
+    image: ghcr.io/danielsarmiento04/kairos-rs:main
+    container_name: gateway
+    ports:
+      - "5900:5900"
+    volumes:
+      - ./config.json:/app/config.json:ro
+    environment:
+      - RUST_LOG=info
+      - KAIROS_HOST=0.0.0.0
+      - KAIROS_PORT=5900
+    depends_on:
+      - app_http
+    networks:
+      - kairos-network
+
+networks:
+  kairos-network:
+    driver: bridge
