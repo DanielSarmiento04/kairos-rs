@@ -838,3 +838,304 @@ main {
   font-size: $font-size-sm;
   color: $text-secondary;
 }
+
+// ============================================================================
+// Routes Page Styles
+// ============================================================================
+
+.routes-page {
+  width: 100%;
+  max-width: 1400px;
+  padding: $space-lg;
+
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: $space-xl;
+
+    .btn-primary {
+      white-space: nowrap;
+    }
+  }
+}
+
+// Alert messages
+.alert {
+  padding: $space-md $space-lg;
+  margin-bottom: $space-lg;
+  border-radius: $border-radius;
+  display: flex;
+  align-items: center;
+  gap: $space-md;
+  
+  .alert-icon {
+    font-size: $font-size-xl;
+  }
+
+  &.alert-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+
+  &.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+}
+
+// Route form
+.route-form-container {
+  background-color: $bg-primary;
+  border-radius: $border-radius;
+  padding: $space-xl;
+  margin-bottom: $space-xl;
+  box-shadow: $shadow-md;
+
+  .form-header {
+    margin-bottom: $space-lg;
+
+    h2 {
+      font-size: $font-size-xxl;
+      font-weight: $font-weight-bold;
+      color: $text-primary;
+    }
+  }
+}
+
+.route-form {
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: $space-lg;
+    margin-bottom: $space-lg;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: $space-sm;
+
+    label {
+      font-weight: $font-weight-medium;
+      color: $text-primary;
+      font-size: $font-size-sm;
+    }
+
+    .form-input {
+      padding: $space-sm $space-md;
+      border: 1px solid $border-color;
+      border-radius: $border-radius;
+      font-size: $font-size-base;
+      transition: border-color $transition-speed;
+
+      &:focus {
+        outline: none;
+        border-color: $primary-color;
+        box-shadow: 0 0 0 3px rgba($primary-color, 0.1);
+      }
+
+      &:disabled {
+        background-color: $bg-tertiary;
+        cursor: not-allowed;
+      }
+    }
+
+    .form-help {
+      font-size: $font-size-sm;
+      color: $text-secondary;
+    }
+  }
+
+  .methods-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: $space-sm;
+
+    .method-btn {
+      padding: $space-sm $space-md;
+      border: 2px solid $border-color;
+      background-color: $bg-primary;
+      border-radius: $border-radius;
+      cursor: pointer;
+      font-weight: $font-weight-medium;
+      transition: all $transition-speed;
+
+      &:hover {
+        border-color: $primary-light;
+        background-color: rgba($primary-color, 0.05);
+      }
+
+      &.method-btn-active {
+        border-color: $primary-color;
+        background-color: $primary-color;
+        color: $text-light;
+
+        &:hover {
+          background-color: $primary-dark;
+        }
+      }
+    }
+  }
+
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: $space-sm;
+    cursor: pointer;
+    font-weight: $font-weight-normal;
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+  }
+
+  .form-actions {
+    display: flex;
+    gap: $space-md;
+    margin-top: $space-xl;
+
+    .btn {
+      padding: $space-md $space-xl;
+    }
+  }
+}
+
+// Routes table
+.routes-table-container {
+  background-color: $bg-primary;
+  border-radius: $border-radius;
+  box-shadow: $shadow-md;
+  overflow-x: auto;
+}
+
+.routes-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  thead {
+    background-color: $bg-tertiary;
+
+    th {
+      padding: $space-md;
+      text-align: left;
+      font-weight: $font-weight-bold;
+      color: $text-primary;
+      font-size: $font-size-sm;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid $border-color;
+    }
+  }
+
+  tbody {
+    tr {
+      border-bottom: 1px solid $border-color;
+      transition: background-color $transition-speed;
+
+      &:hover {
+        background-color: $bg-secondary;
+      }
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+
+    td {
+      padding: $space-md;
+      vertical-align: middle;
+
+      code {
+        background-color: $bg-tertiary;
+        padding: $space-xs $space-sm;
+        border-radius: $space-xs;
+        font-family: 'Monaco', 'Courier New', monospace;
+        font-size: $font-size-sm;
+      }
+    }
+  }
+
+  .backend-badge {
+    display: inline-block;
+    padding: $space-xs $space-sm;
+    background-color: $bg-tertiary;
+    border-radius: $border-radius;
+    font-size: $font-size-sm;
+    font-family: 'Monaco', 'Courier New', monospace;
+  }
+
+  .methods-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-xs;
+
+    .method-tag {
+      display: inline-block;
+      padding: $space-xs $space-sm;
+      background-color: $info-color;
+      color: $text-light;
+      border-radius: $space-xs;
+      font-size: 0.75rem;
+      font-weight: $font-weight-medium;
+    }
+  }
+
+  .actions-cell {
+    display: flex;
+    gap: $space-sm;
+
+    .btn-icon {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: $font-size-lg;
+      padding: $space-xs;
+      border-radius: $space-xs;
+      transition: all $transition-speed;
+
+      &:hover {
+        transform: scale(1.1);
+      }
+
+      &.btn-icon-edit:hover {
+        background-color: rgba($info-color, 0.1);
+      }
+
+      &.btn-icon-delete:hover {
+        background-color: rgba($error-color, 0.1);
+      }
+    }
+  }
+}
+
+// Empty and error states
+.empty-state,
+.error-state {
+  text-align: center;
+  padding: $space-xxl;
+  background-color: $bg-primary;
+  border-radius: $border-radius;
+  box-shadow: $shadow-sm;
+
+  .empty-icon,
+  .error-icon {
+    font-size: 4rem;
+    margin-bottom: $space-lg;
+  }
+
+  h3 {
+    font-size: $font-size-xl;
+    margin-bottom: $space-md;
+    color: $text-primary;
+  }
+
+  p {
+    color: $text-secondary;
+    font-size: $font-size-base;
+  }
+}

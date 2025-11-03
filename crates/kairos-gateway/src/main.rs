@@ -12,7 +12,7 @@ use kairos_rs::logs::logger::configure_logger;
 use kairos_rs::middleware::security::security_headers;
 use kairos_rs::middleware::rate_limit::AdvancedRateLimit;
 use kairos_rs::models::settings::Settings;
-use kairos_rs::routes::{auth_http, health, metrics};
+use kairos_rs::routes::{auth_http, health, metrics, management};
 use kairos_rs::services::http::RouteHandler;
 
 use actix_governor::{Governor, GovernorConfigBuilder};
@@ -45,6 +45,13 @@ async fn main() -> std::io::Result<()> {
     
     // Initialize metrics collector
     let metrics_collector = metrics::MetricsCollector::default();
+    
+    // Get config path for route management
+    let config_path = std::env::var("KAIROS_CONFIG_PATH")
+        .unwrap_or_else(|_| "config.json".to_string());
+    
+    // Initialize route manager for dynamic configuration
+    let route_manager = management::RouteManager::new(config.clone(), config_path);
 
     // Configure basic rate limiting as fallback
     let governor_conf = GovernorConfigBuilder::default()
@@ -70,6 +77,7 @@ async fn main() -> std::io::Result<()> {
         HttpServer::new(move || {
             App::new()
                 .app_data(actix_web::web::Data::new(metrics_collector.clone()))
+                .app_data(actix_web::web::Data::new(route_manager.clone()))
                 .wrap(advanced_rate_limit.clone())
                 .wrap(Logger::new(
                     r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#
@@ -78,6 +86,7 @@ async fn main() -> std::io::Result<()> {
                 .wrap(security_headers())
                 .configure(health::configure_health)
                 .configure(metrics::configure_metrics)
+                .configure(management::configure_management)
                 .configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler.clone(), &config))
         })
         .bind((host.as_str(), port))?
@@ -87,6 +96,7 @@ async fn main() -> std::io::Result<()> {
         HttpServer::new(move || {
             App::new()
                 .app_data(actix_web::web::Data::new(metrics_collector.clone()))
+                .app_data(actix_web::web::Data::new(route_manager.clone()))
                 .wrap(Governor::new(&governor_conf))
                 .wrap(Logger::new(
                     r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#
@@ -95,6 +105,7 @@ async fn main() -> std::io::Result<()> {
                 .wrap(security_headers())
                 .configure(health::configure_health)
                 .configure(metrics::configure_metrics)
+                .configure(management::configure_management)
                 .configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler.clone(), &config))
         })
         .bind((host.as_str(), port))?

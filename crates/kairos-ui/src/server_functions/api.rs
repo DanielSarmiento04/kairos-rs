@@ -126,23 +126,61 @@ pub async fn update_configuration(settings: Settings) -> Result<(), ServerFnErro
 }
 
 /// Lists all configured routes from the gateway.
-/// 
-/// Note: This requires implementing a routes list endpoint on the gateway backend.
 #[server(ListRoutes, "/api")]
 pub async fn list_routes() -> Result<Vec<Router>, ServerFnError> {
-    // TODO: Implement routes list endpoint in backend
-    Err(ServerFnError::new(
-        "Routes list endpoint not yet implemented in gateway backend".to_string()
-    ))
+    let url = format!("{}/api/routes", GATEWAY_BASE_URL);
+    
+    let response = reqwest::get(&url)
+        .await
+        .map_err(|e| ServerFnError::new(format!("Failed to connect to gateway: {}", e)))?;
+    
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(ServerFnError::new(format!("Gateway returned error {}: {}", status, error_text)));
+    }
+    
+    // Parse the RouteResponse wrapper
+    #[derive(serde::Deserialize)]
+    struct RouteResponse {
+        routes: Option<Vec<Router>>,
+    }
+    
+    let route_response = response.json::<RouteResponse>()
+        .await
+        .map_err(|e| ServerFnError::new(format!("Failed to parse routes response: {}", e)))?;
+    
+    Ok(route_response.routes.unwrap_or_default())
 }
 
 /// Gets a specific route by its external path.
 #[server(GetRoute, "/api")]
-pub async fn get_route(_external_path: String) -> Result<Router, ServerFnError> {
-    // TODO: Implement route get endpoint in backend
-    Err(ServerFnError::new(
-        "Route get endpoint not yet implemented in gateway backend".to_string()
-    ))
+pub async fn get_route(external_path: String) -> Result<Router, ServerFnError> {
+    // URL encode the external_path
+    let encoded_path = urlencoding::encode(&external_path.trim_start_matches('/'));
+    let url = format!("{}/api/routes/{}", GATEWAY_BASE_URL, encoded_path);
+    
+    let response = reqwest::get(&url)
+        .await
+        .map_err(|e| ServerFnError::new(format!("Failed to connect to gateway: {}", e)))?;
+    
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(ServerFnError::new(format!("Gateway returned error {}: {}", status, error_text)));
+    }
+    
+    // Parse the RouteResponse wrapper
+    #[derive(serde::Deserialize)]
+    struct RouteResponse {
+        route: Option<Router>,
+    }
+    
+    let route_response = response.json::<RouteResponse>()
+        .await
+        .map_err(|e| ServerFnError::new(format!("Failed to parse route response: {}", e)))?;
+    
+    route_response.route.ok_or_else(|| ServerFnError::new("Route not found".to_string()))
 }
 
 /// Creates a new route in the gateway configuration.
@@ -152,10 +190,22 @@ pub async fn create_route(route: Router) -> Result<(), ServerFnError> {
     route.validate()
         .map_err(|e| ServerFnError::new(format!("Invalid route: {}", e)))?;
     
-    // TODO: Implement route create endpoint in backend
-    Err(ServerFnError::new(
-        "Route create endpoint not yet implemented in gateway backend".to_string()
-    ))
+    let url = format!("{}/api/routes", GATEWAY_BASE_URL);
+    
+    let client = reqwest::Client::new();
+    let response = client.post(&url)
+        .json(&route)
+        .send()
+        .await
+        .map_err(|e| ServerFnError::new(format!("Failed to connect to gateway: {}", e)))?;
+    
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(ServerFnError::new(format!("Failed to create route ({}): {}", status, error_text)));
+    }
+    
+    Ok(())
 }
 
 /// Updates an existing route in the gateway configuration.
@@ -165,19 +215,46 @@ pub async fn update_route(route: Router) -> Result<(), ServerFnError> {
     route.validate()
         .map_err(|e| ServerFnError::new(format!("Invalid route: {}", e)))?;
     
-    // TODO: Implement route update endpoint in backend
-    Err(ServerFnError::new(
-        "Route update endpoint not yet implemented in gateway backend".to_string()
-    ))
+    // URL encode the external_path
+    let encoded_path = urlencoding::encode(&route.external_path.trim_start_matches('/'));
+    let url = format!("{}/api/routes/{}", GATEWAY_BASE_URL, encoded_path);
+    
+    let client = reqwest::Client::new();
+    let response = client.put(&url)
+        .json(&route)
+        .send()
+        .await
+        .map_err(|e| ServerFnError::new(format!("Failed to connect to gateway: {}", e)))?;
+    
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(ServerFnError::new(format!("Failed to update route ({}): {}", status, error_text)));
+    }
+    
+    Ok(())
 }
 
 /// Deletes a route from the gateway configuration.
 #[server(DeleteRoute, "/api")]
-pub async fn delete_route(_external_path: String) -> Result<(), ServerFnError> {
-    // TODO: Implement route delete endpoint in backend
-    Err(ServerFnError::new(
-        "Route delete endpoint not yet implemented in gateway backend".to_string()
-    ))
+pub async fn delete_route(external_path: String) -> Result<(), ServerFnError> {
+    // URL encode the external_path
+    let encoded_path = urlencoding::encode(&external_path.trim_start_matches('/'));
+    let url = format!("{}/api/routes/{}", GATEWAY_BASE_URL, encoded_path);
+    
+    let client = reqwest::Client::new();
+    let response = client.delete(&url)
+        .send()
+        .await
+        .map_err(|e| ServerFnError::new(format!("Failed to connect to gateway: {}", e)))?;
+    
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(ServerFnError::new(format!("Failed to delete route ({}): {}", status, error_text)));
+    }
+    
+    Ok(())
 }
 
 /// Tests a route by making a request through the gateway.
