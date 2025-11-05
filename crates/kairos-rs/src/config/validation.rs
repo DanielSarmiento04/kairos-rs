@@ -8,15 +8,49 @@ use crate::models::settings::Settings;
 use log::{warn, info};
 use std::collections::HashSet;
 
+/// Result of configuration validation containing errors, warnings, and recommendations.
+///
+/// This structure provides detailed feedback about configuration issues,
+/// categorized by severity (errors, warnings, recommendations).
+///
+/// # Examples
+///
+/// ```
+/// use kairos_rs::config::validation::ValidationResult;
+///
+/// let mut result = ValidationResult::new();
+/// result.add_error("Missing required field".to_string());
+/// result.add_warning("Using default value".to_string());
+/// result.add_recommendation("Consider enabling HTTPS".to_string());
+///
+/// assert!(!result.is_valid);
+/// assert_eq!(result.errors.len(), 1);
+/// assert_eq!(result.warnings.len(), 1);
+/// ```
 #[derive(Debug, Clone)]
 pub struct ValidationResult {
+    /// Whether the configuration is valid (no errors)
     pub is_valid: bool,
+    /// Critical errors that prevent configuration use
     pub errors: Vec<String>,
+    /// Non-critical issues that should be addressed
     pub warnings: Vec<String>,
+    /// Suggestions for improving configuration
     pub recommendations: Vec<String>,
 }
 
 impl ValidationResult {
+    /// Creates a new validation result with no errors, warnings, or recommendations.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kairos_rs::config::validation::ValidationResult;
+    ///
+    /// let result = ValidationResult::new();
+    /// assert!(result.is_valid);
+    /// assert!(result.errors.is_empty());
+    /// ```
     pub fn new() -> Self {
         Self {
             is_valid: true,
@@ -26,25 +60,126 @@ impl ValidationResult {
         }
     }
     
+    /// Adds a critical error and marks validation as failed.
+    ///
+    /// # Parameters
+    ///
+    /// * `error` - Description of the validation error
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kairos_rs::config::validation::ValidationResult;
+    ///
+    /// let mut result = ValidationResult::new();
+    /// result.add_error("Invalid port number".to_string());
+    /// assert!(!result.is_valid);
+    /// ```
     pub fn add_error(&mut self, error: String) {
         self.is_valid = false;
         self.errors.push(error);
     }
     
+    /// Adds a non-critical warning that should be addressed.
+    ///
+    /// # Parameters
+    ///
+    /// * `warning` - Description of the validation warning
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kairos_rs::config::validation::ValidationResult;
+    ///
+    /// let mut result = ValidationResult::new();
+    /// result.add_warning("Using HTTP instead of HTTPS".to_string());
+    /// assert!(result.is_valid); // Still valid despite warning
+    /// ```
     pub fn add_warning(&mut self, warning: String) {
         self.warnings.push(warning);
     }
     
+    /// Adds a recommendation for improving the configuration.
+    ///
+    /// # Parameters
+    ///
+    /// * `recommendation` - Suggestion for configuration improvement
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kairos_rs::config::validation::ValidationResult;
+    ///
+    /// let mut result = ValidationResult::new();
+    /// result.add_recommendation("Enable rate limiting".to_string());
+    /// assert_eq!(result.recommendations.len(), 1);
+    /// ```
     pub fn add_recommendation(&mut self, recommendation: String) {
         self.recommendations.push(recommendation);
     }
 }
 
-/// Enhanced configuration validator with security and performance checks
+/// Enhanced configuration validator with security and performance checks.
+///
+/// Provides comprehensive validation including:
+/// - Basic structure validation
+/// - Security checks (HTTPS usage, path traversal)
+/// - Performance analysis (route count, dynamic routes)
+/// - Route conflict detection
+/// - Protocol-specific validation
+///
+/// # Examples
+///
+/// ```
+/// # use std::fs;
+/// # let config_content = r#"{"version": 1, "routers": []}"#;
+/// # fs::write("./config.json", config_content).unwrap();
+/// use kairos_rs::config::settings::load_settings;
+/// use kairos_rs::config::validation::ConfigValidator;
+///
+/// let settings = load_settings().expect("Failed to load settings");
+/// let result = ConfigValidator::validate_comprehensive(&settings);
+///
+/// if !result.is_valid {
+///     for error in &result.errors {
+///         eprintln!("Error: {}", error);
+///     }
+/// }
+/// # fs::remove_file("./config.json").ok();
+/// ```
 pub struct ConfigValidator;
 
 impl ConfigValidator {
-    /// Performs comprehensive validation of gateway settings
+    /// Performs comprehensive validation of gateway settings.
+    ///
+    /// Validates all aspects of the configuration including structure, security,
+    /// performance, route conflicts, and protocol-specific requirements.
+    ///
+    /// # Parameters
+    ///
+    /// * `settings` - Gateway settings to validate
+    ///
+    /// # Returns
+    ///
+    /// `ValidationResult` containing errors, warnings, and recommendations
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::fs;
+    /// # let config_content = r#"{"version": 1, "routers": []}"#;
+    /// # fs::write("./config.json", config_content).unwrap();
+    /// use kairos_rs::config::settings::load_settings;
+    /// use kairos_rs::config::validation::ConfigValidator;
+    ///
+    /// let settings = load_settings().expect("Failed to load settings");
+    /// let result = ConfigValidator::validate_comprehensive(&settings);
+    ///
+    /// println!("Valid: {}", result.is_valid);
+    /// println!("Errors: {}", result.errors.len());
+    /// println!("Warnings: {}", result.warnings.len());
+    /// # fs::remove_file("./config.json").ok();
+    /// ```
     pub fn validate_comprehensive(settings: &Settings) -> ValidationResult {
         let mut result = ValidationResult::new();
         

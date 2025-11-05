@@ -10,11 +10,34 @@ use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use log::{warn, info, debug};
 
+/// State of a circuit breaker.
+///
+/// # States
+///
+/// * `Closed` - Normal operation, all requests pass through
+/// * `Open` - Circuit tripped, requests fail fast without executing
+/// * `HalfOpen` - Testing recovery, limited requests allowed through
+///
+/// # Examples
+///
+/// ```
+/// use kairos_rs::services::circuit_breaker::CircuitState;
+///
+/// let state = CircuitState::Closed;
+/// match state {
+///     CircuitState::Closed => println!("Healthy"),
+///     CircuitState::Open => println!("Degraded"),
+///     CircuitState::HalfOpen => println!("Recovering"),
+/// }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CircuitState {
-    Closed = 0,   // Normal operation
-    Open = 1,     // Circuit is open, failing fast
-    HalfOpen = 2, // Testing if service is back
+    /// Normal operation - requests pass through
+    Closed = 0,
+    /// Circuit is open - failing fast
+    Open = 1,
+    /// Testing if service is back
+    HalfOpen = 2,
 }
 
 impl From<u8> for CircuitState {
@@ -138,6 +161,25 @@ pub struct CircuitBreaker {
 }
 
 impl CircuitBreaker {
+    /// Creates a new circuit breaker instance.
+    ///
+    /// # Parameters
+    ///
+    /// * `name` - Identifier for this circuit breaker (used in logging)
+    /// * `config` - Configuration parameters for breaker behavior
+    ///
+    /// # Returns
+    ///
+    /// Arc-wrapped circuit breaker ready for shared use across threads
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kairos_rs::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
+    ///
+    /// let config = CircuitBreakerConfig::default();
+    /// let breaker = CircuitBreaker::new("my-service".to_string(), config);
+    /// ```
     pub fn new(name: String, config: CircuitBreakerConfig) -> Arc<Self> {
         Arc::new(Self {
             config,
@@ -149,6 +191,37 @@ impl CircuitBreaker {
         })
     }
 
+    /// Executes an operation with circuit breaker protection.
+    ///
+    /// Wraps the provided async operation with circuit breaker logic. If the circuit
+    /// is open, fails fast without executing the operation. Otherwise, executes the
+    /// operation and updates circuit state based on success/failure.
+    ///
+    /// # Parameters
+    ///
+    /// * `operation` - Async operation to execute
+    ///
+    /// # Returns
+    ///
+    /// Result from the operation or circuit breaker error
+    ///
+    /// # Errors
+    ///
+    /// * `CircuitBreakerError::CircuitOpen` - Circuit is open, request rejected
+    /// * `CircuitBreakerError::OperationFailed` - Operation executed but failed
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use kairos_rs::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
+    /// # async fn example() {
+    /// # let breaker = CircuitBreaker::new("test".to_string(), CircuitBreakerConfig::default());
+    /// let result = breaker.call(async {
+    ///     // Your async operation here
+    ///     Ok::<_, String>("success")
+    /// }).await;
+    /// # }
+    /// ```
     pub async fn call<F, T, E>(&self, operation: F) -> Result<T, CircuitBreakerError<E>>
     where
         F: std::future::Future<Output = Result<T, E>>,
@@ -259,19 +332,87 @@ impl CircuitBreaker {
         info!("Circuit breaker {} closed - service recovered", self.name);
     }
 
+    /// Gets the current state of the circuit breaker.
+    ///
+    /// # Returns
+    ///
+    /// Current `CircuitState` (Closed, Open, or HalfOpen)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use kairos_rs::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitState};
+    /// # let breaker = CircuitBreaker::new("test".to_string(), CircuitBreakerConfig::default());
+    /// match breaker.get_state() {
+    ///     CircuitState::Closed => println!("Operating normally"),
+    ///     CircuitState::Open => println!("Failing fast"),
+    ///     CircuitState::HalfOpen => println!("Testing recovery"),
+    /// }
+    /// ```
     pub fn get_state(&self) -> CircuitState {
         CircuitState::from(self.state.load(Ordering::Relaxed))
     }
 
+    /// Gets the current failure count.
+    ///
+    /// # Returns
+    ///
+    /// Number of consecutive failures in current state
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use kairos_rs::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
+    /// # let breaker = CircuitBreaker::new("test".to_string(), CircuitBreakerConfig::default());
+    /// println!("Failures: {}", breaker.get_failure_count());
+    /// ```
     pub fn get_failure_count(&self) -> u64 {
         self.failure_count.load(Ordering::Relaxed)
     }
 
+    /// Gets the current success count in HalfOpen state.
+    ///
+    /// # Returns
+    ///
+    /// Number of consecutive successes when testing recovery
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use kairos_rs::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
+    /// # let breaker = CircuitBreaker::new("test".to_string(), CircuitBreakerConfig::default());
+    /// println!("Successes: {}", breaker.get_success_count());
+    /// ```
     pub fn get_success_count(&self) -> u64 {
         self.success_count.load(Ordering::Relaxed)
     }
 }
 
+/// Errors that can occur when using a circuit breaker.
+///
+/// # Variants
+///
+/// * `CircuitOpen` - Circuit breaker is open, request rejected for fast failure
+/// * `OperationFailed` - The wrapped operation executed but returned an error
+///
+/// # Examples
+///
+/// ```
+/// use kairos_rs::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
+///
+/// # async fn example() {
+/// # let breaker = CircuitBreaker::new("test".to_string(), CircuitBreakerConfig::default());
+/// match breaker.call(async { Err::<(), _>("network error") }).await {
+///     Err(CircuitBreakerError::CircuitOpen) => {
+///         println!("Service unavailable - circuit open");
+///     }
+///     Err(CircuitBreakerError::OperationFailed(e)) => {
+///         println!("Operation failed: {}", e);
+///     }
+///     Ok(_) => println!("Success"),
+/// }
+/// # }
+/// ```
 #[derive(Debug, thiserror::Error)]
 pub enum CircuitBreakerError<E> {
     #[error("Circuit breaker is open")]

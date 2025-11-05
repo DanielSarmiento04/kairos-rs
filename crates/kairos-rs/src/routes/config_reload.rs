@@ -9,12 +9,19 @@ use std::sync::Arc;
 
 use crate::config::hot_reload::ConfigManager;
 
-/// Response structure for reload operation
+/// Response structure for reload operation.
+///
+/// Contains the result of a configuration reload request including
+/// success status, descriptive message, and new configuration version.
 #[derive(Serialize, Deserialize)]
 pub struct ReloadResponse {
+    /// Whether the reload operation succeeded
     pub success: bool,
+    /// Descriptive message about the reload result
     pub message: String,
+    /// Version number of the loaded configuration (if successful)
     pub version: Option<u64>,
+    /// ISO 8601 timestamp of when configuration was loaded (if successful)
     pub timestamp: Option<String>,
 }
 

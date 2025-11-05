@@ -12,7 +12,15 @@ use tokio::sync::RwLock;
 use crate::models::router::Router;
 use crate::models::settings::Settings;
 
-/// Shared state for route management
+/// Shared state for route management operations.
+///
+/// This structure provides thread-safe access to gateway configuration
+/// and handles persistence of route changes to disk.
+///
+/// # Thread Safety
+///
+/// Uses `Arc<RwLock<Settings>>` to allow concurrent reads while ensuring
+/// exclusive access for writes.
 #[derive(Clone)]
 pub struct RouteManager {
     settings: Arc<RwLock<Settings>>,
@@ -20,6 +28,27 @@ pub struct RouteManager {
 }
 
 impl RouteManager {
+    /// Creates a new route manager with the given settings and configuration path.
+    ///
+    /// # Parameters
+    ///
+    /// * `settings` - Initial gateway settings
+    /// * `config_path` - Path to the configuration file for persistence
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use kairos_rs::routes::management::RouteManager;
+    /// use kairos_rs::models::settings::Settings;
+    ///
+    /// let settings = Settings {
+    ///     version: 1,
+    ///     jwt: None,
+    ///     rate_limit: None,
+    ///     routers: vec![],
+    /// };
+    /// let manager = RouteManager::new(settings, "config.json".to_string());
+    /// ```
     pub fn new(settings: Settings, config_path: String) -> Self {
         Self {
             settings: Arc::new(RwLock::new(settings)),
@@ -27,7 +56,17 @@ impl RouteManager {
         }
     }
     
-    /// Saves current settings to disk
+    /// Saves current settings to disk in JSON format.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` on success, or an error message on failure.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Settings cannot be serialized to JSON
+    /// - File system write operation fails
     async fn save_to_disk(&self) -> Result<(), String> {
         let settings = self.settings.read().await;
         let json = serde_json::to_string_pretty(&*settings)
@@ -41,13 +80,33 @@ impl RouteManager {
     }
 }
 
-/// Response structure for route operations
+/// Response structure for route operations.
+///
+/// Provides a consistent response format for all route management endpoints,
+/// including success status, descriptive messages, and optional route data.
+///
+/// # Examples
+///
+/// ```rust
+/// use kairos_rs::routes::management::RouteResponse;
+///
+/// let response = RouteResponse {
+///     success: true,
+///     message: "Route created successfully".to_string(),
+///     route: None,
+///     routes: None,
+/// };
+/// ```
 #[derive(Serialize, Deserialize)]
 pub struct RouteResponse {
+    /// Whether the operation completed successfully
     pub success: bool,
+    /// Human-readable message describing the result
     pub message: String,
+    /// Optional single route data (for get/create/update operations)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub route: Option<Router>,
+    /// Optional list of routes (for list operations)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub routes: Option<Vec<Router>>,
 }
@@ -555,11 +614,31 @@ pub async fn update_rate_limit_config(
 ///     "allow_credentials": true
 ///   }'
 /// ```
+/// CORS configuration structure for cross-origin resource sharing.
+///
+/// Defines which origins, methods, and headers are allowed for cross-origin requests.
+///
+/// # Examples
+///
+/// ```rust
+/// use kairos_rs::routes::management::CorsConfig;
+///
+/// let cors = CorsConfig {
+///     allowed_origins: vec!["http://localhost:3000".to_string()],
+///     allowed_methods: vec!["GET".to_string(), "POST".to_string()],
+///     allowed_headers: vec!["Content-Type".to_string()],
+///     allow_credentials: true,
+/// };
+/// ```
 #[derive(Serialize, Deserialize)]
 pub struct CorsConfig {
+    /// List of allowed origin URLs
     pub allowed_origins: Vec<String>,
+    /// List of allowed HTTP methods
     pub allowed_methods: Vec<String>,
+    /// List of allowed request headers
     pub allowed_headers: Vec<String>,
+    /// Whether to allow credentials (cookies, authorization headers)
     pub allow_credentials: bool,
 }
 
@@ -598,9 +677,25 @@ pub async fn update_cors_config(
 ///     "enable_per_route_metrics": true
 ///   }'
 /// ```
+/// Metrics configuration structure for Prometheus endpoint settings.
+///
+/// Controls where metrics are exposed and what level of detail to collect.
+///
+/// # Examples
+///
+/// ```rust
+/// use kairos_rs::routes::management::MetricsConfig;
+///
+/// let metrics = MetricsConfig {
+///     endpoint: "/metrics".to_string(),
+///     enable_per_route_metrics: true,
+/// };
+/// ```
 #[derive(Serialize, Deserialize)]
 pub struct MetricsConfig {
+    /// Path where Prometheus metrics are exposed
     pub endpoint: String,
+    /// Whether to collect metrics broken down by individual routes
     pub enable_per_route_metrics: bool,
 }
 
@@ -640,11 +735,31 @@ pub async fn update_metrics_config(
 ///     "keep_alive": 75
 ///   }'
 /// ```
+/// Server configuration structure for gateway runtime settings.
+///
+/// Defines the server's network binding, worker processes, and connection handling.
+///
+/// # Examples
+///
+/// ```rust
+/// use kairos_rs::routes::management::ServerConfig;
+///
+/// let server = ServerConfig {
+///     host: "0.0.0.0".to_string(),
+///     port: 5900,
+///     workers: 4,
+///     keep_alive: 75,
+/// };
+/// ```
 #[derive(Serialize, Deserialize)]
 pub struct ServerConfig {
+    /// IP address to bind the server to (e.g., "0.0.0.0" or "127.0.0.1")
     pub host: String,
+    /// Port number to listen on
     pub port: u16,
+    /// Number of worker threads for handling requests
     pub workers: usize,
+    /// Keep-alive timeout in seconds for HTTP connections
     pub keep_alive: u64,
 }
 
