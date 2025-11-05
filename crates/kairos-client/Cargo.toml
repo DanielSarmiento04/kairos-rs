@@ -1,6 +1,6 @@
 [package]
 name = "kairos-client"
-version = "0.2.10"
+version = "0.2.11"
 edition = "2021"
 description = "Client library for interacting with Kairos API Gateway"
 license = "MIT"

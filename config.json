@@ -1,16 +1,22 @@
 {
   "version": 1,
   "jwt": {
-    "secret": "my-new-super-secure-jwt-secret-that-is-definitely-at-least-32-characters-long",
-    "issuer": "kairos-gateway-updated",
-    "audience": "kairos-api-v2",
+    "secret": "test-secret-that-is-at-least-32-characters-long-for-security",
+    "issuer": "test",
+    "audience": "test",
     "required_claims": [
-      "sub",
-      "exp",
-      "iat"
+      "sub"
     ]
   },
-  "rate_limit": null,
+  "rate_limit": {
+    "strategy": "PerIP",
+    "requests_per_window": 100,
+    "window_duration": 60,
+    "burst_allowance": 20,
+    "window_type": "SlidingWindow",
+    "enable_redis": false,
+    "redis_key_prefix": "kairos_rl"
+  },
   "routers": [
     {
       "host": "http://localhost",
