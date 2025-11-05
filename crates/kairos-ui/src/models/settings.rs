@@ -17,14 +17,13 @@ pub struct JwtSettings {
 
 /// Rate limiting strategy types.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "type", rename_all = "PascalCase")]
 pub enum LimitStrategy {
     PerIP,
     PerUser,
     PerRoute,
     PerIPAndRoute,
     PerUserAndRoute,
-    Composite { configs: Vec<RateLimitConfig> },
+    Composite(Vec<RateLimitConfig>),
 }
 
 impl Default for LimitStrategy {
@@ -53,7 +52,7 @@ pub struct RateLimitConfig {
     pub strategy: LimitStrategy,
     pub requests_per_window: u64,
     #[serde(default = "default_window_duration")]
-    pub window_duration_secs: u64,
+    pub window_duration: u64, // Duration in seconds
     pub burst_allowance: u64,
     pub window_type: WindowType,
     pub enable_redis: bool,
@@ -69,7 +68,7 @@ impl Default for RateLimitConfig {
         Self {
             strategy: LimitStrategy::PerIP,
             requests_per_window: 100,
-            window_duration_secs: 60,
+            window_duration: 60,
             burst_allowance: 20,
             window_type: WindowType::SlidingWindow,
             enable_redis: false,
@@ -185,8 +184,8 @@ impl Settings {
             if rate_limit.requests_per_window == 0 {
                 return Err("Rate limit requests_per_window must be greater than 0".to_string());
             }
-            if rate_limit.window_duration_secs == 0 {
-                return Err("Rate limit window_duration_secs must be greater than 0".to_string());
+            if rate_limit.window_duration == 0 {
+                return Err("Rate limit window_duration must be greater than 0".to_string());
             }
         }
         
