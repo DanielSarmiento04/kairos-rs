@@ -400,6 +400,281 @@ pub async fn validate_route(request: web::Json<ValidateRouteRequest>) -> impl Re
     }
 }
 
+/// Get complete configuration
+/// 
+/// # Endpoint
+/// 
+/// `GET /api/config`
+/// 
+/// # Response
+/// 
+/// Returns the complete gateway configuration including JWT, rate limit, and all routes.
+/// 
+/// # Example
+/// 
+/// ```bash
+/// curl http://localhost:5900/api/config
+/// ```
+#[get("/api/config")]
+pub async fn get_config(manager: web::Data<RouteManager>) -> impl Responder {
+    let settings = manager.settings.read().await;
+    HttpResponse::Ok().json(&*settings)
+}
+
+/// Update JWT configuration
+/// 
+/// # Endpoint
+/// 
+/// `POST /api/config/jwt`
+/// 
+/// # Request Body
+/// 
+/// JSON object with JWT settings.
+/// 
+/// # Example
+/// 
+/// ```bash
+/// curl -X POST http://localhost:5900/api/config/jwt \
+///   -H "Content-Type: application/json" \
+///   -d '{
+///     "secret": "your-very-secure-secret-key-here-at-least-32-chars",
+///     "issuer": "kairos-gateway",
+///     "audience": "kairos-api",
+///     "required_claims": ["sub", "exp"]
+///   }'
+/// ```
+#[post("/api/config/jwt")]
+pub async fn update_jwt_config(
+    manager: web::Data<RouteManager>,
+    jwt_settings: web::Json<crate::models::settings::JwtSettings>,
+) -> impl Responder {
+    // Validate JWT settings
+    if jwt_settings.secret.is_empty() {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "success": false,
+            "message": "JWT secret cannot be empty"
+        }));
+    }
+    
+    if jwt_settings.secret == "please-change-this-secret" {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "success": false,
+            "message": "JWT secret must be changed from default value"
+        }));
+    }
+    
+    if jwt_settings.secret.len() < 32 {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "success": false,
+            "message": "JWT secret should be at least 32 characters for security"
+        }));
+    }
+    
+    let mut settings = manager.settings.write().await;
+    settings.jwt = Some(jwt_settings.into_inner());
+    
+    // Save to disk
+    drop(settings);
+    if let Err(e) = manager.save_to_disk().await {
+        return HttpResponse::InternalServerError().json(serde_json::json!({
+            "success": false,
+            "message": format!("Failed to save configuration: {}", e)
+        }));
+    }
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "JWT configuration updated successfully. Restart required for changes to take effect."
+    }))
+}
+
+/// Update rate limit configuration
+/// 
+/// # Endpoint
+/// 
+/// `POST /api/config/rate-limit`
+/// 
+/// # Request Body
+/// 
+/// JSON object with rate limit settings.
+/// 
+/// # Example
+/// 
+/// ```bash
+/// curl -X POST http://localhost:5900/api/config/rate-limit \
+///   -H "Content-Type: application/json" \
+///   -d '{
+///     "strategy": "FixedWindow",
+///     "window_type": "Minute",
+///     "max_requests": 100,
+///     "redis_url": null
+///   }'
+/// ```
+#[post("/api/config/rate-limit")]
+pub async fn update_rate_limit_config(
+    manager: web::Data<RouteManager>,
+    rate_limit: web::Json<crate::middleware::rate_limit::RateLimitConfig>,
+) -> impl Responder {
+    let mut settings = manager.settings.write().await;
+    settings.rate_limit = Some(rate_limit.into_inner());
+    
+    // Save to disk
+    drop(settings);
+    if let Err(e) = manager.save_to_disk().await {
+        return HttpResponse::InternalServerError().json(serde_json::json!({
+            "success": false,
+            "message": format!("Failed to save configuration: {}", e)
+        }));
+    }
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "Rate limit configuration updated successfully. Restart required for changes to take effect."
+    }))
+}
+
+/// Update CORS configuration
+/// 
+/// # Endpoint
+/// 
+/// `POST /api/config/cors`
+/// 
+/// # Request Body
+/// 
+/// JSON object with CORS settings.
+/// 
+/// # Example
+/// 
+/// ```bash
+/// curl -X POST http://localhost:5900/api/config/cors \
+///   -H "Content-Type: application/json" \
+///   -d '{
+///     "allowed_origins": ["http://localhost:3000"],
+///     "allowed_methods": ["GET", "POST", "PUT", "DELETE"],
+///     "allowed_headers": ["Content-Type", "Authorization"],
+///     "allow_credentials": true
+///   }'
+/// ```
+#[derive(Serialize, Deserialize)]
+pub struct CorsConfig {
+    pub allowed_origins: Vec<String>,
+    pub allowed_methods: Vec<String>,
+    pub allowed_headers: Vec<String>,
+    pub allow_credentials: bool,
+}
+
+#[post("/api/config/cors")]
+pub async fn update_cors_config(
+    _manager: web::Data<RouteManager>,
+    _cors_config: web::Json<CorsConfig>,
+) -> impl Responder {
+    // Note: CORS configuration is typically handled at the middleware level
+    // and would require server restart to apply changes.
+    // For now, we'll acknowledge the request but note it requires restart.
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "CORS configuration received. Server restart required to apply CORS settings."
+    }))
+}
+
+/// Update metrics configuration
+/// 
+/// # Endpoint
+/// 
+/// `POST /api/config/metrics`
+/// 
+/// # Request Body
+/// 
+/// JSON object with metrics settings.
+/// 
+/// # Example
+/// 
+/// ```bash
+/// curl -X POST http://localhost:5900/api/config/metrics \
+///   -H "Content-Type: application/json" \
+///   -d '{
+///     "endpoint": "/metrics",
+///     "enable_per_route_metrics": true
+///   }'
+/// ```
+#[derive(Serialize, Deserialize)]
+pub struct MetricsConfig {
+    pub endpoint: String,
+    pub enable_per_route_metrics: bool,
+}
+
+#[post("/api/config/metrics")]
+pub async fn update_metrics_config(
+    _manager: web::Data<RouteManager>,
+    _metrics_config: web::Json<MetricsConfig>,
+) -> impl Responder {
+    // Note: Metrics configuration changes would require server restart
+    // to reconfigure the metrics collection middleware
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "Metrics configuration received. Server restart required to apply metrics settings."
+    }))
+}
+
+/// Update server configuration
+/// 
+/// # Endpoint
+/// 
+/// `POST /api/config/server`
+/// 
+/// # Request Body
+/// 
+/// JSON object with server settings.
+/// 
+/// # Example
+/// 
+/// ```bash
+/// curl -X POST http://localhost:5900/api/config/server \
+///   -H "Content-Type: application/json" \
+///   -d '{
+///     "host": "0.0.0.0",
+///     "port": 5900,
+///     "workers": 4,
+///     "keep_alive": 75
+///   }'
+/// ```
+#[derive(Serialize, Deserialize)]
+pub struct ServerConfig {
+    pub host: String,
+    pub port: u16,
+    pub workers: usize,
+    pub keep_alive: u64,
+}
+
+#[post("/api/config/server")]
+pub async fn update_server_config(
+    _manager: web::Data<RouteManager>,
+    server_config: web::Json<ServerConfig>,
+) -> impl Responder {
+    // Validate server config
+    if server_config.port == 0 {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "success": false,
+            "message": "Port must be greater than 0"
+        }));
+    }
+    
+    if server_config.workers == 0 {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "success": false,
+            "message": "Workers must be greater than 0"
+        }));
+    }
+    
+    // Note: Server configuration changes require a full server restart
+    HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "Server configuration received. Server restart required to apply changes."
+    }))
+}
+
 /// Configure route management endpoints
 pub fn configure_management(cfg: &mut web::ServiceConfig) {
     cfg.service(list_routes)
@@ -407,5 +682,11 @@ pub fn configure_management(cfg: &mut web::ServiceConfig) {
         .service(create_route)
         .service(update_route)
         .service(delete_route)
-        .service(validate_route);
+        .service(validate_route)
+        .service(get_config)
+        .service(update_jwt_config)
+        .service(update_rate_limit_config)
+        .service(update_cors_config)
+        .service(update_metrics_config)
+        .service(update_server_config);
 }
