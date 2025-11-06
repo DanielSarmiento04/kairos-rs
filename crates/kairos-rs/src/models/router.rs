@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use crate::middleware::transform::{RequestTransformation, ResponseTransformation};
 
 /// Protocol type for the gateway route.
 /// 
@@ -461,6 +462,18 @@ pub struct Router {
     /// If not specified, no retries will be attempted.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retry: Option<RetryConfig>,
+    
+    /// Request transformation configuration.
+    /// Defines how to transform incoming requests before forwarding to backends.
+    /// Supports header manipulation, path rewriting, and query parameter transformation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_transformation: Option<RequestTransformation>,
+    
+    /// Response transformation configuration.
+    /// Defines how to transform backend responses before sending to clients.
+    /// Supports header manipulation and status code mapping.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_transformation: Option<ResponseTransformation>,
 }
 
 impl Router {
