@@ -114,6 +114,11 @@ pub struct RateLimitEntry {
 }
 
 impl RateLimitEntry {
+    /// Creates a new rate limit entry initialized with current time.
+    ///
+    /// # Returns
+    ///
+    /// New `RateLimitEntry` with zero counters and current timestamp
     pub fn new() -> Self {
         let now = Instant::now();
         Self {
@@ -139,6 +144,11 @@ pub struct RateLimitStore {
 }
 
 impl RateLimitStore {
+    /// Creates a new rate limit store.
+    ///
+    /// # Returns
+    ///
+    /// New `RateLimitStore` with empty entries map
     pub fn new() -> Self {
         Self {
             entries: Arc::new(RwLock::new(HashMap::new())),

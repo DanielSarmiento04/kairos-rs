@@ -47,11 +47,17 @@ use std::rc::Rc;
 #[derive(Debug, Serialize, Deserialize)]
 #[allow(dead_code)] // Used in JWT validation and tests
 pub struct Claims {
+    /// Subject - identifies the principal (user/service)
     pub sub: String,
+    /// Expiration time - token invalid after this Unix timestamp
     pub exp: usize,
+    /// Issued at - Unix timestamp when token was created
     pub iat: usize,
+    /// Issuer - identifies who issued the token
     pub iss: Option<String>,
+    /// Audience - identifies intended token recipients
     pub aud: Option<String>,
+    /// Roles - custom claim for authorization roles
     pub roles: Option<Vec<String>>,
 }
 
@@ -90,10 +96,15 @@ pub struct Claims {
 #[derive(Clone)]
 #[allow(dead_code)] // Used in JWT authentication features
 pub struct JwtConfig {
+    /// Secret key for JWT signature verification
     pub secret: String,
+    /// Cryptographic algorithm for token validation (default: HS256)
     pub algorithm: Algorithm,
+    /// Set of claim names that must be present in valid tokens
     pub required_claims: HashSet<String>,
+    /// Optional expected issuer for iss claim validation
     pub issuer: Option<String>,
+    /// Optional expected audience for aud claim validation
     pub audience: Option<String>,
 }
 
@@ -111,6 +122,23 @@ impl Default for JwtConfig {
 }
 
 impl JwtConfig {
+    /// Creates a new JWT configuration with the specified secret key.
+    ///
+    /// # Parameters
+    ///
+    /// * `secret` - The secret key used for JWT signature validation
+    ///
+    /// # Returns
+    ///
+    /// A new `JwtConfig` instance with default algorithm (HS256) and no validation rules.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use kairos_rs::middleware::auth::JwtConfig;
+    ///
+    /// let config = JwtConfig::new("my-secret-key-at-least-32-chars".to_string());
+    /// ```
     pub fn new(secret: String) -> Self {
         Self {
             secret,
@@ -118,16 +146,64 @@ impl JwtConfig {
         }
     }
     
+    /// Sets the expected issuer for JWT validation.
+    ///
+    /// When configured, the middleware will reject tokens that don't have a matching `iss` claim.
+    ///
+    /// # Parameters
+    ///
+    /// * `issuer` - The expected issuer identifier
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use kairos_rs::middleware::auth::JwtConfig;
+    ///
+    /// let config = JwtConfig::new("secret".to_string())
+    ///     .with_issuer("kairos-gateway".to_string());
+    /// ```
     pub fn with_issuer(mut self, issuer: String) -> Self {
         self.issuer = Some(issuer);
         self
     }
     
+    /// Sets the expected audience for JWT validation.
+    ///
+    /// When configured, the middleware will reject tokens that don't have a matching `aud` claim.
+    ///
+    /// # Parameters
+    ///
+    /// * `audience` - The expected audience identifier
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use kairos_rs::middleware::auth::JwtConfig;
+    ///
+    /// let config = JwtConfig::new("secret".to_string())
+    ///     .with_audience("api-clients".to_string());
+    /// ```
     pub fn with_audience(mut self, audience: String) -> Self {
         self.audience = Some(audience);
         self
     }
     
+    /// Sets the list of required claims that must be present in valid tokens.
+    ///
+    /// The middleware will reject tokens that are missing any of the specified claims.
+    ///
+    /// # Parameters
+    ///
+    /// * `claims` - Vector of claim names that must be present
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use kairos_rs::middleware::auth::JwtConfig;
+    ///
+    /// let config = JwtConfig::new("secret".to_string())
+    ///     .with_required_claims(vec!["sub".to_string(), "exp".to_string(), "role".to_string()]);
+    /// ```
     #[allow(dead_code)] // Used in JWT authentication configuration
     pub fn with_required_claims(mut self, claims: Vec<String>) -> Self {
         self.required_claims = claims.into_iter().collect();
@@ -230,6 +306,10 @@ where
     }
 }
 
+/// Internal service implementation for JWT authentication middleware.
+///
+/// This struct is created by the `Transform` implementation and handles
+/// the actual request processing logic. It should not be instantiated directly.
 pub struct JwtAuthMiddleware<S> {
     service: Rc<S>,
     config: Rc<JwtConfig>,

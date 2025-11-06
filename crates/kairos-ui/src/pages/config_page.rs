@@ -357,7 +357,7 @@ where
     let initial = rate_limit.unwrap_or_default();
     let (strategy, set_strategy) = signal(initial.strategy);
     let (requests_per_window, set_requests_per_window) = signal(initial.requests_per_window.to_string());
-    let (window_duration, set_window_duration) = signal(initial.window_duration_secs.to_string());
+    let (window_duration, set_window_duration) = signal(initial.window_duration.to_string());
     let (burst_allowance, set_burst_allowance) = signal(initial.burst_allowance.to_string());
     let (window_type, set_window_type) = signal(initial.window_type);
     let (enable_redis, set_enable_redis) = signal(initial.enable_redis);
@@ -394,7 +394,7 @@ where
         let config = RateLimitConfig {
             strategy: strategy.get(),
             requests_per_window: requests,
-            window_duration_secs: duration,
+            window_duration: duration,
             burst_allowance: burst,
             window_type: window_type.get(),
             enable_redis: enable_redis.get(),

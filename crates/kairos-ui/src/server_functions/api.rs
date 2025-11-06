@@ -331,7 +331,7 @@ pub async fn update_jwt_config(jwt_config: JwtSettings) -> Result<(), ServerFnEr
     let url = format!("{}/api/config/jwt", GATEWAY_BASE_URL);
     
     let client = reqwest::Client::new();
-    let response = client.put(&url)
+    let response = client.post(&url)
         .json(&jwt_config)
         .send()
         .await
@@ -352,7 +352,7 @@ pub async fn update_rate_limit_config(rate_limit_config: RateLimitConfig) -> Res
     let url = format!("{}/api/config/rate-limit", GATEWAY_BASE_URL);
     
     let client = reqwest::Client::new();
-    let response = client.put(&url)
+    let response = client.post(&url)
         .json(&rate_limit_config)
         .send()
         .await
@@ -373,7 +373,7 @@ pub async fn update_cors_config(cors_config: CorsConfig) -> Result<(), ServerFnE
     let url = format!("{}/api/config/cors", GATEWAY_BASE_URL);
     
     let client = reqwest::Client::new();
-    let response = client.put(&url)
+    let response = client.post(&url)
         .json(&cors_config)
         .send()
         .await
@@ -394,7 +394,7 @@ pub async fn update_metrics_config(metrics_config: MetricsConfig) -> Result<(), 
     let url = format!("{}/api/config/metrics", GATEWAY_BASE_URL);
     
     let client = reqwest::Client::new();
-    let response = client.put(&url)
+    let response = client.post(&url)
         .json(&metrics_config)
         .send()
         .await
@@ -415,7 +415,7 @@ pub async fn update_server_config(server_config: ServerConfig) -> Result<(), Ser
     let url = format!("{}/api/config/server", GATEWAY_BASE_URL);
     
     let client = reqwest::Client::new();
-    let response = client.put(&url)
+    let response = client.post(&url)
         .json(&server_config)
         .send()
         .await
