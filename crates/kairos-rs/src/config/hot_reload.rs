@@ -23,7 +23,12 @@ use tokio::time::interval;
 /// use kairos_rs::config::hot_reload::ConfigUpdate;
 /// use kairos_rs::models::settings::Settings;
 ///
-/// let settings = Settings::default();
+/// let settings = Settings {
+///     version: 1,
+///     jwt: None,
+///     rate_limit: None,
+///     routers: vec![],
+/// };
 /// let update = ConfigUpdate {
 ///     settings,
 ///     timestamp: chrono::Utc::now(),
@@ -55,7 +60,12 @@ pub struct ConfigUpdate {
 /// use kairos_rs::models::settings::Settings;
 ///
 /// # async fn example() {
-/// let settings = Settings::default();
+/// let settings = Settings {
+///     version: 1,
+///     jwt: None,
+///     rate_limit: None,
+///     routers: vec![],
+/// };
 /// let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
 ///
 /// // Start watching for changes
@@ -92,7 +102,12 @@ impl ConfigWatcher {
     /// use kairos_rs::config::hot_reload::ConfigWatcher;
     /// use kairos_rs::models::settings::Settings;
     ///
-    /// let settings = Settings::default();
+    /// let settings = Settings {
+    ///     version: 1,
+    ///     jwt: None,
+    ///     rate_limit: None,
+    ///     routers: vec![],
+    /// };
     /// let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
     /// ```
     pub fn new(initial_config: Settings, config_path: String) -> Self {
@@ -124,7 +139,13 @@ impl ConfigWatcher {
     /// # use kairos_rs::config::hot_reload::ConfigWatcher;
     /// # use kairos_rs::models::settings::Settings;
     /// # async fn example() {
-    /// # let watcher = ConfigWatcher::new(Settings::default(), "./config.json".to_string());
+    /// # let settings = Settings {
+    /// #     version: 1,
+    /// #     jwt: None,
+    /// #     rate_limit: None,
+    /// #     routers: vec![],
+    /// # };
+    /// # let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
     /// let config = watcher.get_current_config().await;
     /// println!("Current version: {}", config.version);
     /// # }
@@ -145,7 +166,13 @@ impl ConfigWatcher {
     /// # use kairos_rs::config::hot_reload::ConfigWatcher;
     /// # use kairos_rs::models::settings::Settings;
     /// # async fn example() {
-    /// # let watcher = ConfigWatcher::new(Settings::default(), "./config.json".to_string());
+    /// # let settings = Settings {
+    /// #     version: 1,
+    /// #     jwt: None,
+    /// #     rate_limit: None,
+    /// #     routers: vec![],
+    /// # };
+    /// # let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
     /// let mut receiver = watcher.subscribe();
     /// 
     /// // Wait for updates
@@ -169,7 +196,13 @@ impl ConfigWatcher {
     /// # use kairos_rs::config::hot_reload::ConfigWatcher;
     /// # use kairos_rs::models::settings::Settings;
     /// # async fn example() {
-    /// let watcher = ConfigWatcher::new(Settings::default(), "./config.json".to_string());
+    /// let settings = Settings {
+    ///     version: 1,
+    ///     jwt: None,
+    ///     rate_limit: None,
+    ///     routers: vec![],
+    /// };
+    /// let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
     /// watcher.start_watching().await;
     /// 
     /// // Watcher is now monitoring the file in the background
@@ -268,7 +301,13 @@ impl ConfigWatcher {
     /// # use kairos_rs::config::hot_reload::ConfigWatcher;
     /// # use kairos_rs::models::settings::Settings;
     /// # async fn example() {
-    /// # let watcher = ConfigWatcher::new(Settings::default(), "./config.json".to_string());
+    /// # let settings = Settings {
+    /// #     version: 1,
+    /// #     jwt: None,
+    /// #     rate_limit: None,
+    /// #     routers: vec![],
+    /// # };
+    /// # let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
     /// match watcher.manual_reload().await {
     ///     Ok(update) => println!("Reloaded version {}", update.version),
     ///     Err(e) => eprintln!("Reload failed: {}", e),
