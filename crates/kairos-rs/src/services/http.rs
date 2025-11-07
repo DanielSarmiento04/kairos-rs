@@ -73,6 +73,8 @@ use tokio::time::{sleep, timeout, Duration};
 ///         load_balancing_strategy: Default::default(),
 ///         retry: None,
 ///         protocol: Protocol::Http,
+///         request_transformation: None,
+///         response_transformation: None,
 ///     }
 /// ];
 /// 
@@ -153,6 +155,8 @@ impl RouteHandler {
     ///         load_balancing_strategy: Default::default(),
     ///         retry: None,
     ///         protocol: Protocol::Http,
+    ///         request_transformation: None,
+    ///         response_transformation: None,
     ///     },
     ///     Router {
     ///         host: Some("http://user-service".to_string()),
@@ -170,6 +174,8 @@ impl RouteHandler {
     ///         load_balancing_strategy: Default::default(),
     ///         retry: None,
     ///         protocol: Protocol::Http,
+    ///         request_transformation: None,
+    ///         response_transformation: None,
     ///     }
     /// ];
     /// 

@@ -16,6 +16,8 @@ fn create_test_routes() -> Vec<Router> {
             load_balancing_strategy: Default::default(),
             retry: None,
             protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
         },
         Router {
             host: Some("https://google.com".to_string()),
@@ -28,6 +30,8 @@ fn create_test_routes() -> Vec<Router> {
             load_balancing_strategy: Default::default(),
             retry: None,
             protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
         },
         Router {
             host: Some("https://http.cat".to_string()),
@@ -40,6 +44,8 @@ fn create_test_routes() -> Vec<Router> {
             load_balancing_strategy: Default::default(),
             retry: None,
             protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
         },
         Router {
             host: Some("http://api.example.com".to_string()),
@@ -52,6 +58,8 @@ fn create_test_routes() -> Vec<Router> {
             load_balancing_strategy: Default::default(),
             retry: None,
             protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
         },
         Router {
             host: Some("http://api.example.com".to_string()),
@@ -64,6 +72,8 @@ fn create_test_routes() -> Vec<Router> {
             load_balancing_strategy: Default::default(),
             retry: None,
             protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
         },
         Router {
             host: Some("http://api.example.com".to_string()),
@@ -76,6 +86,8 @@ fn create_test_routes() -> Vec<Router> {
             load_balancing_strategy: Default::default(),
             retry: None,
             protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
         },
         Router {
             host: Some("http://static.example.com".to_string()),
@@ -88,6 +100,8 @@ fn create_test_routes() -> Vec<Router> {
             load_balancing_strategy: Default::default(),
             retry: None,
             protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
         },
         Router {
             host: Some("http://static.example.com".to_string()),
@@ -100,6 +114,8 @@ fn create_test_routes() -> Vec<Router> {
             load_balancing_strategy: Default::default(),
             retry: None,
             protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
         },
     ]
 }
@@ -264,6 +280,8 @@ mod route_matcher_tests {
                 load_balancing_strategy: Default::default(),
                 retry: None,
                 protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
             },
             Router {
                 host: Some("http://localhost".to_string()),
@@ -276,6 +294,8 @@ mod route_matcher_tests {
                 load_balancing_strategy: Default::default(),
                 retry: None,
                 protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
             },
             Router {
                 host: Some("http://localhost".to_string()),
@@ -288,6 +308,8 @@ mod route_matcher_tests {
                 load_balancing_strategy: Default::default(),
                 retry: None,
                 protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
             },
         ];
 

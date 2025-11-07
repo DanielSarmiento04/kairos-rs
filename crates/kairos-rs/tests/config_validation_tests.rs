@@ -26,6 +26,8 @@ fn create_test_router(host: &str, external_path: &str, methods: Vec<&str>) -> Ro
         load_balancing_strategy: Default::default(),
         retry: None,
         protocol: Protocol::Http,
+        request_transformation: None,
+        response_transformation: None,
     }
 }
 
@@ -167,6 +169,8 @@ fn test_path_traversal_detection() {
                 load_balancing_strategy: Default::default(),
                 retry: None,
                 protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
             },
         ],
     };

@@ -66,6 +66,8 @@
 //!         load_balancing_strategy: Default::default(),
 //!         retry: None,
 //!         protocol: Protocol::Http,
+//!         request_transformation: None,
+//!         response_transformation: None,
 //!     }
 //! ];
 //! 
@@ -76,9 +78,10 @@
 //! ```
 
 pub mod circuit_breaker;
+pub mod dns;
+pub mod ftp;
 pub mod http;
 pub mod load_balancer;
+pub mod metrics_store;
 pub mod websocket;
 pub mod websocket_metrics;
-pub mod ftp;
-pub mod dns;

@@ -69,6 +69,8 @@ use actix_web::{web, HttpRequest};
 ///         load_balancing_strategy: Default::default(),
 ///         retry: None,
 ///         protocol: Protocol::Http,
+///         request_transformation: None,
+///         response_transformation: None,
 ///     }
 /// ];
 /// let handler = RouteHandler::new(routes, 30);

@@ -66,6 +66,8 @@ fn test_router_with_backends() {
         auth_required: false,
         retry: None,
         protocol: Protocol::Http,
+        request_transformation: None,
+        response_transformation: None,
     };
 
     assert!(router.validate().is_ok());
@@ -89,6 +91,8 @@ fn test_router_legacy_mode() {
         auth_required: false,
         retry: None,
         protocol: Protocol::Http,
+        request_transformation: None,
+        response_transformation: None,
     };
 
     assert!(router.validate().is_ok());

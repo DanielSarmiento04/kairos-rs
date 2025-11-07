@@ -1,6 +1,5 @@
 use actix_web::{test, web, App};
 use kairos_rs::routes::metrics;
-use kairos_rs::models::router::Protocol;
 
 #[actix_web::test]
 async fn test_metrics_endpoint_basic() {

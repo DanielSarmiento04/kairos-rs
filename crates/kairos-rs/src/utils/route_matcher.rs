@@ -108,6 +108,8 @@ pub struct CompiledRoute {
 ///         load_balancing_strategy: Default::default(),
 ///         retry: None,
 ///         protocol: Protocol::Http,
+///         request_transformation: None,
+///         response_transformation: None,
 ///     },
 ///     Router {
 ///         host: Some("http://api".to_string()),
@@ -125,6 +127,8 @@ pub struct CompiledRoute {
 ///         load_balancing_strategy: Default::default(),
 ///         retry: None,
 ///         protocol: Protocol::Http,
+///         request_transformation: None,
+///         response_transformation: None,
 ///     },
 /// ];
 /// 
@@ -203,6 +207,8 @@ impl RouteMatcher {
     ///         load_balancing_strategy: Default::default(),
     ///         retry: None,
     ///         protocol: Protocol::Http,
+    ///         request_transformation: None,
+    ///         response_transformation: None,
     ///     },
     ///     Router {
     ///         host: Some("http://localhost".to_string()),
@@ -220,6 +226,8 @@ impl RouteMatcher {
     ///         load_balancing_strategy: Default::default(),
     ///         retry: None,
     ///         protocol: Protocol::Http,
+    ///         request_transformation: None,
+    ///         response_transformation: None,
     ///     },
     /// ];
     /// 
@@ -319,6 +327,8 @@ impl RouteMatcher {
     /// #         load_balancing_strategy: Default::default(),
     /// #         retry: None,
     /// #         protocol: Protocol::Http,
+    /// #         request_transformation: None,
+    /// #         response_transformation: None,
     /// #     },
     /// #     Router {
     /// #         host: Some("http://localhost".to_string()),
@@ -336,6 +346,8 @@ impl RouteMatcher {
     /// #         load_balancing_strategy: Default::default(),
     /// #         retry: None,
     /// #         protocol: Protocol::Http,
+    /// #         request_transformation: None,
+    /// #         response_transformation: None,
     /// #     }
     /// # ];
     /// # let matcher = RouteMatcher::new(routes)?;

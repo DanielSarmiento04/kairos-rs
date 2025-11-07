@@ -25,6 +25,8 @@ async fn test_real_metrics_collection() {
             load_balancing_strategy: Default::default(),
             retry: None,
             protocol: Protocol::Http,
+            request_transformation: None,
+            response_transformation: None,
         }
     ];
     let route_handler = RouteHandler::new(routes, 30);
