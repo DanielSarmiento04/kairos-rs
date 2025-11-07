@@ -510,6 +510,8 @@ impl Router {
     ///     auth_required: false,
     ///     retry: None,
     ///     protocol: Protocol::Http,
+    ///     request_transformation: None,
+    ///     response_transformation: None,
     /// };
     /// 
     /// assert!(router.validate().is_ok());

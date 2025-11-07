@@ -177,6 +177,8 @@ impl Settings {
     ///             load_balancing_strategy: Default::default(),
     ///             retry: None,
     ///             protocol: Protocol::Http,
+    ///             request_transformation: None,
+    ///             response_transformation: None,
     ///         }
     ///     ],
     /// };
