@@ -29,9 +29,11 @@ Kairos-rs is a production-ready multi-protocol gateway with modern web UI that:
 - ✅ **Web Admin UI** - Modern Leptos-based interface with real-time dashboard and metrics
 - ✅ **Configuration Management** - Complete UI for JWT, rate limiting, CORS, metrics, and server settings
 - ✅ **Advanced Metrics Dashboard** - 5 specialized views with performance insights and error analysis
+- ✅ **Request/Response Transformation** - Header manipulation, path rewriting, query parameter transformation
+- ✅ **Historical Metrics** - Time-series data storage with configurable retention and aggregation
 - ✅ **Modular Architecture** - Workspace with separate crates for gateway, UI, CLI, and client
 
-**Current status:** Production-ready multi-protocol gateway supporting HTTP, WebSocket, FTP, and DNS with comprehensive security, reliability, load balancing, and web-based management interface.
+**Current status:** Production-ready multi-protocol gateway supporting HTTP, WebSocket, FTP, and DNS with comprehensive security, reliability, load balancing, request/response transformation, and web-based management interface.
 
 ## Protocol Support
 
@@ -270,6 +272,8 @@ kairos-rs/
 - JWT authentication with configurable claims validation
 - Advanced rate limiting (token bucket, sliding window, fixed window)
 - Circuit breaker for automatic failure handling
+- **Request/Response transformation** - Header manipulation, path rewriting, query parameters
+- **Historical metrics storage** - Time-series data with retention policies and aggregation
 - HTTP client with connection pooling (reqwest)
 - Prometheus metrics endpoint
 - Structured logging and health checks
@@ -363,6 +367,88 @@ Configure exponential backoff retry logic per route:
   "retryable_status_codes": [502, 503, 504]  // Which HTTP status codes to retry
 }
 ```
+
+### Request/Response Transformation (NEW in v0.2.12)
+
+Transform requests and responses on-the-fly with powerful transformation rules:
+
+#### Request Transformation
+
+```json
+"request_transformation": {
+  "headers": [
+    {
+      "action": "add",
+      "name": "X-Forwarded-By",
+      "value": "kairos-gateway"
+    },
+    {
+      "action": "remove",
+      "name": "Cookie"
+    },
+    {
+      "action": "replace",
+      "name": "User-Agent",
+      "pattern": "Mozilla/(\\d+\\.\\d+)",
+      "replacement": "KairosGateway/$1"
+    }
+  ],
+  "path": {
+    "pattern": "^/api/v1/(.+)$",
+    "replacement": "/v2/$1"
+  },
+  "query_params": [
+    {
+      "action": "add",
+      "name": "api_key",
+      "value": "secret123"
+    },
+    {
+      "action": "remove",
+      "name": "debug"
+    }
+  ]
+}
+```
+
+#### Response Transformation
+
+```json
+"response_transformation": {
+  "headers": [
+    {
+      "action": "add",
+      "name": "X-Powered-By",
+      "value": "Kairos Gateway"
+    },
+    {
+      "action": "remove",
+      "name": "Server"
+    }
+  ],
+  "status_code_mappings": [
+    {
+      "from": 404,
+      "to": 200,
+      "condition": null
+    }
+  ]
+}
+```
+
+**Transformation Actions:**
+- **add**: Add header/parameter if not exists
+- **set**: Set header/parameter (override if exists)
+- **remove**: Remove header/parameter
+- **replace**: Replace using regex patterns (headers only)
+
+**Use Cases:**
+- Remove sensitive headers (Authorization, Cookie)
+- Add tracking headers (X-Request-ID, X-Forwarded-*)
+- Rewrite API paths (/v1 → /v2)
+- Add authentication tokens to backend requests
+- Normalize error responses
+- Hide backend server information
 
 ### Rate Limiting Algorithms
 - **fixed_window**: Fixed time windows with request quotas

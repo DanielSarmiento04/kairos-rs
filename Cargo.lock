@@ -2116,6 +2116,7 @@ version = "0.2.11"
 dependencies = [
  "actix-governor",
  "actix-web",
+ "chrono",
  "env_logger",
  "kairos-rs",
  "log",

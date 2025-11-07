@@ -1,16 +1,16 @@
 # Kairos-rs Development Roadmap
 
-> **Version**: 0.2.11  
-> **Last Updated**: November 3, 2025  
-> **Status**: Production Ready with Complete Route Management UI
+> **Version**: 0.2.12  
+> **Last Updated**: November 7, 2025  
+> **Status**: Production Ready with Request/Response Transformation & Historical Metrics
 
 ## 🔥 Immediate Priorities (Next 2 Weeks)
 
-1. **Advanced Route Configuration UI** - Multi-backend, load balancing, and retry config forms
+1. **Historical Metrics API** - REST endpoints for time-series data queries
 2. **WebSocket Real-time Updates** - Replace polling with WebSocket for live metrics
-3. **Historical Metrics** - Store and display time-series data with charts
-4. **Request Transformation** - Header manipulation and path rewriting
-5. **Enhanced Error Handling** - Better error recovery and user feedback
+3. **Metrics Charts UI** - Time-series visualization with interactive charts
+4. **Advanced Route Configuration UI** - Multi-backend, load balancing, and retry config forms
+5. **Transformation UI** - Visual editor for request/response transformations
 
 ## 🤖 AI/LLM Gateway Vision
 
@@ -85,7 +85,9 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 - ✅ **Advanced Metrics Dashboard** - 5 specialized views (Overview, Performance, Errors, Traffic, Circuit Breakers)
 - ✅ **Metrics Visualization** - Response time distribution, error analysis, traffic breakdown, circuit breaker monitoring
 - ✅ **Smart Error Recommendations** - AI-powered insights based on error patterns and thresholds
-- ✅ 90+ comprehensive tests (unit, integration, documentation, load balancing)
+- ✅ **Request/Response Transformation** - Header manipulation, path rewriting, query parameter transformation (v0.2.12)
+- ✅ **Historical Metrics Storage** - Time-series data with retention policies and aggregation intervals (v0.2.12)
+- ✅ 97+ comprehensive tests (unit, integration, documentation, transformation, load balancing)
 
 **Performance**: 
 - ~200k route matches/sec on M1 MacBook Pro
@@ -97,7 +99,8 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 
 - No response caching layer (HTTP only)
 - No service discovery integration
-- No request transformation (header manipulation, path rewriting) - planned for next release
+- Historical metrics API endpoints (storage implemented, API coming soon)
+- Time-series charts in UI (data layer ready, visualization pending)
 - No gRPC proxying (planned for future)
 - No distributed tracing integration (OpenTelemetry planned)
 - **Route UI limitations** - Currently supports basic single-backend mode only (multi-backend, load balancing, retry config UI coming soon)
@@ -191,24 +194,28 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 - ✅ Configuration changes persist correctly via API
 - ✅ Load balancing with 5 strategies implemented
 - ✅ Retry logic with exponential backoff and circuit breakers
-- ✅ 90+ comprehensive tests across all protocols
+- ✅ 97+ comprehensive tests across all protocols
 - ✅ UI components for route management - COMPLETED with professional design
 - ✅ Form validation - COMPLETED with client and server-side validation
 - ✅ Configuration Management UI - COMPLETED (JWT, rate limiting, CORS, metrics, server)
 - ✅ Configuration Management API - COMPLETED (6 REST endpoints)
 - ✅ Advanced Metrics Dashboard - COMPLETED (5 specialized views with insights)
-- [ ] Request/response transformation (next phase)
-- [ ] Historical metrics with time-series charts (next priority)
-- [ ] WebSocket real-time updates (next priority)
+- ✅ Request/response transformation - COMPLETED (v0.2.12)
+- ✅ Historical metrics storage - COMPLETED (v0.2.12)
+- [ ] Historical metrics API endpoints (IN PROGRESS)
+- [ ] Time-series charts UI (PLANNED)
+- [ ] WebSocket real-time updates (PLANNED)
 
-### Phase 3: Performance & Observability (v0.3.x - Months 3-4)
+### Phase 3: Performance & Observability (v0.3.x - Months 3-4) 🔄 IN PROGRESS
 **Goal**: Handle serious production loads with comprehensive monitoring
 
 - [ ] **Response caching** - In-memory and Redis backends
 - [ ] **Connection pooling optimization** - Better upstream connections
 - [ ] **Compression** - gzip/brotli response compression
 - [ ] **Performance monitoring** - Latency histograms, throughput metrics
-- [ ] **Historical metrics** - Time-series data storage with charts
+- ✅ **Historical metrics storage** - COMPLETED (v0.2.12) - Time-series data with retention and aggregation
+- [ ] **Historical metrics API** - REST endpoints for querying time-series data (IN PROGRESS)
+- [ ] **Time-series charts** - Interactive visualization in UI (PLANNED)
 - [ ] **Per-route analytics** - Detailed breakdown by route
 - [ ] **Distributed tracing** - OpenTelemetry integration
 - [ ] **Custom dashboards** - User-configurable metric views in UI
@@ -242,11 +249,11 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 
 ## Immediate Priorities (Next 2 Weeks)
 
-1. **Advanced route configuration UI** - Multi-backend, load balancing, and retry config forms
-2. **WebSocket real-time updates** - Replace polling with WebSocket connections
-3. **Historical metrics with charts** - Time-series data visualization in UI
-4. **Request transformation middleware** - Header manipulation and path rewriting
-5. **Enhanced error recovery** - Better error handling and user feedback
+1. **Historical metrics API endpoints** - REST API for querying time-series data
+2. **WebSocket real-time updates** - Replace polling with WebSocket connections  
+3. **Time-series charts UI** - Interactive visualization with zoom and custom time ranges
+4. **Advanced route configuration UI** - Multi-backend, load balancing, and retry config forms
+5. **Transformation UI** - Visual editor for request/response transformation rules
 
 ## Feature Requests We've Received
 
@@ -260,8 +267,11 @@ Based on feedback from users and contributors:
 - ✅ **Better error handling** - COMPLETED - Structured errors with helpful messages
 - ✅ **Load balancing** - COMPLETED - 5 strategies for HA deployments
 - ✅ **Retry logic** - COMPLETED - Exponential backoff with configurable policies
-- [ ] **Request transformation** - IN PROGRESS - Header manipulation, path rewriting
-- [ ] **Historical metrics** - PLANNED - Time-series data with charts
+- ✅ **Request transformation** - COMPLETED (v0.2.12) - Header manipulation, path rewriting, query parameters
+- ✅ **Response transformation** - COMPLETED (v0.2.12) - Header modification, status code mapping
+- ✅ **Historical metrics storage** - COMPLETED (v0.2.12) - Time-series data with retention and aggregation
+- [ ] **Historical metrics API** - IN PROGRESS - REST endpoints for time-series queries
+- [ ] **Time-series charts** - PLANNED - Interactive visualization in UI
 - [ ] **WebSocket real-time updates** - PLANNED - Replace polling with live connections
 - [ ] **🤖 AI/LLM Integration** - FUTURE - Intelligent routing and request processing
 
@@ -270,22 +280,23 @@ Based on feedback from users and contributors:
 **If you're interested in contributing:**
 
 1. **Try it out** - Use the gateway and admin UI, report issues
-2. **Advanced route UI** - Add multi-backend and load balancing configuration forms
-3. **WebSocket real-time updates** - Replace polling with live connections
-4. **Charts and visualizations** - Build historical metrics with time-series charts
-5. **Request transformation** - Implement header manipulation and path rewriting middleware
-6. **Improve documentation** - Add examples, fix typos, write tutorials
-7. **Write tests** - Expand test coverage for UI and gateway
-8. **Performance testing** - Load test and find bottlenecks
+2. **Historical metrics API** - Add REST endpoints for time-series data queries
+3. **Time-series charts** - Build interactive charts with zoom and time range selection
+4. **WebSocket real-time updates** - Replace polling with live connections
+5. **Advanced route UI** - Add multi-backend and load balancing configuration forms
+6. **Transformation UI** - Build visual editor for transformation rules
+7. **Improve documentation** - Add examples, fix typos, write tutorials
+8. **Write tests** - Expand test coverage for UI and gateway
+9. **Performance testing** - Load test and find bottlenecks
 
 **Good first issues:**
-- Implement request transformation middleware
-- Build advanced route configuration forms in UI
+- Add REST endpoints for historical metrics
+- Build time-series chart components in UI
 - WebSocket support for real-time metrics updates
-- Write examples for load balancing configurations
+- Transformation rule visual editor
+- Write examples for transformation configurations
 - Create historical metrics charts
 - Performance testing and optimization
-- Add more load balancing strategy tests
 - Implement response caching layer
 
 ## Success Metrics
@@ -326,7 +337,7 @@ This roadmap will evolve based on:
 - Available contributor time and interest
 - Real-world usage patterns
 
-**Last major update**: November 2025 - Released v0.2.11 with complete configuration management UI (JWT, rate limiting, CORS, metrics, server settings), configuration management API (6 REST endpoints), advanced metrics dashboard (5 specialized views), smart error analysis with recommendations, traffic analytics, and circuit breaker monitoring
+**Last major update**: November 7, 2025 - Released v0.2.12 with **Request/Response Transformation** system (header manipulation, path rewriting, query parameter transformation, status code mapping) and **Historical Metrics Storage** (time-series data with configurable retention policies, aggregation intervals, and query API). Added 22 comprehensive tests covering all transformation scenarios and metrics storage operations.
 
 ---
 

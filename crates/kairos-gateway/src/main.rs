@@ -12,11 +12,14 @@ use kairos_rs::logs::logger::configure_logger;
 use kairos_rs::middleware::security::security_headers;
 use kairos_rs::middleware::rate_limit::AdvancedRateLimit;
 use kairos_rs::models::settings::Settings;
-use kairos_rs::routes::{auth_http, health, metrics, management};
+use kairos_rs::routes::{auth_http, health, metrics, management, websocket};
 use kairos_rs::services::http::RouteHandler;
+use kairos_rs::services::metrics_store::MetricsStore;
+use kairos_rs::services::websocket::WebSocketHandler;
 
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{middleware::Logger, App, HttpServer};
+use chrono::Duration;
 use log::{error, info};
 use tokio::signal;
 
@@ -45,6 +48,12 @@ async fn main() -> std::io::Result<()> {
     
     // Initialize metrics collector
     let metrics_collector = metrics::MetricsCollector::default();
+    
+    // Initialize historical metrics store (10,000 points max, 24 hour retention)
+    let metrics_store = MetricsStore::new(10_000, Duration::hours(24));
+    
+    // Initialize WebSocket handler
+    let websocket_handler = WebSocketHandler::new(30);
     
     // Get config path for route management
     let config_path = std::env::var("KAIROS_CONFIG_PATH")
@@ -77,6 +86,7 @@ async fn main() -> std::io::Result<()> {
         HttpServer::new(move || {
             App::new()
                 .app_data(actix_web::web::Data::new(metrics_collector.clone()))
+                .app_data(actix_web::web::Data::new(metrics_store.clone()))
                 .app_data(actix_web::web::Data::new(route_manager.clone()))
                 .wrap(advanced_rate_limit.clone())
                 .wrap(Logger::new(
@@ -87,6 +97,7 @@ async fn main() -> std::io::Result<()> {
                 .configure(health::configure_health)
                 .configure(metrics::configure_metrics)
                 .configure(management::configure_management)
+                .configure(|cfg| websocket::configure_websocket(cfg, websocket_handler.clone()))
                 .configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler.clone(), &config))
         })
         .bind((host.as_str(), port))?
@@ -96,6 +107,7 @@ async fn main() -> std::io::Result<()> {
         HttpServer::new(move || {
             App::new()
                 .app_data(actix_web::web::Data::new(metrics_collector.clone()))
+                .app_data(actix_web::web::Data::new(metrics_store.clone()))
                 .app_data(actix_web::web::Data::new(route_manager.clone()))
                 .wrap(Governor::new(&governor_conf))
                 .wrap(Logger::new(
@@ -106,6 +118,7 @@ async fn main() -> std::io::Result<()> {
                 .configure(health::configure_health)
                 .configure(metrics::configure_metrics)
                 .configure(management::configure_management)
+                .configure(|cfg| websocket::configure_websocket(cfg, websocket_handler.clone()))
                 .configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler.clone(), &config))
         })
         .bind((host.as_str(), port))?

@@ -27,6 +27,8 @@ async fn test_circuit_breaker_integration() {
             load_balancing_strategy: Default::default(),
             retry: None,
             protocol: Protocol::Http,
+            request_transformation: None,
+            response_transformation: None,
         }
     ];
     let route_handler = RouteHandler::new(routes, 5); // 5 second timeout
@@ -109,6 +111,8 @@ async fn test_multiple_service_circuit_breakers() {
             load_balancing_strategy: Default::default(),
             retry: None,
             protocol: Protocol::Http,
+            request_transformation: None,
+            response_transformation: None,
         },
         Router {
             host: Some("http://service-b".to_string()),
@@ -128,6 +132,8 @@ async fn test_multiple_service_circuit_breakers() {
             load_balancing_strategy: Default::default(),
             retry: None,
             protocol: Protocol::Http,
+            request_transformation: None,
+            response_transformation: None,
         }
     ];
     let route_handler = RouteHandler::new(routes, 5);

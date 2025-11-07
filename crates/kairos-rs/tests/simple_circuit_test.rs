@@ -26,6 +26,8 @@ async fn test_simple_circuit_breaker() {
             load_balancing_strategy: Default::default(),
             retry: None,
             protocol: Protocol::Http,
+            request_transformation: None,
+            response_transformation: None,
         }
     ];
     let route_handler = RouteHandler::new(routes, 5);

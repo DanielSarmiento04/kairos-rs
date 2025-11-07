@@ -7,7 +7,7 @@ use kairos_rs::services::websocket::WebSocketHandler;
 
 #[test]
 fn test_websocket_handler_creation() {
-    let handler = WebSocketHandler::new(30);
+    let _handler = WebSocketHandler::new(30);
     // Test that handler can be created successfully
     assert!(true);
 }

@@ -23,6 +23,7 @@ actix-governor.workspace = true
 tokio.workspace = true
 log.workspace = true
 env_logger.workspace = true
+chrono.workspace = true
 
 [dev-dependencies]
 tempfile = "3.0"

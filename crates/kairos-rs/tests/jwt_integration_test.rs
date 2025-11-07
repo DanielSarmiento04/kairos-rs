@@ -44,6 +44,8 @@ fn create_test_settings() -> Settings {
                 load_balancing_strategy: Default::default(),
                 retry: None,
                 protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
             },
             // Protected route - authentication required
             Router {
@@ -62,6 +64,8 @@ fn create_test_settings() -> Settings {
                 load_balancing_strategy: Default::default(),
                 retry: None,
                 protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
             },
         ],
     }
@@ -197,6 +201,8 @@ async fn test_jwt_config_validation() {
                 load_balancing_strategy: Default::default(),
                 retry: None,
                 protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
             }
         ],
     };
@@ -238,6 +244,8 @@ async fn test_jwt_secret_validation() {
                 load_balancing_strategy: Default::default(),
                 retry: None,
                 protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
             }
         ],
     };
@@ -272,6 +280,8 @@ async fn test_jwt_secret_validation() {
                 load_balancing_strategy: Default::default(),
                 retry: None,
                 protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
             }
         ],
     };

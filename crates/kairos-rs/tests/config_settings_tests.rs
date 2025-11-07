@@ -34,6 +34,8 @@ fn create_test_settings() -> Settings {
                 load_balancing_strategy: Default::default(),
                 retry: None,
                 protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
             }
         ],
     }
@@ -196,6 +198,8 @@ fn test_load_settings_complex_configuration() {
                 load_balancing_strategy: Default::default(),
                 retry: None,
                 protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
             },
             Router {
                 host: Some("http://internal-service".to_string()),
@@ -213,6 +217,8 @@ fn test_load_settings_complex_configuration() {
                 load_balancing_strategy: Default::default(),
                 retry: None,
                 protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
             },
             Router {
                 host: Some("https://auth.example.com".to_string()),
@@ -230,6 +236,8 @@ fn test_load_settings_complex_configuration() {
                 load_balancing_strategy: Default::default(),
                 retry: None,
                 protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
             },
         ],
     };
@@ -299,6 +307,8 @@ fn test_load_settings_unicode_content() {
                 load_balancing_strategy: Default::default(),
                 retry: None,
                 protocol: Protocol::Http,
+                request_transformation: None,
+                response_transformation: None,
             }
         ],
     };
