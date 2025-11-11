@@ -35,7 +35,7 @@ Kairos-rs is a production-ready multi-protocol gateway with modern web UI that:
 
 **Current status:** Production-ready multi-protocol gateway supporting HTTP, WebSocket, FTP, and DNS with comprehensive security, reliability, load balancing, request/response transformation, and web-based management interface.
 
-```
+```mermaid
 sequenceDiagram
     participant Client
     participant Gateway as API Gateway<br/>(Actix-web)
