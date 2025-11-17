@@ -57,8 +57,53 @@ COPY . .
 RUN --mount=type=cache,target=/app/target/ \
     --mount=type=cache,target=/usr/local/cargo/git/db \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
-    cargo build --package=kairos-ui --bin=kairos-ui --no-default-features --features=ssr
+    cargo build --package=kairos-ui --bin=kairos-ui --no-default-features --features=ssr \
+    && cp /app/target/debug/kairos-ui /tmp/kairos-ui
+
+# Install wasm32 target for Leptos frontend compilation
+RUN rustup target add wasm32-unknown-unknown
+
+# Force update wasm-bindgen to match the CLI version installed by cargo-leptos (0.2.105)
+# and clean the front target to ensure a fresh WASM build
+RUN cargo update -p wasm-bindgen --precise 0.2.105 \
+    && rm -rf /app/target/front
+
+# Use cargo-leptos to build the full application with optimized assets
+RUN cargo leptos build --bin-features=ssr --lib-features=hydrate --release \
+    && mkdir -p /tmp/site \
+    && cp -r /app/target/site/* /tmp/site/
 
 
 ################################################################################
 # Create a minimal runtime stage using Debian slim
+FROM debian:bookworm-slim AS runtime
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user
+RUN useradd -m -s /bin/sh appuser || true
+
+# Copy the built binary and the static site assets from the build stage
+COPY --from=build /tmp/kairos-ui /usr/local/bin/kairos-ui
+COPY --from=build /tmp/site /usr/local/share/kairos-ui/site
+
+RUN chmod +x /usr/local/bin/kairos-ui \
+ && chown -R appuser:appuser /usr/local/share/kairos-ui
+
+# Expose port 80 (mapped in docker-compose to host 8080)
+EXPOSE 80
+
+# Entrypoint script: set sensible defaults and run the binary
+RUN printf '#!/bin/sh\nset -e\n# Default to 0.0.0.0:80 inside container, allow override via LEPTOS_SITE_ADDR\n: "${LEPTOS_SITE_ADDR:=0.0.0.0:80}"\n: "${LEPTOS_SITE_ROOT:=/usr/local/share/kairos-ui/site}"\nexport LEPTOS_SITE_ADDR LEPTOS_SITE_ROOT\nexec /usr/local/bin/kairos-ui\n' > /usr/local/bin/entrypoint.sh \
+ && chmod +x /usr/local/bin/entrypoint.sh \
+ && chown appuser:appuser /usr/local/bin/entrypoint.sh
+
+# Run as non-root user by default
+USER appuser
+
+WORKDIR /home/appuser
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
