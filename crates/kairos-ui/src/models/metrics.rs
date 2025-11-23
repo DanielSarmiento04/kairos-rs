@@ -1,6 +1,7 @@
 //! Metrics data structures for UI display.
 
 use serde::{Deserialize, Serialize};
+ use chrono::{DateTime, Utc};
 
 /// Metrics data structure parsed from Prometheus format.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,6 +25,58 @@ pub struct MetricsData {
     pub request_bytes_total: u64,
     pub response_bytes_total: u64,
     pub circuit_breakers: Vec<CircuitBreakerMetrics>,
+}
+
+/// Time-series metric data point.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MetricPoint {
+    pub timestamp: DateTime<Utc>,
+    pub value: MetricValue,
+}
+
+/// Metric value types.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "value")]
+pub enum MetricValue {
+    Counter(u64),
+    Gauge(f64),
+    Histogram {
+        le: f64,
+        count: u64,
+    },
+}
+
+/// Aggregation interval for metrics.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum AggregationInterval {
+    OneMinute,
+    FiveMinutes,
+    OneHour,
+    OneDay,
+}
+
+impl std::fmt::Display for AggregationInterval {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::OneMinute => write!(f, "1 Minute"),
+            Self::FiveMinutes => write!(f, "5 Minutes"),
+            Self::OneHour => write!(f, "1 Hour"),
+            Self::OneDay => write!(f, "1 Day"),
+        }
+    }
+}
+
+/// Aggregated metric data.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AggregatedMetric {
+    pub start_time: DateTime<Utc>,
+    pub end_time: DateTime<Utc>,
+    pub count: u64,
+    pub sum: f64,
+    pub min: f64,
+    pub max: f64,
+    pub avg: f64,
 }
 
 impl MetricsData {

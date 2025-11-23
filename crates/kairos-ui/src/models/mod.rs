@@ -14,5 +14,8 @@ pub use settings::{
     Settings, JwtSettings, RateLimitConfig, LimitStrategy, WindowType,
     CorsConfig, MetricsConfig, ServerConfig
 };
-pub use metrics::{MetricsData, CircuitBreakerMetrics, CircuitBreakerState};
+pub use metrics::{
+    MetricsData, CircuitBreakerMetrics, CircuitBreakerState,
+    MetricPoint, MetricValue, AggregatedMetric, AggregationInterval
+};
 pub use health::{HealthResponse, ReadinessResponse, LivenessResponse};

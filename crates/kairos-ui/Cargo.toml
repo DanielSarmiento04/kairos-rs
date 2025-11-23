@@ -22,6 +22,7 @@ reqwest = { version = "0.12", optional = true, features = ["json"] }
 urlencoding = "2.1"
 web-sys = { version = "0.3", features = ["Window", "Location"] }
 gloo-timers = { version = "0.3", features = ["futures"] }
+chrono = { version = "0.4", features = ["serde"] }
 
 [features]
 csr = ["leptos/csr"]

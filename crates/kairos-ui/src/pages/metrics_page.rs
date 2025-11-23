@@ -5,6 +5,7 @@ use leptos::task::spawn_local;
 use crate::components::*;
 use crate::server_functions::*;
 use crate::models::*;
+use chrono::{Utc, Duration};
 
 #[derive(Clone, Copy, PartialEq)]
 enum MetricsView {
@@ -13,6 +14,7 @@ enum MetricsView {
     Errors,
     Traffic,
     CircuitBreakers,
+    Historical,
 }
 
 /// Advanced metrics page with detailed charts and analytics.
@@ -91,6 +93,12 @@ pub fn MetricsPage() -> impl IntoView {
                 >
                     "🔌 Circuit Breakers"
                 </button>
+                <button
+                    class=move || if active_view.get() == MetricsView::Historical { "tab-button active" } else { "tab-button" }
+                    on:click=move |_| set_active_view.set(MetricsView::Historical)
+                >
+                    "📅 Historical"
+                </button>
             </div>
             
             // Metrics Content
@@ -105,6 +113,7 @@ pub fn MetricsPage() -> impl IntoView {
                                     MetricsView::Errors => view! { <ErrorsView metrics=metrics /> }.into_any(),
                                     MetricsView::Traffic => view! { <TrafficView metrics=metrics /> }.into_any(),
                                     MetricsView::CircuitBreakers => view! { <CircuitBreakersView metrics=metrics /> }.into_any(),
+                                    MetricsView::Historical => view! { <HistoricalView /> }.into_any(),
                                 }
                             }
                             Err(e) => view! {
@@ -700,6 +709,100 @@ fn CircuitBreakersView(metrics: MetricsData) -> impl IntoView {
                     </div>
                 }.into_any()
             }}
+        </div>
+    }
+}
+
+// ============================================================================
+// Historical View
+// ============================================================================
+
+#[component]
+fn HistoricalView() -> impl IntoView {
+    let (metric_name, set_metric_name) = signal("requests_total".to_string());
+    let (interval, set_interval) = signal(AggregationInterval::FiveMinutes);
+    
+    let metrics_list_resource = Resource::new(
+        || (),
+        |_| async move { list_metrics().await }
+    );
+    
+    let historical_data_resource = Resource::new(
+        move || (metric_name.get(), interval.get()),
+        move |(name, interval)| async move {
+            let end = Utc::now();
+            let start = end - Duration::hours(24);
+            get_historical_metrics(name, start, end, Some(interval)).await
+        }
+    );
+
+    view! {
+        <div class="historical-view">
+            <div class="controls">
+                <div class="control-group">
+                    <label>"Metric:"</label>
+                    <select
+                        on:change=move |ev| set_metric_name.set(event_target_value(&ev))
+                        prop:value=metric_name
+                    >
+                        <Suspense fallback=move || view! { <option>"Loading..."</option> }>
+                            {move || {
+                                metrics_list_resource.get().map(|result| match result {
+                                    Ok(list) => list.into_iter().map(|name| view! {
+                                        <option value=name.clone()>{name.clone()}</option>
+                                    }).collect::<Vec<_>>().into_any(),
+                                    Err(_) => view! { <option>"Error loading metrics"</option> }.into_any(),
+                                })
+                            }}
+                        </Suspense>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>"Interval:"</label>
+                    <select
+                        on:change=move |ev| {
+                            let val = event_target_value(&ev);
+                            match val.as_str() {
+                                "OneMinute" => set_interval.set(AggregationInterval::OneMinute),
+                                "FiveMinutes" => set_interval.set(AggregationInterval::FiveMinutes),
+                                "OneHour" => set_interval.set(AggregationInterval::OneHour),
+                                "OneDay" => set_interval.set(AggregationInterval::OneDay),
+                                _ => {}
+                            }
+                        }
+                    >
+                        <option value="OneMinute" selected=move || interval.get() == AggregationInterval::OneMinute>"1 Minute"</option>
+                        <option value="FiveMinutes" selected=move || interval.get() == AggregationInterval::FiveMinutes>"5 Minutes"</option>
+                        <option value="OneHour" selected=move || interval.get() == AggregationInterval::OneHour>"1 Hour"</option>
+                        <option value="OneDay" selected=move || interval.get() == AggregationInterval::OneDay>"1 Day"</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <Suspense fallback=move || view! { <LoadingSpinner message="Loading historical data...".to_string() /> }>
+                    {move || {
+                        historical_data_resource.get().map(|result| match result {
+                            Ok(data) => {
+                                // For now, just display the raw JSON data
+                                // In a real implementation, we would render a chart here
+                                view! {
+                                    <div class="raw-data">
+                                        <h3>"Raw Data"</h3>
+                                        <pre>{serde_json::to_string_pretty(&data).unwrap_or_default()}</pre>
+                                    </div>
+                                }.into_any()
+                            }
+                            Err(e) => view! {
+                                <div class="error-message">
+                                    {format!("Failed to load historical data: {}", e)}
+                                </div>
+                            }.into_any(),
+                        })
+                    }}
+                </Suspense>
+            </div>
         </div>
     }
 }
