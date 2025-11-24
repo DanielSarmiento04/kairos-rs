@@ -6,6 +6,9 @@
 
 use actix_web::{web, HttpResponse, Result};
 use crate::services::http::RouteHandler;
+use crate::services::metrics_store::{MetricsStore, AggregationInterval};
+use chrono::{DateTime, Utc};
+use serde::Deserialize;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -488,6 +491,54 @@ kairos_uptime_seconds {}{}
         .body(metrics_text))
 }
 
+/// Query parameters for historical metrics.
+#[derive(Debug, Deserialize)]
+pub struct HistoricalMetricsQuery {
+    /// Name of the metric to query
+    pub name: String,
+    /// Start timestamp (ISO 8601)
+    pub start: DateTime<Utc>,
+    /// End timestamp (ISO 8601)
+    pub end: DateTime<Utc>,
+    /// Optional aggregation interval
+    pub interval: Option<AggregationInterval>,
+}
+
+/// Lists all available metrics tracked by the historical store.
+///
+/// # Returns
+///
+/// JSON list of metric names.
+pub async fn list_metrics(store: web::Data<MetricsStore>) -> Result<HttpResponse> {
+    let metrics = store.list_metrics();
+    Ok(HttpResponse::Ok().json(metrics))
+}
+
+/// Retrieves historical metrics data based on time range and optional aggregation.
+///
+/// # Query Parameters
+///
+/// * `name` - Name of the metric to query
+/// * `start` - Start timestamp (ISO 8601)
+/// * `end` - End timestamp (ISO 8601)
+/// * `interval` - Optional aggregation interval (one_minute, five_minutes, one_hour, one_day)
+///
+/// # Returns
+///
+/// JSON response containing either raw data points or aggregated statistics.
+pub async fn get_historical_metrics(
+    store: web::Data<MetricsStore>,
+    query: web::Query<HistoricalMetricsQuery>,
+) -> Result<HttpResponse> {
+    if let Some(interval) = query.interval {
+        let data = store.query_aggregated(&query.name, query.start, query.end, interval);
+        Ok(HttpResponse::Ok().json(data))
+    } else {
+        let data = store.query(&query.name, query.start, query.end);
+        Ok(HttpResponse::Ok().json(data))
+    }
+}
+
 /// Configures the metrics endpoint route for Actix Web application.
 /// 
 /// This function registers the `/metrics` endpoint that exposes Prometheus-compatible
@@ -524,5 +575,7 @@ kairos_uptime_seconds {}{}
 /// Must be used alongside a shared `MetricsCollector` instance in application data.
 /// The endpoint automatically accesses the collector to provide real-time metrics.
 pub fn configure_metrics(cfg: &mut web::ServiceConfig) {
-    cfg.route("/metrics", web::get().to(metrics_endpoint));
+    cfg.route("/metrics", web::get().to(metrics_endpoint))
+       .route("/api/metrics/list", web::get().to(list_metrics))
+       .route("/api/metrics/history", web::get().to(get_historical_metrics));
 }

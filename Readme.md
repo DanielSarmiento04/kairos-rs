@@ -35,6 +35,44 @@ Kairos-rs is a production-ready multi-protocol gateway with modern web UI that:
 
 **Current status:** Production-ready multi-protocol gateway supporting HTTP, WebSocket, FTP, and DNS with comprehensive security, reliability, load balancing, request/response transformation, and web-based management interface.
 
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Gateway as API Gateway<br/>(Actix-web)
+    participant Auth as Auth Service
+    participant Cache as Redis Cache
+    participant AI as AI Orchestrator
+    participant Provider as AI Provider<br/>(OpenAI/Claude)
+    participant DB as Database
+
+    Client->>Gateway: POST /api/v1/chat/completions
+    Gateway->>Auth: Validate API Key
+    Auth-->>Gateway: ✓ Authorized
+    
+    Gateway->>Gateway: Rate Limit Check
+    Gateway->>Cache: Check cached response
+    
+    alt Cache Hit
+        Cache-->>Gateway: Return cached result
+        Gateway-->>Client: 200 OK (from cache)
+    else Cache Miss
+        Cache-->>Gateway: Not found
+        Gateway->>AI: Process AI Request
+        
+        AI->>AI: Select Provider<br/>(load balance)
+        AI->>Provider: HTTP Request<br/>(with retry logic)
+        Provider-->>AI: AI Response
+        
+        AI->>Cache: Store response
+        AI->>DB: Log request metadata
+        AI->>Gateway: Return result
+        
+        Gateway-->>Client: 200 OK (streamed)
+    end
+    
+    Gateway->>DB: Log analytics (async)
+```
+
 ## Protocol Support
 
 Kairos-rs now supports multiple protocols beyond HTTP:

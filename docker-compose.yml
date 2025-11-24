@@ -20,6 +20,21 @@ services:
     networks:
       - kairos-network
 
+
+  kairps-ui:
+    build:
+      # Use repository root as build context so the UI Dockerfile can access
+      # workspace-level files (Cargo.toml) and the full workspace source.
+      context: .
+      dockerfile: crates/kairos-ui/Dockerfile
+    image: kairos-ui:latest
+    container_name: kairos-ui
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    networks:
+      - kairos-network
+
   # Optional: WebSocket test backend
   # ws-backend:
   #   build:

@@ -7,8 +7,9 @@ use leptos::prelude::*;
 use crate::models::{
     Router, Settings, JwtSettings, RateLimitConfig, CorsConfig,
     MetricsConfig, ServerConfig, HealthResponse, ReadinessResponse,
-    LivenessResponse, MetricsData
+    LivenessResponse, MetricsData, AggregationInterval
 };
+use chrono::{DateTime, Utc};
 
 /// Base URL for the Kairos Gateway API
 const GATEWAY_BASE_URL: &str = "http://localhost:5900";
@@ -98,6 +99,68 @@ pub async fn get_metrics() -> Result<MetricsData, ServerFnError> {
         .map_err(|e| ServerFnError::new(format!("Failed to parse metrics: {}", e)))?;
     
     Ok(metrics)
+}
+
+/// Lists all available historical metrics.
+#[server(ListMetrics, "/api")]
+pub async fn list_metrics() -> Result<Vec<String>, ServerFnError> {
+    let url = format!("{}/api/metrics/list", GATEWAY_BASE_URL);
+    
+    let response = reqwest::get(&url)
+        .await
+        .map_err(|e| ServerFnError::new(format!("Failed to connect to gateway: {}", e)))?;
+    
+    if !response.status().is_success() {
+        return Err(ServerFnError::new(format!("Gateway returned error: {}", response.status())));
+    }
+    
+    let metrics = response.json::<Vec<String>>()
+        .await
+        .map_err(|e| ServerFnError::new(format!("Failed to parse metrics list: {}", e)))?;
+    
+    Ok(metrics)
+}
+
+/// Fetches historical metrics data.
+#[server(GetHistoricalMetrics, "/api")]
+pub async fn get_historical_metrics(
+    name: String,
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+    interval: Option<AggregationInterval>
+) -> Result<serde_json::Value, ServerFnError> {
+    let client = reqwest::Client::new();
+    let url = format!("{}/api/metrics/history", GATEWAY_BASE_URL);
+    
+    let mut query = vec![
+        ("name", name),
+        ("start", start.to_rfc3339()),
+        ("end", end.to_rfc3339()),
+    ];
+    
+    if let Some(interval) = interval {
+        let interval_str = serde_json::to_string(&interval)
+            .unwrap_or_default()
+            .trim_matches('"')
+            .to_string();
+        query.push(("interval", interval_str));
+    }
+    
+    let response = client.get(&url)
+        .query(&query)
+        .send()
+        .await
+        .map_err(|e| ServerFnError::new(format!("Failed to connect to gateway: {}", e)))?;
+    
+    if !response.status().is_success() {
+        return Err(ServerFnError::new(format!("Gateway returned error: {}", response.status())));
+    }
+    
+    let data = response.json::<serde_json::Value>()
+        .await
+        .map_err(|e| ServerFnError::new(format!("Failed to parse historical metrics: {}", e)))?;
+    
+    Ok(data)
 }
 
 /// Fetches the current gateway configuration.
