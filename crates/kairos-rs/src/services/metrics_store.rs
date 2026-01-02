@@ -159,6 +159,7 @@ pub struct AggregatedMetric {
 /// Stores historical data points with automatic rotation based on retention policy.
 struct TimeSeries {
     /// Metric name
+    #[allow(dead_code)]
     name: String,
     
     /// Data points (limited by retention policy)

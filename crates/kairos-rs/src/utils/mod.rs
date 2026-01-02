@@ -61,6 +61,7 @@
 //!         protocol: Protocol::Http,
 //!         request_transformation: None,
 //!         response_transformation: None,
+//!         ai_policy: None,
 //!     }
 //! ];
 //! let matcher = RouteMatcher::new(routes)?;

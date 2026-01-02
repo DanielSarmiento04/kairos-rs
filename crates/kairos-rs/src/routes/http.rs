@@ -71,6 +71,7 @@ use actix_web::{web, HttpRequest};
 ///         protocol: Protocol::Http,
 ///         request_transformation: None,
 ///         response_transformation: None,
+///         ai_policy: None,
 ///     }
 /// ];
 /// let handler = RouteHandler::new(routes, 30);

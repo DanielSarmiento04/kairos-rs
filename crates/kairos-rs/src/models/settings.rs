@@ -179,6 +179,7 @@ impl Settings {
     ///             protocol: Protocol::Http,
     ///             request_transformation: None,
     ///             response_transformation: None,
+    ///             ai_policy: None,
     ///         }
     ///     ],
     /// };
