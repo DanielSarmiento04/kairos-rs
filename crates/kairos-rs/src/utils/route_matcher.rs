@@ -110,6 +110,7 @@ pub struct CompiledRoute {
 ///         protocol: Protocol::Http,
 ///         request_transformation: None,
 ///         response_transformation: None,
+///         ai_policy: None,
 ///     },
 ///     Router {
 ///         host: Some("http://api".to_string()),
@@ -129,6 +130,7 @@ pub struct CompiledRoute {
 ///         protocol: Protocol::Http,
 ///         request_transformation: None,
 ///         response_transformation: None,
+///         ai_policy: None,
 ///     },
 /// ];
 /// 
