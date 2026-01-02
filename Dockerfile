@@ -20,9 +20,9 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates/ ./crates/
 
 # Build the application with caching
-RUN --mount=type=cache,target=/app/target/ \
-    --mount=type=cache,target=/usr/local/cargo/git/db \
-    --mount=type=cache,target=/usr/local/cargo/registry/ \
+RUN --mount=type=cache,target=/app/target/,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git/db,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/registry/,sharing=locked \
     cargo build --release --bin kairos-gateway && \
     cp ./target/release/kairos-gateway /usr/local/bin/kairos-gateway
 
