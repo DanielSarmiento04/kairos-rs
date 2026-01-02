@@ -201,18 +201,22 @@ fn RouteForm(
         ev.prevent_default();
         set_validation_error.set(None);
         
-        let route = Router {
-            host: Some(backend_host.get()),
-            port: Some(backend_port.get()),
-            backends: None,
-            protocol: Protocol::default(),
-            load_balancing_strategy: LoadBalancingStrategy::default(),
-            external_path: external_path.get(),
-            internal_path: internal_path.get(),
-            methods: methods.get(),
-            auth_required: auth_required.get(),
-            retry: None,
-        };
+        let mut route = initial_route.clone();
+        
+        route.host = Some(backend_host.get());
+        route.port = Some(backend_port.get());
+        route.external_path = external_path.get();
+        route.internal_path = internal_path.get();
+        route.methods = methods.get();
+        route.auth_required = auth_required.get();
+        
+        // If backends exist, update the first one to match host/port
+        if let Some(backends) = &mut route.backends {
+            if let Some(first) = backends.first_mut() {
+                first.host = backend_host.get();
+                first.port = backend_port.get();
+            }
+        }
         
         match route.validate() {
             Ok(_) => on_submit(route),

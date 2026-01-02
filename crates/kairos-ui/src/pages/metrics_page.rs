@@ -10,6 +10,7 @@ use chrono::{Utc, Duration};
 #[derive(Clone, Copy, PartialEq)]
 enum MetricsView {
     Overview,
+    RealTime,
     Performance,
     Errors,
     Traffic,
@@ -70,6 +71,12 @@ pub fn MetricsPage() -> impl IntoView {
                     "📈 Overview"
                 </button>
                 <button
+                    class=move || if active_view.get() == MetricsView::RealTime { "tab-button active" } else { "tab-button" }
+                    on:click=move |_| set_active_view.set(MetricsView::RealTime)
+                >
+                    "⏱️ Real-Time"
+                </button>
+                <button
                     class=move || if active_view.get() == MetricsView::Performance { "tab-button active" } else { "tab-button" }
                     on:click=move |_| set_active_view.set(MetricsView::Performance)
                 >
@@ -109,6 +116,7 @@ pub fn MetricsPage() -> impl IntoView {
                             Ok(metrics) => {
                                 match active_view.get() {
                                     MetricsView::Overview => view! { <OverviewView metrics=metrics /> }.into_any(),
+                                    MetricsView::RealTime => view! { <RealTimeMetrics /> }.into_any(),
                                     MetricsView::Performance => view! { <PerformanceView metrics=metrics /> }.into_any(),
                                     MetricsView::Errors => view! { <ErrorsView metrics=metrics /> }.into_any(),
                                     MetricsView::Traffic => view! { <TrafficView metrics=metrics /> }.into_any(),

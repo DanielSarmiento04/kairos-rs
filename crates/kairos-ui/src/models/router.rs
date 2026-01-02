@@ -4,6 +4,7 @@
 //! server-side rendering (SSR) and WebAssembly (WASM) contexts.
 
 use serde::{Deserialize, Serialize};
+use crate::models::transform::{RequestTransformation, ResponseTransformation};
 
 /// Protocol type for gateway routes.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -192,6 +193,36 @@ pub struct Router {
     /// Retry configuration.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retry: Option<RetryConfig>,
+
+    /// Request transformation configuration.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_transformation: Option<RequestTransformation>,
+    
+    /// Response transformation configuration.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_transformation: Option<ResponseTransformation>,
+
+    /// AI Routing Policy
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ai_policy: Option<AiPolicy>,
+}
+
+/// AI Routing Strategy
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum AiRoutingStrategy {
+    ContentAnalysis { model: String },
+    LatencyPrediction,
+    AnomalyDetection,
+}
+
+/// AI Policy Configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AiPolicy {
+    pub enabled: bool,
+    pub strategy: AiRoutingStrategy,
+    pub provider: String,
+    pub fallback_backend_index: Option<usize>,
 }
 
 impl Router {
@@ -215,6 +246,9 @@ impl Router {
             methods,
             auth_required,
             retry: None,
+            request_transformation: None,
+            response_transformation: None,
+            ai_policy: None,
         }
     }
     
@@ -238,6 +272,9 @@ impl Router {
             methods,
             auth_required,
             retry: None,
+            request_transformation: None,
+            response_transformation: None,
+            ai_policy: None,
         }
     }
     
@@ -309,6 +346,9 @@ impl Default for Router {
             methods: vec!["GET".to_string()],
             auth_required: false,
             retry: None,
+            request_transformation: None,
+            response_transformation: None,
+            ai_policy: None,
         }
     }
 }
