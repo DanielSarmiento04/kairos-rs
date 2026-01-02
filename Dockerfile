@@ -19,6 +19,10 @@ COPY Cargo.toml Cargo.lock ./
 # Copy all crates
 COPY crates/ ./crates/
 
+RUN find /usr/local/cargo/registry/ -name ".cargo-ok" -delete || true && \
+    cargo build --release --bin kairos-gateway && \
+    cp ./target/release/kairos-gateway /usr/local/bin/kairos-gateway
+
 # Build the application with caching
 RUN --mount=type=cache,target=/app/target/ \
     --mount=type=cache,target=/usr/local/cargo/git/db \
