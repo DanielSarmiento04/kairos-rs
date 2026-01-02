@@ -1,4 +1,4 @@
-# Kairos-rs 🔄🤖
+# Kairos-rs
 
 A production-ready HTTP gateway and reverse proxy built with Rust, featuring a **modern web-based admin interface** and pioneering AI-powered routing capabilities. **The future of intelligent API gateways!**
 
@@ -27,9 +27,52 @@ Kairos-rs is a production-ready multi-protocol gateway with modern web UI that:
 - ✅ **Observability** - Prometheus metrics, structured logging, health checks
 - ✅ **Configuration hot-reload** - Update routes without service restart
 - ✅ **Web Admin UI** - Modern Leptos-based interface with real-time dashboard and metrics
+- ✅ **Real-time Metrics** - WebSocket-based live updates for system performance and traffic
+- ✅ **Configuration Management** - Complete UI for JWT, rate limiting, CORS, metrics, and server settings
+- ✅ **Advanced Metrics Dashboard** - 5 specialized views with performance insights and error analysis
+- ✅ **Request/Response Transformation** - Header manipulation, path rewriting, query parameter transformation
+- ✅ **Historical Metrics** - Time-series data storage with configurable retention and aggregation
 - ✅ **Modular Architecture** - Workspace with separate crates for gateway, UI, CLI, and client
 
-**Current status:** Production-ready multi-protocol gateway supporting HTTP, WebSocket, FTP, and DNS with comprehensive security, reliability, load balancing, and web-based management interface.
+**Current status:** Production-ready multi-protocol gateway supporting HTTP, WebSocket, FTP, and DNS with comprehensive security, reliability, load balancing, request/response transformation, and web-based management interface.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Gateway as API Gateway<br/>(Actix-web)
+    participant Auth as Auth Service
+    participant Cache as Redis Cache
+    participant AI as AI Orchestrator
+    participant Provider as AI Provider<br/>(OpenAI/Claude)
+    participant DB as Database
+
+    Client->>Gateway: POST /api/v1/chat/completions
+    Gateway->>Auth: Validate API Key
+    Auth-->>Gateway: ✓ Authorized
+    
+    Gateway->>Gateway: Rate Limit Check
+    Gateway->>Cache: Check cached response
+    
+    alt Cache Hit
+        Cache-->>Gateway: Return cached result
+        Gateway-->>Client: 200 OK (from cache)
+    else Cache Miss
+        Cache-->>Gateway: Not found
+        Gateway->>AI: Process AI Request
+        
+        AI->>AI: Select Provider<br/>(load balance)
+        AI->>Provider: HTTP Request<br/>(with retry logic)
+        Provider-->>AI: AI Response
+        
+        AI->>Cache: Store response
+        AI->>DB: Log request metadata
+        AI->>Gateway: Return result
+        
+        Gateway-->>Client: 200 OK (streamed)
+    end
+    
+    Gateway->>DB: Log analytics (async)
+```
 
 ## Protocol Support
 
@@ -37,10 +80,10 @@ Kairos-rs now supports multiple protocols beyond HTTP:
 
 | Protocol | Status | Features |
 |----------|--------|----------|
-| **HTTP/HTTPS** | ✅ Production Ready | Load balancing, circuit breakers, retry logic, JWT auth, rate limiting |
-| **WebSocket** | ✅ Beta | Bidirectional messaging, connection upgrading, binary/text support |
-| **FTP** | ✅ Beta | File operations via HTTP API (list, download, upload), authentication |
-| **DNS** | ✅ Beta | Query forwarding, response caching, load balancing across DNS servers |
+| **HTTP/HTTPS** | Production Ready | Load balancing, circuit breakers, retry logic, JWT auth, rate limiting |
+| **WebSocket** | Beta | Bidirectional messaging, connection upgrading, binary/text support |
+| **FTP** | Beta | File operations via HTTP API (list, download, upload), authentication |
+| **DNS** | Beta | Query forwarding, response caching, load balancing across DNS servers |
 
 See [MULTI_PROTOCOL_GUIDE.md](./docs/MULTI_PROTOCOL_GUIDE.md) for detailed protocol documentation and examples.
 
@@ -268,6 +311,8 @@ kairos-rs/
 - JWT authentication with configurable claims validation
 - Advanced rate limiting (token bucket, sliding window, fixed window)
 - Circuit breaker for automatic failure handling
+- **Request/Response transformation** - Header manipulation, path rewriting, query parameters
+- **Historical metrics storage** - Time-series data with retention policies and aggregation
 - HTTP client with connection pooling (reqwest)
 - Prometheus metrics endpoint
 - Structured logging and health checks
@@ -361,6 +406,88 @@ Configure exponential backoff retry logic per route:
   "retryable_status_codes": [502, 503, 504]  // Which HTTP status codes to retry
 }
 ```
+
+### Request/Response Transformation (NEW in v0.2.12)
+
+Transform requests and responses on-the-fly with powerful transformation rules:
+
+#### Request Transformation
+
+```json
+"request_transformation": {
+  "headers": [
+    {
+      "action": "add",
+      "name": "X-Forwarded-By",
+      "value": "kairos-gateway"
+    },
+    {
+      "action": "remove",
+      "name": "Cookie"
+    },
+    {
+      "action": "replace",
+      "name": "User-Agent",
+      "pattern": "Mozilla/(\\d+\\.\\d+)",
+      "replacement": "KairosGateway/$1"
+    }
+  ],
+  "path": {
+    "pattern": "^/api/v1/(.+)$",
+    "replacement": "/v2/$1"
+  },
+  "query_params": [
+    {
+      "action": "add",
+      "name": "api_key",
+      "value": "secret123"
+    },
+    {
+      "action": "remove",
+      "name": "debug"
+    }
+  ]
+}
+```
+
+#### Response Transformation
+
+```json
+"response_transformation": {
+  "headers": [
+    {
+      "action": "add",
+      "name": "X-Powered-By",
+      "value": "Kairos Gateway"
+    },
+    {
+      "action": "remove",
+      "name": "Server"
+    }
+  ],
+  "status_code_mappings": [
+    {
+      "from": 404,
+      "to": 200,
+      "condition": null
+    }
+  ]
+}
+```
+
+**Transformation Actions:**
+- **add**: Add header/parameter if not exists
+- **set**: Set header/parameter (override if exists)
+- **remove**: Remove header/parameter
+- **replace**: Replace using regex patterns (headers only)
+
+**Use Cases:**
+- Remove sensitive headers (Authorization, Cookie)
+- Add tracking headers (X-Request-ID, X-Forwarded-*)
+- Rewrite API paths (/v1 → /v2)
+- Add authentication tokens to backend requests
+- Normalize error responses
+- Hide backend server information
 
 ### Rate Limiting Algorithms
 - **fixed_window**: Fixed time windows with request quotas
@@ -467,50 +594,58 @@ Current test coverage: **85+ comprehensive tests** covering:
 This project has completed Phase 1 (Gateway Core) and Phase 2 (Load Balancing & Advanced Routing)! Here's what's planned:
 
 **Recently completed (v0.2.7):**
-- ✅ **Load balancing** - 5 strategies (round-robin, least connections, random, weighted, IP hash)
-- ✅ **Retry logic** - Exponential backoff with configurable policies
-- ✅ **Route management API** - CRUD operations via REST endpoints
-- ✅ **Hot-reload API** - Manual configuration reload endpoints
-- ✅ **Per-backend circuit breakers** - Fault isolation for each backend server
+- **Load balancing** - 5 strategies (round-robin, least connections, random, weighted, IP hash)
+- **Retry logic** - Exponential backoff with configurable policies
+- **Route management API** - CRUD operations via REST endpoints
+- **Hot-reload API** - Manual configuration reload endpoints
+- **Per-backend circuit breakers** - Fault isolation for each backend server
 
 **Recently completed (v0.2.10 - October 2025):**
-- ✅ **Multi-Protocol Support** - WebSocket, FTP, and DNS protocol handling
-- ✅ **WebSocket Proxy** - Bidirectional message forwarding with connection upgrading
-- ✅ **Docker Multi-Platform Support** - AMD64 and ARM64 container images
-- ✅ **Automated Versioning** - Docker images tagged from Cargo.toml version
-- ✅ **Debug-Enabled Containers** - Distroless debug images with shell access for troubleshooting
-- ✅ **FTP Gateway** - File operations (list, download, upload) via HTTP API
-- ✅ **DNS Forwarding** - Query forwarding with caching and load balancing
-- ✅ **Protocol-specific routing** - Configure protocol type per route
-- ✅ **Comprehensive test coverage** - Integration tests for all protocols
+- **Multi-Protocol Support** - WebSocket, FTP, and DNS protocol handling
+- **WebSocket Proxy** - Bidirectional message forwarding with connection upgrading
+- **Docker Multi-Platform Support** - AMD64 and ARM64 container images
+- **Automated Versioning** - Docker images tagged from Cargo.toml version
+- **Debug-Enabled Containers** - Distroless debug images with shell access for troubleshooting
+- **FTP Gateway** - File operations (list, download, upload) via HTTP API
+- **DNS Forwarding** - Query forwarding with caching and load balancing
+- **Protocol-specific routing** - Configure protocol type per route
+- **Comprehensive test coverage** - Integration tests for all protocols
+
+**Recently completed (v0.2.11 - November 2025):**
+- **Configuration Management API** - Complete REST API for gateway configuration (6 endpoints)
+- **Configuration UI** - Professional interface for JWT, rate limiting, CORS, metrics, and server settings
+- **Metrics Visualization** - Advanced metrics dashboard with 5 specialized views
+- **Real-time Monitoring** - Auto-refreshing metrics with performance insights
+- **Smart Error Analysis** - AI-powered recommendations based on error patterns
+- **Traffic Analytics** - Bandwidth visualization and request/response breakdown
+- **Circuit Breaker Monitoring** - Real-time circuit breaker status and health tracking
 
 **Current focus (Phase 3 - v0.3.0):**
-- [ ] Configuration editor UI (JWT, rate limiting, CORS settings)
 - [ ] WebSocket real-time updates (replace polling with live connections)
-- [ ] Form validation (client and server-side)
+- [ ] Historical metrics with time-series charts
 - [ ] Request transformation (header manipulation, path rewriting)
-- [ ] Historical metrics with charts
 - [ ] Response caching layer
+- [ ] Advanced route configuration UI (multi-backend, load balancing)
 
 **Previously completed (Phase 1 + 2 + UI Foundation):**
-- ✅ JWT authentication with configurable claims
-- ✅ Advanced rate limiting with multiple algorithms  
-- ✅ Circuit breaker pattern implementation
-- ✅ Prometheus metrics endpoint
-- ✅ Configuration validation and hot-reload
-- ✅ Comprehensive security features
-- ✅ **Web Admin UI** with real-time dashboard
-- ✅ **Workspace architecture** with modular crates
-- ✅ **Health monitoring** pages
-- ✅ **Load balancing** - 5 strategies (round-robin, least connections, random, weighted, IP hash)
-- ✅ **Retry logic** - Exponential backoff with configurable policies
+- JWT authentication with configurable claims
+- Advanced rate limiting with multiple algorithms  
+- Circuit breaker pattern implementation
+- Prometheus metrics endpoint
+- Configuration validation and hot-reload
+- Comprehensive security features
+- **Web Admin UI** with real-time dashboard
+- **Workspace architecture** with modular crates
+- **Health monitoring** pages
+- **Load balancing** - 5 strategies (round-robin, least connections, random, weighted, IP hash)
+- **Retry logic** - Exponential backoff with configurable policies
 
 **Future phases:**
 - **Phase 3:** Response caching, historical metrics, distributed tracing, WebSocket UI updates
 - **Phase 4:** AI-powered routing, LLM integration, smart load balancing
 - **Phase 5:** Enterprise features (auth, RBAC, multi-gateway support)
 
-**🚀 Exciting AI Vision:**
+**Exciting AI Vision:**
 Kairos-rs is pioneering the integration of AI/LLM capabilities into API gateway functionality:
 - **Smart Routing**: AI-driven backend selection based on request content analysis
 - **LLM Integration**: Intelligent request/response transformation using language models
@@ -606,12 +741,12 @@ Current benchmarks on M1 MacBook Pro:
 - [ ] Authentication/authorization for UI pending
 
 **Recently fixed:**
-- ✅ Configuration validation improved
-- ✅ Error messages enhanced and structured
-- ✅ Comprehensive test coverage added
-- ✅ JWT authentication fully implemented
-- ✅ Advanced rate limiting algorithms added
-- ✅ Web UI foundation completed with real-time dashboard
+- Configuration validation improved
+- Error messages enhanced and structured
+- Comprehensive test coverage added
+- JWT authentication fully implemented
+- Advanced rate limiting algorithms added
+- Web UI foundation completed with real-time dashboard
 
 ## License
 
@@ -651,8 +786,8 @@ Built with these excellent Rust crates:
 
 ---
 
-**Status**: Production ready with multi-protocol support (HTTP, WebSocket, FTP, DNS), comprehensive security, reliability, load balancing features, and modern web admin interface  
-**Version**: 0.2.10 (October 2025)  
+**Status**: Production ready with multi-protocol support (HTTP, WebSocket, FTP, DNS), comprehensive security, reliability, load balancing features, modern web admin interface with configuration management, and advanced metrics visualization  
+**Version**: 0.2.11 (November 2025)  
 **Maintainer**: [@DanielSarmiento04](https://github.com/DanielSarmiento04)  
 **Community**: Issues and PRs welcome!
 
