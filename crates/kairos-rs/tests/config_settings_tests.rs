@@ -253,6 +253,9 @@ fn test_load_settings_complex_configuration() {
     
     env::remove_var("KAIROS_CONFIG_PATH");
     
+    if let Err(e) = &result {
+        println!("Error loading settings: {}", e);
+    }
     assert!(result.is_ok());
     let loaded_settings = result.unwrap();
     assert_eq!(loaded_settings.version, 2);
