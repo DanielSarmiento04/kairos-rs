@@ -27,6 +27,7 @@ Kairos-rs is a production-ready multi-protocol gateway with modern web UI that:
 - ✅ **Observability** - Prometheus metrics, structured logging, health checks
 - ✅ **Configuration hot-reload** - Update routes without service restart
 - ✅ **Web Admin UI** - Modern Leptos-based interface with real-time dashboard and metrics
+- ✅ **Real-time Metrics** - WebSocket-based live updates for system performance and traffic
 - ✅ **Configuration Management** - Complete UI for JWT, rate limiting, CORS, metrics, and server settings
 - ✅ **Advanced Metrics Dashboard** - 5 specialized views with performance insights and error analysis
 - ✅ **Request/Response Transformation** - Header manipulation, path rewriting, query parameter transformation

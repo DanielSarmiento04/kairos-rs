@@ -1,16 +1,16 @@
 # Kairos-rs Development Roadmap
 
-> **Version**: 0.2.12  
-> **Last Updated**: November 7, 2025  
-> **Status**: Production Ready with Request/Response Transformation & Historical Metrics
+> **Version**: 0.2.15  
+> **Last Updated**: January 2, 2026  
+> **Status**: Production Ready with Real-time Metrics & AI Routing Support
 
 ## 🔥 Immediate Priorities (Next 2 Weeks)
 
 1. **Historical Metrics API** - REST endpoints for time-series data queries
-2. **WebSocket Real-time Updates** - Replace polling with WebSocket for live metrics
-3. **Metrics Charts UI** - Time-series visualization with interactive charts
-4. **Advanced Route Configuration UI** - Multi-backend, load balancing, and retry config forms
-5. **Transformation UI** - Visual editor for request/response transformations
+2. **Metrics Charts UI** - Time-series visualization with interactive charts
+3. **Advanced Route Configuration UI** - Multi-backend, load balancing, and retry config forms
+4. **Transformation UI** - Visual editor for request/response transformations
+5. **AI Orchestration Layer** - Implement the core logic for AI-driven routing
 
 ## 🤖 AI/LLM Gateway Vision
 
@@ -87,6 +87,8 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 - ✅ **Smart Error Recommendations** - AI-powered insights based on error patterns and thresholds
 - ✅ **Request/Response Transformation** - Header manipulation, path rewriting, query parameter transformation (v0.2.12)
 - ✅ **Historical Metrics Storage** - Time-series data with retention policies and aggregation intervals (v0.2.12)
+- ✅ **Real-time Metrics** - WebSocket-based live updates for system performance (v0.2.15)
+- ✅ **Prometheus Parsing** - Robust metrics parsing in UI for accurate data visualization (v0.2.15)
 - ✅ 97+ comprehensive tests (unit, integration, documentation, transformation, load balancing)
 
 **Performance**: 
