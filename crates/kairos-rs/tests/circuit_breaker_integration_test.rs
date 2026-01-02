@@ -29,6 +29,7 @@ async fn test_circuit_breaker_integration() {
             protocol: Protocol::Http,
             request_transformation: None,
             response_transformation: None,
+            ai_policy: None,
         }
     ];
     let route_handler = RouteHandler::new(routes, 5); // 5 second timeout
@@ -113,6 +114,7 @@ async fn test_multiple_service_circuit_breakers() {
             protocol: Protocol::Http,
             request_transformation: None,
             response_transformation: None,
+            ai_policy: None,
         },
         Router {
             host: Some("http://service-b".to_string()),
@@ -134,6 +136,7 @@ async fn test_multiple_service_circuit_breakers() {
             protocol: Protocol::Http,
             request_transformation: None,
             response_transformation: None,
+            ai_policy: None,
         }
     ];
     let route_handler = RouteHandler::new(routes, 5);

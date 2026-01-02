@@ -46,6 +46,7 @@ fn create_test_settings() -> Settings {
                 protocol: Protocol::Http,
                 request_transformation: None,
                 response_transformation: None,
+                ai_policy: None,
             },
             // Protected route - authentication required
             Router {
@@ -66,6 +67,7 @@ fn create_test_settings() -> Settings {
                 protocol: Protocol::Http,
                 request_transformation: None,
                 response_transformation: None,
+                ai_policy: None,
             },
         ],
     }
@@ -203,6 +205,7 @@ async fn test_jwt_config_validation() {
                 protocol: Protocol::Http,
                 request_transformation: None,
                 response_transformation: None,
+                ai_policy: None,
             }
         ],
     };
@@ -246,6 +249,7 @@ async fn test_jwt_secret_validation() {
                 protocol: Protocol::Http,
                 request_transformation: None,
                 response_transformation: None,
+                ai_policy: None,
             }
         ],
     };
@@ -282,6 +286,7 @@ async fn test_jwt_secret_validation() {
                 protocol: Protocol::Http,
                 request_transformation: None,
                 response_transformation: None,
+                ai_policy: None,
             }
         ],
     };

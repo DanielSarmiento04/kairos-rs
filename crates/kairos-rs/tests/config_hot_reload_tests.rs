@@ -35,6 +35,7 @@ fn create_test_settings() -> Settings {
                 protocol: Protocol::Http,
                 request_transformation: None,
                 response_transformation: None,
+                ai_policy: None,
             }
         ],
     }

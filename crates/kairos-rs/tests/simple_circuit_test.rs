@@ -28,6 +28,7 @@ async fn test_simple_circuit_breaker() {
             protocol: Protocol::Http,
             request_transformation: None,
             response_transformation: None,
+            ai_policy: None,
         }
     ];
     let route_handler = RouteHandler::new(routes, 5);

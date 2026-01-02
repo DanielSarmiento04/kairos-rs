@@ -339,6 +339,39 @@ impl RetryConfig {
     }
 }
 
+/// AI-driven routing strategy.
+/// 
+/// Defines how AI/ML models should influence routing decisions.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum AiRoutingStrategy {
+    /// Analyze request content (body/headers) to determine the best backend.
+    /// Useful for routing to specialized models or services based on complexity.
+    ContentAnalysis { model: String },
+    
+    /// Predict backend latency based on historical data and current load.
+    LatencyPrediction,
+    
+    /// Detect anomalies in request patterns and route to honeypots or block.
+    AnomalyDetection,
+}
+
+/// Configuration for AI-powered routing policies.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AiPolicy {
+    /// Whether AI routing is enabled for this route.
+    pub enabled: bool,
+    
+    /// The strategy to use for AI decision making.
+    pub strategy: AiRoutingStrategy,
+    
+    /// The AI provider to use (e.g., "openai", "local-llm", "internal-model").
+    pub provider: String,
+    
+    /// Optional index of the backend to use if AI processing fails or is uncertain.
+    pub fallback_backend_index: Option<usize>,
+}
+
 /// Configuration for HTTP route forwarding in the kairos-rs gateway.
 /// 
 /// A `Router` defines how external requests are mapped to internal services,
@@ -474,6 +507,11 @@ pub struct Router {
     /// Supports header manipulation and status code mapping.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_transformation: Option<ResponseTransformation>,
+
+    /// AI-powered routing policy.
+    /// Configures intelligent routing decisions based on content analysis or prediction.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ai_policy: Option<AiPolicy>,
 }
 
 impl Router {
@@ -512,6 +550,7 @@ impl Router {
     ///     protocol: Protocol::Http,
     ///     request_transformation: None,
     ///     response_transformation: None,
+    ///     ai_policy: None,
     /// };
     /// 
     /// assert!(router.validate().is_ok());

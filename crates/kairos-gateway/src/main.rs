@@ -12,7 +12,7 @@ use kairos_rs::logs::logger::configure_logger;
 use kairos_rs::middleware::security::security_headers;
 use kairos_rs::middleware::rate_limit::AdvancedRateLimit;
 use kairos_rs::models::settings::Settings;
-use kairos_rs::routes::{auth_http, health, metrics, management, websocket};
+use kairos_rs::routes::{auth_http, health, metrics, management, websocket, websocket_admin};
 use kairos_rs::services::http::RouteHandler;
 use kairos_rs::services::metrics_store::MetricsStore;
 use kairos_rs::services::websocket::WebSocketHandler;
@@ -96,6 +96,7 @@ async fn main() -> std::io::Result<()> {
                 .wrap(security_headers())
                 .configure(health::configure_health)
                 .configure(metrics::configure_metrics)
+                .configure(websocket_admin::configure_admin_websocket)
                 .configure(management::configure_management)
                 .configure(|cfg| websocket::configure_websocket(cfg, websocket_handler.clone()))
                 .configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler.clone(), &config))
@@ -116,6 +117,7 @@ async fn main() -> std::io::Result<()> {
                 .wrap(actix_web::middleware::Compress::default())
                 .wrap(security_headers())
                 .configure(health::configure_health)
+                .configure(websocket_admin::configure_admin_websocket)
                 .configure(metrics::configure_metrics)
                 .configure(management::configure_management)
                 .configure(|cfg| websocket::configure_websocket(cfg, websocket_handler.clone()))
