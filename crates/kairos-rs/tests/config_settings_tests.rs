@@ -11,6 +11,10 @@ use kairos_rs::models::router::Protocol;
 use std::env;
 use std::io::Write;
 use tempfile::{NamedTempFile, TempDir};
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
+
+static ENV_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 fn create_test_settings() -> Settings {
     Settings {
@@ -52,6 +56,7 @@ fn create_config_file(settings: &Settings) -> NamedTempFile {
 
 #[test]
 fn test_load_settings_with_environment_variable() {
+    let _lock = ENV_MUTEX.lock().unwrap();
     // Save original environment variable if it exists
     let original_path = env::var("KAIROS_CONFIG_PATH").ok();
     
@@ -78,6 +83,7 @@ fn test_load_settings_with_environment_variable() {
 
 #[test]
 fn test_load_settings_custom_path() {
+    let _lock = ENV_MUTEX.lock().unwrap();
     let settings = create_test_settings();
     let temp_file = create_config_file(&settings);
     
@@ -97,6 +103,7 @@ fn test_load_settings_custom_path() {
 
 #[test]
 fn test_load_settings_file_not_found() {
+    let _lock = ENV_MUTEX.lock().unwrap();
     env::set_var("KAIROS_CONFIG_PATH", "./nonexistent.json");
     
     let result = load_settings();
@@ -109,6 +116,7 @@ fn test_load_settings_file_not_found() {
 
 #[test]
 fn test_load_settings_invalid_json() {
+    let _lock = ENV_MUTEX.lock().unwrap();
     let mut temp_file = NamedTempFile::new().unwrap();
     temp_file.write_all(b"{ invalid json }").unwrap();
     temp_file.flush().unwrap();
@@ -125,6 +133,7 @@ fn test_load_settings_invalid_json() {
 
 #[test]
 fn test_load_settings_malformed_structure() {
+    let _lock = ENV_MUTEX.lock().unwrap();
     let mut temp_file = NamedTempFile::new().unwrap();
     // Valid JSON but wrong structure
     temp_file.write_all(b"{\"wrong\": \"structure\"}").unwrap();
@@ -142,6 +151,7 @@ fn test_load_settings_malformed_structure() {
 
 #[test]
 fn test_load_settings_path_traversal_protection() {
+    let _lock = ENV_MUTEX.lock().unwrap();
     let temp_dir = TempDir::new().unwrap();
     let malicious_path = format!("{}/../../../etc/passwd", temp_dir.path().display());
     
@@ -159,6 +169,7 @@ fn test_load_settings_path_traversal_protection() {
 
 #[test]
 fn test_load_settings_file_size_limit() {
+    let _lock = ENV_MUTEX.lock().unwrap();
     let mut temp_file = NamedTempFile::new().unwrap();
     
     // Create a large config file (larger than 10MB limit)
@@ -178,6 +189,7 @@ fn test_load_settings_file_size_limit() {
 
 #[test]
 fn test_load_settings_complex_configuration() {
+    let _lock = ENV_MUTEX.lock().unwrap();
     let complex_settings = Settings {
         version: 2,
         jwt: None,
@@ -271,6 +283,7 @@ fn test_load_settings_complex_configuration() {
 
 #[test]
 fn test_load_settings_empty_routers() {
+    let _lock = ENV_MUTEX.lock().unwrap();
     let empty_settings = Settings {
         version: 1,
         jwt: None,
@@ -296,6 +309,7 @@ fn test_load_settings_empty_routers() {
 
 #[test]
 fn test_load_settings_unicode_content() {
+    let _lock = ENV_MUTEX.lock().unwrap();
     let unicode_settings = Settings {
         version: 1,
         jwt: None,
@@ -339,6 +353,7 @@ fn test_load_settings_unicode_content() {
 
 #[test]
 fn test_load_settings_preserves_current_dir() {
+    let _lock = ENV_MUTEX.lock().unwrap();
     let original_dir = env::current_dir().unwrap();
     
     let settings = create_test_settings();
