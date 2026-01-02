@@ -79,6 +79,15 @@ pub struct AggregatedMetric {
     pub avg: f64,
 }
 
+/// System metrics from real-time WebSocket.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SystemMetrics {
+    pub cpu_usage: f32,
+    pub memory_usage: u64,
+    pub uptime: u64,
+    pub active_connections: usize,
+}
+
 impl MetricsData {
     /// Format bytes into human-readable format.
     pub fn format_bytes(bytes: u64) -> String {

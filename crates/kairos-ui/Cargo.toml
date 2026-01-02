@@ -20,8 +20,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 reqwest = { version = "0.12", optional = true, features = ["json"] }
 urlencoding = "2.1"
-web-sys = { version = "0.3", features = ["Window", "Location"] }
+web-sys = { version = "0.3", features = ["Window", "Location", "WebSocket", "MessageEvent", "ErrorEvent", "CloseEvent"] }
+js-sys = "0.3"
 gloo-timers = { version = "0.3", features = ["futures"] }
+send_wrapper = "0.6"
 chrono = { version = "0.4", features = ["serde"] }
 
 [features]
