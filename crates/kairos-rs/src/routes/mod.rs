@@ -91,5 +91,6 @@ pub mod http;
 pub mod management;
 pub mod metrics;
 pub mod websocket;
+pub mod websocket_admin;
 pub mod ftp;
 pub mod dns;

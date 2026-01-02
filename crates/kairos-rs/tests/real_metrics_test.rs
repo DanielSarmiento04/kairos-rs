@@ -27,6 +27,7 @@ async fn test_real_metrics_collection() {
             protocol: Protocol::Http,
             request_transformation: None,
             response_transformation: None,
+            ai_policy: None,
         }
     ];
     let route_handler = RouteHandler::new(routes, 30);

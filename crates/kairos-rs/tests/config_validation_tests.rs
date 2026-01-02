@@ -28,6 +28,7 @@ fn create_test_router(host: &str, external_path: &str, methods: Vec<&str>) -> Ro
         protocol: Protocol::Http,
         request_transformation: None,
         response_transformation: None,
+        ai_policy: None,
     }
 }
 
@@ -171,6 +172,7 @@ fn test_path_traversal_detection() {
                 protocol: Protocol::Http,
                 request_transformation: None,
                 response_transformation: None,
+                ai_policy: None,
             },
         ],
     };

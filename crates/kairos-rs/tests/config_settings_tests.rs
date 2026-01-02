@@ -36,6 +36,7 @@ fn create_test_settings() -> Settings {
                 protocol: Protocol::Http,
                 request_transformation: None,
                 response_transformation: None,
+                ai_policy: None,   
             }
         ],
     }
@@ -200,6 +201,7 @@ fn test_load_settings_complex_configuration() {
                 protocol: Protocol::Http,
                 request_transformation: None,
                 response_transformation: None,
+                ai_policy: None,
             },
             Router {
                 host: Some("http://internal-service".to_string()),
@@ -219,6 +221,7 @@ fn test_load_settings_complex_configuration() {
                 protocol: Protocol::Http,
                 request_transformation: None,
                 response_transformation: None,
+                ai_policy: None,
             },
             Router {
                 host: Some("https://auth.example.com".to_string()),
@@ -238,6 +241,7 @@ fn test_load_settings_complex_configuration() {
                 protocol: Protocol::Http,
                 request_transformation: None,
                 response_transformation: None,
+                ai_policy: None,
             },
         ],
     };
@@ -312,6 +316,7 @@ fn test_load_settings_unicode_content() {
                 protocol: Protocol::Http,
                 request_transformation: None,
                 response_transformation: None,
+                ai_policy: None,
             }
         ],
     };
