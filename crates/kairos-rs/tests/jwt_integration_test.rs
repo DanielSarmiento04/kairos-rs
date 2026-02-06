@@ -1,10 +1,12 @@
-
 //! Integration tests for JWT authentication functionality.
 
 use actix_web::{test, App};
 use kairos_rs::{
-    middleware::auth::{Claims, create_test_token},
-    models::{settings::{Settings, JwtSettings}, router::{Router, Backend, Protocol}},
+    middleware::auth::{create_test_token, Claims},
+    models::{
+        router::{Backend, Protocol, Router},
+        settings::{JwtSettings, Settings},
+    },
     routes::auth_http,
     services::http::RouteHandler,
 };
@@ -26,6 +28,7 @@ fn create_test_settings() -> Settings {
         version: 1,
         jwt: Some(create_test_jwt_config()),
         rate_limit: None,
+        ai: None,
         routers: vec![
             // Public route - no authentication required
             Router {
@@ -79,23 +82,21 @@ async fn test_public_route_no_auth_required() {
     let route_handler = RouteHandler::new(settings.routers.clone(), 30);
 
     let app = test::init_service(
-        App::new()
-            .configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler, &settings))
-    ).await;
+        App::new().configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler, &settings)),
+    )
+    .await;
 
-    let req = test::TestRequest::get()
-        .uri("/public/test")
-        .to_request();
+    let req = test::TestRequest::get().uri("/public/test").to_request();
 
     let resp = test::call_service(&app, req).await;
     let status = resp.status();
     println!("Response status: {}", status);
-    
+
     // Let's also try to get the response body to see what error we're getting
     let body_bytes = actix_web::body::to_bytes(resp.into_body()).await.unwrap();
     let body_str = String::from_utf8_lossy(&body_bytes);
     println!("Response body: {}", body_str);
-    
+
     // The request should be processed (though it may fail due to external dependency)
     // We're testing that no authentication error occurs
     // Since this tries to reach an external service, it might fail with 500 or other errors
@@ -112,9 +113,9 @@ async fn test_protected_route_missing_auth() {
     let route_handler = RouteHandler::new(settings.routers.clone(), 30);
 
     let app = test::init_service(
-        App::new()
-            .configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler, &settings))
-    ).await;
+        App::new().configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler, &settings)),
+    )
+    .await;
 
     let req = test::TestRequest::get()
         .uri("/protected/user/123")
@@ -131,9 +132,9 @@ async fn test_protected_route_invalid_token() {
     let route_handler = RouteHandler::new(settings.routers.clone(), 30);
 
     let app = test::init_service(
-        App::new()
-            .configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler, &settings))
-    ).await;
+        App::new().configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler, &settings)),
+    )
+    .await;
 
     let req = test::TestRequest::get()
         .uri("/protected/user/123")
@@ -152,7 +153,10 @@ async fn test_protected_route_valid_token() {
     let route_handler = RouteHandler::new(settings.routers.clone(), 30);
 
     // Create a valid JWT token
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as usize;
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as usize;
     let claims = Claims {
         sub: "test-user".to_string(),
         exp: now + 3600, // 1 hour from now
@@ -165,9 +169,9 @@ async fn test_protected_route_valid_token() {
     let token = create_test_token(claims, &jwt_settings.secret).unwrap();
 
     let app = test::init_service(
-        App::new()
-            .configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler, &settings))
-    ).await;
+        App::new().configure(|cfg| auth_http::configure_auth_routes(cfg, route_handler, &settings)),
+    )
+    .await;
 
     let req = test::TestRequest::get()
         .uri("/protected/user/123")
@@ -186,28 +190,27 @@ async fn test_jwt_config_validation() {
         version: 1,
         jwt: None,
         rate_limit: None,
-        routers: vec![
-            Router {
-                host: Some("http://example.com".to_string()),
-                port: Some(80),
-                external_path: "/protected".to_string(),
-                internal_path: "/protected".to_string(),
-                methods: vec!["GET".to_string()],
-                auth_required: true,
-                backends: Some(vec![Backend {
-                    host: "http://example.com".to_string(),
-                    port: 80,
-                    weight: 1,
-                    health_check_path: None,
-                }]),
-                load_balancing_strategy: Default::default(),
-                retry: None,
-                protocol: Protocol::Http,
-                request_transformation: None,
-                response_transformation: None,
-                ai_policy: None,
-            }
-        ],
+        ai: None,
+        routers: vec![Router {
+            host: Some("http://example.com".to_string()),
+            port: Some(80),
+            external_path: "/protected".to_string(),
+            internal_path: "/protected".to_string(),
+            methods: vec!["GET".to_string()],
+            auth_required: true,
+            backends: Some(vec![Backend {
+                host: "http://example.com".to_string(),
+                port: 80,
+                weight: 1,
+                health_check_path: None,
+            }]),
+            load_balancing_strategy: Default::default(),
+            retry: None,
+            protocol: Protocol::Http,
+            request_transformation: None,
+            response_transformation: None,
+            ai_policy: None,
+        }],
     };
 
     // Should fail validation
@@ -230,28 +233,27 @@ async fn test_jwt_secret_validation() {
             required_claims: vec![],
         }),
         rate_limit: None,
-        routers: vec![
-            Router {
-                host: Some("http://example.com".to_string()),
-                port: Some(80),
-                external_path: "/protected".to_string(),
-                internal_path: "/protected".to_string(),
-                methods: vec!["GET".to_string()],
-                auth_required: true,
-                backends: Some(vec![Backend {
-                    host: "http://example.com".to_string(),
-                    port: 80,
-                    weight: 1,
-                    health_check_path: None,
-                }]),
-                load_balancing_strategy: Default::default(),
-                retry: None,
-                protocol: Protocol::Http,
-                request_transformation: None,
-                response_transformation: None,
-                ai_policy: None,
-            }
-        ],
+        ai: None,
+        routers: vec![Router {
+            host: Some("http://example.com".to_string()),
+            port: Some(80),
+            external_path: "/protected".to_string(),
+            internal_path: "/protected".to_string(),
+            methods: vec!["GET".to_string()],
+            auth_required: true,
+            backends: Some(vec![Backend {
+                host: "http://example.com".to_string(),
+                port: 80,
+                weight: 1,
+                health_check_path: None,
+            }]),
+            load_balancing_strategy: Default::default(),
+            retry: None,
+            protocol: Protocol::Http,
+            request_transformation: None,
+            response_transformation: None,
+            ai_policy: None,
+        }],
     };
 
     // Should fail validation due to weak secret
@@ -267,28 +269,27 @@ async fn test_jwt_secret_validation() {
             required_claims: vec![],
         }),
         rate_limit: None,
-        routers: vec![
-            Router {
-                host: Some("http://example.com".to_string()),
-                port: Some(80),
-                external_path: "/protected".to_string(),
-                internal_path: "/protected".to_string(),
-                methods: vec!["GET".to_string()],
-                auth_required: true,
-                backends: Some(vec![Backend {
-                    host: "http://example.com".to_string(),
-                    port: 80,
-                    weight: 1,
-                    health_check_path: None,
-                }]),
-                load_balancing_strategy: Default::default(),
-                retry: None,
-                protocol: Protocol::Http,
-                request_transformation: None,
-                response_transformation: None,
-                ai_policy: None,
-            }
-        ],
+        ai: None,
+        routers: vec![Router {
+            host: Some("http://example.com".to_string()),
+            port: Some(80),
+            external_path: "/protected".to_string(),
+            internal_path: "/protected".to_string(),
+            methods: vec!["GET".to_string()],
+            auth_required: true,
+            backends: Some(vec![Backend {
+                host: "http://example.com".to_string(),
+                port: 80,
+                weight: 1,
+                health_check_path: None,
+            }]),
+            load_balancing_strategy: Default::default(),
+            retry: None,
+            protocol: Protocol::Http,
+            request_transformation: None,
+            response_transformation: None,
+            ai_policy: None,
+        }],
     };
 
     // Should fail validation due to default secret
