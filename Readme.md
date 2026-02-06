@@ -11,7 +11,9 @@ A production-ready HTTP gateway and reverse proxy built with Rust, featuring a *
 ## What it actually does (right now)
 
 Kairos-rs is a production-ready multi-protocol gateway with modern web UI that:
-- ✅ **HTTP/HTTPS**: Routes incoming HTTP requests to backend services based on path patterns
+- ✅ **AI-Powered Capabilities** - Integrated with `rig-core` supporting multiple LLM providers (OpenAI, Anthropic, Cohere, etc.)
+- ✅ **Multi-Protocol Support** - WebSocket, FTP, and DNS proxying
+- ✅ **Basic HTTP request routing** with regex pattern matching
 - ✅ **WebSocket**: Real-time bidirectional communication with connection upgrading and message forwarding
 - ✅ **FTP**: File Transfer Protocol support with HTTP API wrappers for list/download/upload operations
 - ✅ **DNS**: DNS query forwarding with response caching and load balancing across DNS servers
@@ -231,8 +233,6 @@ wscat -c "ws://localhost:5900/ws/chat"
 Add to your `config.json`:
 
 ```json
-{
-  "routers": [
     {
       "protocol": "websocket",
       "backends": [
@@ -247,7 +247,11 @@ Add to your `config.json`:
       "methods": ["GET"],
       "auth_required": false
     }
-  ]
+  ],
+  "ai": {
+    "provider": "openai",
+    "model": "gpt-4"
+  }
 }
 ```
 
