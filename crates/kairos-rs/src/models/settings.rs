@@ -175,6 +175,7 @@ impl Settings {
     ///     version: 1,
     ///     jwt: None,
     ///     rate_limit: None,
+    ///     ai: None,
     ///     routers: vec![
     ///         Router {
     ///             host: Some("http://localhost".to_string()),
