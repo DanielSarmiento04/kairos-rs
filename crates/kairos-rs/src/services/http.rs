@@ -1,8 +1,9 @@
 use crate::models::error::GatewayError;
-use crate::models::router::Router;
+use crate::models::router::{Router, AiRoutingStrategy};
 use crate::routes::metrics::MetricsCollector;
 use crate::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
 use crate::services::load_balancer::{LoadBalancer, LoadBalancerFactory};
+use crate::services::ai::AiService;
 use crate::utils::path::format_route;
 use crate::utils::route_matcher::RouteMatcher;
 
@@ -93,6 +94,8 @@ pub struct RouteHandler {
     circuit_breakers: Arc<HashMap<String, Arc<CircuitBreaker>>>,
     /// Load balancers for each route (keyed by external_path)
     load_balancers: Arc<HashMap<String, Arc<dyn LoadBalancer>>>,
+    /// AI Service for intelligent routing
+    ai_service: Option<Arc<AiService>>,
 }
 
 impl RouteHandler {
@@ -243,7 +246,14 @@ impl RouteHandler {
             timeout_seconds,
             circuit_breakers: Arc::new(circuit_breakers),
             load_balancers: Arc::new(load_balancers),
+            ai_service: None,
         }
+    }
+
+    /// Attaches an AI service to the route handler.
+    pub fn with_ai_service(mut self, ai_service: AiService) -> Self {
+        self.ai_service = Some(Arc::new(ai_service));
+        self
     }
 
     /// Processes an incoming HTTP request and forwards it to the appropriate upstream service.
@@ -440,9 +450,71 @@ impl RouteHandler {
         let retry_config = route.retry.clone();
         let max_attempts = retry_config.as_ref().map(|c| c.max_retries + 1).unwrap_or(1);
 
+        // AI-Powered Routing Logic
+        let ai_backend_index = if let Some(policy) = &route.ai_policy {
+            if policy.enabled && self.ai_service.is_some() {
+                if let AiRoutingStrategy::ContentAnalysis { .. } = &policy.strategy {
+                    // Prepare request summary for AI
+                    let headers_summary = req.headers().iter()
+                        .take(10) // Limit headers to avoid huge context
+                        .map(|(k, v)| format!("{}: {:?}", k, v))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    
+                    // Safety: We have the body bytes, take a preview
+                    let body_preview = String::from_utf8_lossy(&body)
+                        .chars()
+                        .take(500)
+                        .collect::<String>();
+                        
+                    let req_info = format!("{} {}\nHeaders: {}\nBody: {}", 
+                        method, path, headers_summary, body_preview);
+                    
+                    let ai_service = self.ai_service.as_ref().unwrap();
+                    match ai_service.predict_backend(&req_info, &backends).await {
+                        Ok(idx) => {
+                            debug!("AI selected backend index: {}", idx);
+                            Some(idx)
+                        },
+                        Err(e) => {
+                            warn!("AI routing failed: {}. Using fallback.", e);
+                            policy.fallback_backend_index
+                        }
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         for attempt in 0..max_attempts {
-            // Select backend using load balancing strategy
-            let backend = if backends.len() == 1 {
+            // Select backend using load balancing strategy or AI decision
+            let backend = if let Some(idx) = ai_backend_index {
+                // Use AI selection if valid
+                if let Some(b) = backends.get(idx) {
+                    b.clone()
+                } else {
+                    warn!("AI selected invalid backend index: {}", idx);
+                    // Fallback to standard load balancing
+                    if backends.len() == 1 {
+                        backends[0].clone()
+                    } else if let Some(load_balancer) = self.load_balancers.get(&route.external_path) {
+                        load_balancer
+                            .select_backend(&backends, client_ip.as_deref())
+                            .ok_or_else(|| GatewayError::Config {
+                                message: "Load balancer failed to select backend".to_string(),
+                                route: path.clone(),
+                            })?
+                    } else {
+                        // random fallback if no LB found
+                         backends[0].clone()
+                    }
+                }
+            } else if backends.len() == 1 {
                 backends[0].clone()
             } else if let Some(load_balancer) = self.load_balancers.get(&route.external_path) {
                 load_balancer
