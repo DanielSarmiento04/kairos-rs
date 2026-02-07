@@ -234,6 +234,8 @@ wscat -c "ws://localhost:5900/ws/chat"
 Add to your `config.json`:
 
 ```json
+{
+  "routers": [
     {
       "protocol": "websocket",
       "backends": [
