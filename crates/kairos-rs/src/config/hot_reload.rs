@@ -1,12 +1,12 @@
 //! Configuration hot-reload functionality for zero-downtime updates.
-//! 
+//!
 //! This module provides the ability to reload gateway configuration without
 //! restarting the service, enabling dynamic route updates and configuration
 //! changes in production environments.
 
 use crate::config::validation::ConfigValidator;
 use crate::models::settings::Settings;
-use log::{info, warn, error};
+use log::{error, info, warn};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{broadcast, RwLock};
@@ -27,6 +27,7 @@ use tokio::time::interval;
 ///     version: 1,
 ///     jwt: None,
 ///     rate_limit: None,
+///     ai: None,
 ///     routers: vec![],
 /// };
 /// let update = ConfigUpdate {
@@ -64,6 +65,7 @@ pub struct ConfigUpdate {
 ///     version: 1,
 ///     jwt: None,
 ///     rate_limit: None,
+///     ai: None,
 ///     routers: vec![],
 /// };
 /// let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
@@ -106,19 +108,20 @@ impl ConfigWatcher {
     ///     version: 1,
     ///     jwt: None,
     ///     rate_limit: None,
+    ///     ai: None,
     ///     routers: vec![],
     /// };
     /// let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
     /// ```
     pub fn new(initial_config: Settings, config_path: String) -> Self {
         let (update_sender, _) = broadcast::channel(100);
-        
+
         let initial_update = ConfigUpdate {
             settings: initial_config,
             timestamp: chrono::Utc::now(),
             version: 1,
         };
-        
+
         Self {
             current_config: Arc::new(RwLock::new(initial_update)),
             config_path,
@@ -126,7 +129,7 @@ impl ConfigWatcher {
             version_counter: Arc::new(std::sync::atomic::AtomicU64::new(1)),
         }
     }
-    
+
     /// Gets the current configuration.
     ///
     /// # Returns
@@ -143,6 +146,7 @@ impl ConfigWatcher {
     /// #     version: 1,
     /// #     jwt: None,
     /// #     rate_limit: None,
+    /// #     ai: None,
     /// #     routers: vec![],
     /// # };
     /// # let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
@@ -153,7 +157,7 @@ impl ConfigWatcher {
     pub async fn get_current_config(&self) -> ConfigUpdate {
         self.current_config.read().await.clone()
     }
-    
+
     /// Subscribes to configuration update notifications.
     ///
     /// # Returns
@@ -170,11 +174,12 @@ impl ConfigWatcher {
     /// #     version: 1,
     /// #     jwt: None,
     /// #     rate_limit: None,
+    /// #     ai: None,
     /// #     routers: vec![],
     /// # };
     /// # let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
     /// let mut receiver = watcher.subscribe();
-    /// 
+    ///
     /// // Wait for updates
     /// while let Ok(update) = receiver.recv().await {
     ///     println!("New config version: {}", update.version);
@@ -184,7 +189,7 @@ impl ConfigWatcher {
     pub fn subscribe(&self) -> broadcast::Receiver<ConfigUpdate> {
         self.update_sender.subscribe()
     }
-    
+
     /// Starts watching the configuration file for changes.
     ///
     /// Spawns a background task that checks the file every 5 seconds for
@@ -200,11 +205,12 @@ impl ConfigWatcher {
     ///     version: 1,
     ///     jwt: None,
     ///     rate_limit: None,
+    ///     ai: None,
     ///     routers: vec![],
     /// };
     /// let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
     /// watcher.start_watching().await;
-    /// 
+    ///
     /// // Watcher is now monitoring the file in the background
     /// # }
     /// ```
@@ -214,35 +220,40 @@ impl ConfigWatcher {
         let current_config = self.current_config.clone();
         let update_sender = self.update_sender.clone();
         let version_counter = self.version_counter.clone();
-        
+
         tokio::spawn(async move {
             let mut last_modified = get_file_modified_time(&config_path).await;
-            
+
             loop {
                 interval.tick().await;
-                
+
                 match get_file_modified_time(&config_path).await {
                     Some(modified_time) => {
                         if Some(modified_time) != last_modified {
                             info!("Configuration file changed, reloading...");
-                            
+
                             match Self::reload_config(&config_path).await {
                                 Ok(new_settings) => {
-                                    let version = version_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+                                    let version = version_counter
+                                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                                        + 1;
                                     let update = ConfigUpdate {
                                         settings: new_settings,
                                         timestamp: chrono::Utc::now(),
                                         version,
                                     };
-                                    
+
                                     *current_config.write().await = update.clone();
-                                    
+
                                     if let Err(e) = update_sender.send(update) {
                                         warn!("Failed to broadcast config update: {}", e);
                                     } else {
-                                        info!("Configuration reloaded successfully (version {})", version);
+                                        info!(
+                                            "Configuration reloaded successfully (version {})",
+                                            version
+                                        );
                                     }
-                                    
+
                                     last_modified = Some(modified_time);
                                 }
                                 Err(e) => {
@@ -253,18 +264,21 @@ impl ConfigWatcher {
                         }
                     }
                     None => {
-                        warn!("Could not get modification time for config file: {}", config_path);
+                        warn!(
+                            "Could not get modification time for config file: {}",
+                            config_path
+                        );
                     }
                 }
             }
         });
     }
-    
+
     async fn reload_config(config_path: &str) -> Result<Settings, String> {
         // Load new configuration
         let new_settings = load_settings_from_path(config_path)
             .map_err(|e| format!("Failed to load config: {}", e))?;
-        
+
         // Validate new configuration
         let validation_result = ConfigValidator::validate_comprehensive(&new_settings);
         if !validation_result.is_valid {
@@ -273,15 +287,15 @@ impl ConfigWatcher {
                 validation_result.errors.join(", ")
             ));
         }
-        
+
         // Log warnings but don't fail
         for warning in &validation_result.warnings {
             warn!("Config validation warning: {}", warning);
         }
-        
+
         Ok(new_settings)
     }
-    
+
     /// Manually triggers a configuration reload.
     ///
     /// Forces an immediate reload of the configuration file, bypassing the
@@ -305,6 +319,7 @@ impl ConfigWatcher {
     /// #     version: 1,
     /// #     jwt: None,
     /// #     rate_limit: None,
+    /// #     ai: None,
     /// #     routers: vec![],
     /// # };
     /// # let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
@@ -316,20 +331,23 @@ impl ConfigWatcher {
     /// ```
     pub async fn manual_reload(&self) -> Result<ConfigUpdate, String> {
         let new_settings = Self::reload_config(&self.config_path).await?;
-        
-        let version = self.version_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+
+        let version = self
+            .version_counter
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            + 1;
         let update = ConfigUpdate {
             settings: new_settings,
             timestamp: chrono::Utc::now(),
             version,
         };
-        
+
         *self.current_config.write().await = update.clone();
-        
+
         if let Err(e) = self.update_sender.send(update.clone()) {
             warn!("Failed to broadcast manual config update: {}", e);
         }
-        
+
         info!("Configuration manually reloaded (version {})", version);
         Ok(update)
     }
@@ -337,11 +355,7 @@ impl ConfigWatcher {
 
 #[allow(dead_code)] // Used for file watching functionality
 async fn get_file_modified_time(path: &str) -> Option<std::time::SystemTime> {
-    tokio::fs::metadata(path)
-        .await
-        .ok()?
-        .modified()
-        .ok()
+    tokio::fs::metadata(path).await.ok()?.modified().ok()
 }
 
 #[allow(dead_code)] // Used for configuration loading
@@ -375,7 +389,7 @@ impl ConfigManager {
             watcher: ConfigWatcher::new(initial_config, config_path),
         }
     }
-    
+
     /// Starts the configuration file watcher.
     ///
     /// Begins monitoring the configuration file for changes in the background.
@@ -383,7 +397,7 @@ impl ConfigManager {
         info!("Starting configuration hot-reload watcher");
         self.watcher.start_watching().await;
     }
-    
+
     /// Gets the current configuration.
     ///
     /// # Returns
@@ -392,7 +406,7 @@ impl ConfigManager {
     pub async fn get_current_config(&self) -> ConfigUpdate {
         self.watcher.get_current_config().await
     }
-    
+
     /// Subscribes to configuration update notifications.
     ///
     /// # Returns
@@ -401,7 +415,7 @@ impl ConfigManager {
     pub fn subscribe_to_updates(&self) -> broadcast::Receiver<ConfigUpdate> {
         self.watcher.subscribe()
     }
-    
+
     /// Manually triggers a configuration reload.
     ///
     /// # Returns

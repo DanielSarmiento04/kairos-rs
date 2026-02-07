@@ -1,14 +1,26 @@
-use crate::models::router::Router;
 use crate::middleware::rate_limit::RateLimitConfig;
+use crate::models::router::Router;
 use serde::{Deserialize, Serialize};
 
+/// Configuration for AI capabilities.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AiSettings {
+    /// The AI provider to use (e.g., "openai", "serialization").
+    pub provider: String,
+    /// The model identifier (e.g., "gpt-4").
+    pub model: String,
+    /// API key for the provider. If not set, may be read from environment.
+    #[serde(skip_serializing)]
+    pub api_key: Option<String>,
+}
+
 /// JWT authentication configuration for the gateway.
-/// 
+///
 /// This structure defines the JWT validation parameters used by the
 /// authentication middleware when protecting routes.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```json
 /// {
 ///   "secret": "your-secret-key",
@@ -50,13 +62,13 @@ impl Default for JwtSettings {
 }
 
 /// Application configuration settings for the kairos-rs gateway.
-/// 
+///
 /// This structure contains the complete configuration needed to run the gateway,
 /// including version information, route definitions, and authentication settings.
 /// The configuration is typically loaded from a JSON file and validated before use.
-/// 
+///
 /// # Configuration File Format
-/// 
+///
 /// ```json
 /// {
 ///   "version": 1,
@@ -78,9 +90,9 @@ impl Default for JwtSettings {
 ///   ]
 /// }
 /// ```
-/// 
+///
 /// # Examples
-/// 
+///
 /// Loading and validating settings:
 /// ```rust
 /// # use std::fs;
@@ -89,7 +101,7 @@ impl Default for JwtSettings {
 /// # fs::write("./config.json", config_content).unwrap();
 /// use kairos_rs::models::settings::Settings;
 /// use kairos_rs::config::settings::load_settings;
-/// 
+///
 /// let settings = load_settings().expect("Failed to load configuration");
 /// settings.validate().expect("Invalid configuration");
 /// println!("Loaded {} routes", settings.routers.len());
@@ -99,29 +111,33 @@ impl Default for JwtSettings {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Settings {
     /// Configuration schema version for compatibility checking.
-    /// 
+    ///
     /// This field allows for future configuration format changes while
     /// maintaining backward compatibility. Currently expected to be `1`.
     pub version: u8,
-    
+
     /// JWT authentication configuration.
-    /// 
+    ///
     /// Optional JWT settings for routes that require authentication.
     /// If not specified, JWT authentication will use default settings
     /// or be disabled if no routes require authentication.
     #[serde(default)]
     pub jwt: Option<JwtSettings>,
-    
+
     /// Advanced rate limiting configuration.
-    /// 
+    ///
     /// Optional rate limiting settings with support for multiple strategies
     /// including per-IP, per-user, per-route, and composite limiting.
     /// If not specified, basic rate limiting will be used.
     #[serde(default)]
     pub rate_limit: Option<RateLimitConfig>,
-    
+
+    /// AI capabilities configuration.
+    #[serde(default)]
+    pub ai: Option<AiSettings>,
+
     /// Collection of route configurations defining how requests are forwarded.
-    /// 
+    ///
     /// Each router defines a mapping from external client requests to internal
     /// service endpoints, including path transformation and method validation.
     /// The gateway will process routes in the order they appear, with static
@@ -131,35 +147,36 @@ pub struct Settings {
 
 impl Settings {
     /// Validates all router configurations and JWT settings.
-    /// 
+    ///
     /// This method performs comprehensive validation of the entire configuration
     /// by validating each individual router and the JWT configuration. It ensures
     /// that all route definitions are properly formatted and contain valid values
     /// before the gateway starts.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// - `Ok(())` if all configurations are valid
     /// - `Err(String)` with the first validation error encountered
-    /// 
+    ///
     /// # Validation Process
-    /// 
+    ///
     /// 1. Validates JWT configuration if any routes require authentication
     /// 2. Iterates through all routers in configuration order
     /// 3. Calls `Router::validate()` on each router
     /// 4. Returns immediately on first validation failure
     /// 5. Only returns `Ok(())` if all configurations pass validation
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```rust
     /// use kairos_rs::models::settings::Settings;
     /// use kairos_rs::models::router::{Router, Backend, Protocol};
-    /// 
+    ///
     /// let settings = Settings {
     ///     version: 1,
     ///     jwt: None,
     ///     rate_limit: None,
+    ///     ai: None,
     ///     routers: vec![
     ///         Router {
     ///             host: Some("http://localhost".to_string()),
@@ -183,12 +200,12 @@ impl Settings {
     ///         }
     ///     ],
     /// };
-    /// 
+    ///
     /// assert!(settings.validate().is_ok());
     /// ```
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns the first validation error from any router or JWT configuration.
     /// Common errors include:
     /// - Missing JWT configuration when routes require authentication
@@ -200,11 +217,13 @@ impl Settings {
     pub fn validate(&self) -> Result<(), String> {
         // Check if any routes require authentication
         let has_auth_routes = self.routers.iter().any(|r| r.auth_required);
-        
+
         if has_auth_routes && self.jwt.is_none() {
-            return Err("JWT configuration is required when routes have auth_required=true".to_string());
+            return Err(
+                "JWT configuration is required when routes have auth_required=true".to_string(),
+            );
         }
-        
+
         // Validate JWT settings if present
         if let Some(ref jwt) = self.jwt {
             if jwt.secret.is_empty() {
@@ -217,12 +236,12 @@ impl Settings {
                 return Err("JWT secret should be at least 32 characters for security".to_string());
             }
         }
-        
+
         // Validate all routers
         for route in &self.routers {
             route.validate()?;
         }
-        
+
         Ok(())
     }
 }

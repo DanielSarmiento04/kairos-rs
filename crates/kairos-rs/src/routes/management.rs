@@ -1,5 +1,5 @@
 //! Route management API endpoints for dynamic configuration.
-//! 
+//!
 //! This module provides REST API endpoints for managing routes at runtime,
 //! including creating, reading, updating, and deleting route configurations,
 //! as well as validating route configurations.
@@ -45,6 +45,7 @@ impl RouteManager {
     ///     version: 1,
     ///     jwt: None,
     ///     rate_limit: None,
+    ///     ai: None,
     ///     routers: vec![],
     /// };
     /// let manager = RouteManager::new(settings, "config.json".to_string());
@@ -55,7 +56,7 @@ impl RouteManager {
             config_path,
         }
     }
-    
+
     /// Saves current settings to disk in JSON format.
     ///
     /// # Returns
@@ -71,11 +72,11 @@ impl RouteManager {
         let settings = self.settings.read().await;
         let json = serde_json::to_string_pretty(&*settings)
             .map_err(|e| format!("Failed to serialize settings: {}", e))?;
-        
+
         tokio::fs::write(&self.config_path, json)
             .await
             .map_err(|e| format!("Failed to write config file: {}", e))?;
-        
+
         Ok(())
     }
 }
@@ -128,24 +129,24 @@ pub struct ValidateRouteResponse {
 }
 
 /// List all routes
-/// 
+///
 /// # Endpoint
-/// 
+///
 /// `GET /api/routes`
-/// 
+///
 /// # Response
-/// 
+///
 /// Returns a JSON array of all configured routes with their complete configuration.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```bash
 /// curl http://localhost:5900/api/routes
 /// ```
 #[get("/api/routes")]
 pub async fn list_routes(manager: web::Data<RouteManager>) -> impl Responder {
     let settings = manager.settings.read().await;
-    
+
     HttpResponse::Ok().json(RouteResponse {
         success: true,
         message: format!("Found {} routes", settings.routers.len()),
@@ -155,17 +156,17 @@ pub async fn list_routes(manager: web::Data<RouteManager>) -> impl Responder {
 }
 
 /// Get a specific route by external path
-/// 
+///
 /// # Endpoint
-/// 
+///
 /// `GET /api/routes/{external_path}`
-/// 
+///
 /// # Parameters
-/// 
+///
 /// * `external_path` - URL-encoded external path (e.g., `/api/users/{id}`)
-/// 
+///
 /// # Example
-/// 
+///
 /// ```bash
 /// curl http://localhost:5900/api/routes/%2Fapi%2Fusers%2F%7Bid%7D
 /// ```
@@ -176,8 +177,12 @@ pub async fn get_route(
 ) -> impl Responder {
     let external_path = format!("/{}", path.into_inner());
     let settings = manager.settings.read().await;
-    
-    if let Some(route) = settings.routers.iter().find(|r| r.external_path == external_path) {
+
+    if let Some(route) = settings
+        .routers
+        .iter()
+        .find(|r| r.external_path == external_path)
+    {
         HttpResponse::Ok().json(RouteResponse {
             success: true,
             message: "Route found".to_string(),
@@ -195,17 +200,17 @@ pub async fn get_route(
 }
 
 /// Create a new route
-/// 
+///
 /// # Endpoint
-/// 
+///
 /// `POST /api/routes`
-/// 
+///
 /// # Request Body
-/// 
+///
 /// JSON object with route configuration. See `Router` struct for schema.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```bash
 /// curl -X POST http://localhost:5900/api/routes \
 ///   -H "Content-Type: application/json" \
@@ -233,11 +238,15 @@ pub async fn create_route(
             routes: None,
         });
     }
-    
+
     let mut settings = manager.settings.write().await;
-    
+
     // Check if route already exists
-    if settings.routers.iter().any(|r| r.external_path == route.external_path) {
+    if settings
+        .routers
+        .iter()
+        .any(|r| r.external_path == route.external_path)
+    {
         return HttpResponse::Conflict().json(RouteResponse {
             success: false,
             message: format!("Route already exists: {}", route.external_path),
@@ -245,10 +254,10 @@ pub async fn create_route(
             routes: None,
         });
     }
-    
+
     // Add the route
     settings.routers.push(route.into_inner());
-    
+
     // Save to disk
     drop(settings); // Release lock before saving
     if let Err(e) = manager.save_to_disk().await {
@@ -259,31 +268,32 @@ pub async fn create_route(
             routes: None,
         });
     }
-    
+
     HttpResponse::Created().json(RouteResponse {
         success: true,
-        message: "Route created successfully. Restart required for changes to take effect.".to_string(),
+        message: "Route created successfully. Restart required for changes to take effect."
+            .to_string(),
         route: None,
         routes: None,
     })
 }
 
 /// Update an existing route
-/// 
+///
 /// # Endpoint
-/// 
+///
 /// `PUT /api/routes/{external_path}`
-/// 
+///
 /// # Parameters
-/// 
+///
 /// * `external_path` - URL-encoded external path of the route to update
-/// 
+///
 /// # Request Body
-/// 
+///
 /// JSON object with complete route configuration.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```bash
 /// curl -X PUT http://localhost:5900/api/routes/%2Fapi%2Ftest \
 ///   -H "Content-Type: application/json" \
@@ -304,7 +314,7 @@ pub async fn update_route(
     route: web::Json<Router>,
 ) -> impl Responder {
     let external_path = format!("/{}", path.into_inner());
-    
+
     // Validate the route
     if let Err(e) = route.validate() {
         return HttpResponse::BadRequest().json(RouteResponse {
@@ -314,7 +324,7 @@ pub async fn update_route(
             routes: None,
         });
     }
-    
+
     // Ensure the external_path in the route matches the URL parameter
     if route.external_path != external_path {
         return HttpResponse::BadRequest().json(RouteResponse {
@@ -324,13 +334,17 @@ pub async fn update_route(
             routes: None,
         });
     }
-    
+
     let mut settings = manager.settings.write().await;
-    
+
     // Find and update the route
-    if let Some(existing_route) = settings.routers.iter_mut().find(|r| r.external_path == external_path) {
+    if let Some(existing_route) = settings
+        .routers
+        .iter_mut()
+        .find(|r| r.external_path == external_path)
+    {
         *existing_route = route.into_inner();
-        
+
         // Save to disk
         drop(settings); // Release lock before saving
         if let Err(e) = manager.save_to_disk().await {
@@ -341,10 +355,11 @@ pub async fn update_route(
                 routes: None,
             });
         }
-        
+
         HttpResponse::Ok().json(RouteResponse {
             success: true,
-            message: "Route updated successfully. Restart required for changes to take effect.".to_string(),
+            message: "Route updated successfully. Restart required for changes to take effect."
+                .to_string(),
             route: None,
             routes: None,
         })
@@ -359,17 +374,17 @@ pub async fn update_route(
 }
 
 /// Delete a route
-/// 
+///
 /// # Endpoint
-/// 
+///
 /// `DELETE /api/routes/{external_path}`
-/// 
+///
 /// # Parameters
-/// 
+///
 /// * `external_path` - URL-encoded external path of the route to delete
-/// 
+///
 /// # Example
-/// 
+///
 /// ```bash
 /// curl -X DELETE http://localhost:5900/api/routes/%2Fapi%2Ftest
 /// ```
@@ -380,10 +395,12 @@ pub async fn delete_route(
 ) -> impl Responder {
     let external_path = format!("/{}", path.into_inner());
     let mut settings = manager.settings.write().await;
-    
+
     let original_count = settings.routers.len();
-    settings.routers.retain(|r| r.external_path != external_path);
-    
+    settings
+        .routers
+        .retain(|r| r.external_path != external_path);
+
     if settings.routers.len() < original_count {
         // Save to disk
         drop(settings); // Release lock before saving
@@ -395,10 +412,11 @@ pub async fn delete_route(
                 routes: None,
             });
         }
-        
+
         HttpResponse::Ok().json(RouteResponse {
             success: true,
-            message: "Route deleted successfully. Restart required for changes to take effect.".to_string(),
+            message: "Route deleted successfully. Restart required for changes to take effect."
+                .to_string(),
             route: None,
             routes: None,
         })
@@ -413,21 +431,21 @@ pub async fn delete_route(
 }
 
 /// Validate a route configuration
-/// 
+///
 /// # Endpoint
-/// 
+///
 /// `POST /api/routes/validate`
-/// 
+///
 /// # Request Body
-/// 
+///
 /// JSON object with a `route` field containing the route configuration to validate.
-/// 
+///
 /// # Response
-/// 
+///
 /// Returns validation result with any errors or warnings.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```bash
 /// curl -X POST http://localhost:5900/api/routes/validate \
 ///   -H "Content-Type: application/json" \
@@ -460,17 +478,17 @@ pub async fn validate_route(request: web::Json<ValidateRouteRequest>) -> impl Re
 }
 
 /// Get complete configuration
-/// 
+///
 /// # Endpoint
-/// 
+///
 /// `GET /api/config`
-/// 
+///
 /// # Response
-/// 
+///
 /// Returns the complete gateway configuration including JWT, rate limit, and all routes.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```bash
 /// curl http://localhost:5900/api/config
 /// ```
@@ -481,17 +499,17 @@ pub async fn get_config(manager: web::Data<RouteManager>) -> impl Responder {
 }
 
 /// Update JWT configuration
-/// 
+///
 /// # Endpoint
-/// 
+///
 /// `POST /api/config/jwt`
-/// 
+///
 /// # Request Body
-/// 
+///
 /// JSON object with JWT settings.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```bash
 /// curl -X POST http://localhost:5900/api/config/jwt \
 ///   -H "Content-Type: application/json" \
@@ -514,24 +532,24 @@ pub async fn update_jwt_config(
             "message": "JWT secret cannot be empty"
         }));
     }
-    
+
     if jwt_settings.secret == "please-change-this-secret" {
         return HttpResponse::BadRequest().json(serde_json::json!({
             "success": false,
             "message": "JWT secret must be changed from default value"
         }));
     }
-    
+
     if jwt_settings.secret.len() < 32 {
         return HttpResponse::BadRequest().json(serde_json::json!({
             "success": false,
             "message": "JWT secret should be at least 32 characters for security"
         }));
     }
-    
+
     let mut settings = manager.settings.write().await;
     settings.jwt = Some(jwt_settings.into_inner());
-    
+
     // Save to disk
     drop(settings);
     if let Err(e) = manager.save_to_disk().await {
@@ -540,7 +558,7 @@ pub async fn update_jwt_config(
             "message": format!("Failed to save configuration: {}", e)
         }));
     }
-    
+
     HttpResponse::Ok().json(serde_json::json!({
         "success": true,
         "message": "JWT configuration updated successfully. Restart required for changes to take effect."
@@ -548,17 +566,17 @@ pub async fn update_jwt_config(
 }
 
 /// Update rate limit configuration
-/// 
+///
 /// # Endpoint
-/// 
+///
 /// `POST /api/config/rate-limit`
-/// 
+///
 /// # Request Body
-/// 
+///
 /// JSON object with rate limit settings.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```bash
 /// curl -X POST http://localhost:5900/api/config/rate-limit \
 ///   -H "Content-Type: application/json" \
@@ -576,7 +594,7 @@ pub async fn update_rate_limit_config(
 ) -> impl Responder {
     let mut settings = manager.settings.write().await;
     settings.rate_limit = Some(rate_limit.into_inner());
-    
+
     // Save to disk
     drop(settings);
     if let Err(e) = manager.save_to_disk().await {
@@ -585,7 +603,7 @@ pub async fn update_rate_limit_config(
             "message": format!("Failed to save configuration: {}", e)
         }));
     }
-    
+
     HttpResponse::Ok().json(serde_json::json!({
         "success": true,
         "message": "Rate limit configuration updated successfully. Restart required for changes to take effect."
@@ -593,17 +611,17 @@ pub async fn update_rate_limit_config(
 }
 
 /// Update CORS configuration
-/// 
+///
 /// # Endpoint
-/// 
+///
 /// `POST /api/config/cors`
-/// 
+///
 /// # Request Body
-/// 
+///
 /// JSON object with CORS settings.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```bash
 /// curl -X POST http://localhost:5900/api/config/cors \
 ///   -H "Content-Type: application/json" \
@@ -650,7 +668,7 @@ pub async fn update_cors_config(
     // Note: CORS configuration is typically handled at the middleware level
     // and would require server restart to apply changes.
     // For now, we'll acknowledge the request but note it requires restart.
-    
+
     HttpResponse::Ok().json(serde_json::json!({
         "success": true,
         "message": "CORS configuration received. Server restart required to apply CORS settings."
@@ -658,17 +676,17 @@ pub async fn update_cors_config(
 }
 
 /// Update metrics configuration
-/// 
+///
 /// # Endpoint
-/// 
+///
 /// `POST /api/config/metrics`
-/// 
+///
 /// # Request Body
-/// 
+///
 /// JSON object with metrics settings.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```bash
 /// curl -X POST http://localhost:5900/api/config/metrics \
 ///   -H "Content-Type: application/json" \
@@ -706,7 +724,7 @@ pub async fn update_metrics_config(
 ) -> impl Responder {
     // Note: Metrics configuration changes would require server restart
     // to reconfigure the metrics collection middleware
-    
+
     HttpResponse::Ok().json(serde_json::json!({
         "success": true,
         "message": "Metrics configuration received. Server restart required to apply metrics settings."
@@ -714,17 +732,17 @@ pub async fn update_metrics_config(
 }
 
 /// Update server configuration
-/// 
+///
 /// # Endpoint
-/// 
+///
 /// `POST /api/config/server`
-/// 
+///
 /// # Request Body
-/// 
+///
 /// JSON object with server settings.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```bash
 /// curl -X POST http://localhost:5900/api/config/server \
 ///   -H "Content-Type: application/json" \
@@ -775,14 +793,14 @@ pub async fn update_server_config(
             "message": "Port must be greater than 0"
         }));
     }
-    
+
     if server_config.workers == 0 {
         return HttpResponse::BadRequest().json(serde_json::json!({
             "success": false,
             "message": "Workers must be greater than 0"
         }));
     }
-    
+
     // Note: Server configuration changes require a full server restart
     HttpResponse::Ok().json(serde_json::json!({
         "success": true,

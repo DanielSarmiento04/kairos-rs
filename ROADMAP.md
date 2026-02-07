@@ -222,9 +222,10 @@ This roadmap shows what we're planning to build for Kairos-rs. It's honest about
 - [ ] **Distributed tracing** - OpenTelemetry integration
 - [ ] **Custom dashboards** - User-configurable metric views in UI
 
-### Phase 4: AI-Powered Gateway Features (Months 4-6) 🤖 **NEW**
+### Phase 4: AI-Powered Gateway Features (Months 4-6) 🤖 **IN PROGRESS**
 **Goal**: Leverage AI/LLM capabilities for intelligent routing and request processing
 
+- [x] **AI Foundation** - Integrated `rig-core` with support for OpenAI, Anthropic, Cohere, Perplexity, Mistral, Groq, xAI (v0.2.16)
 - [ ] **AI-powered route optimization** - ML-based routing decisions based on load, latency, and success rates
 - [ ] **LLM request transformation** - Use LLMs to intelligently transform requests/responses
 - [ ] **Smart load balancing** - AI-driven backend selection based on request content analysis
