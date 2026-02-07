@@ -15,8 +15,8 @@ path = "src/main.rs"
 
 [dependencies]
 # Local dependencies
-kairos-rs = { version = "0.2.10", path = "../kairos-rs" }
-kairos-client = { version = "0.2.10", path = "../kairos-client" }
+kairos-rs = { version = "0.3.0", path = "../kairos-rs" }
+kairos-client = { version = "0.3.0", path = "../kairos-client" }
 
 # Workspace dependencies
 clap.workspace = true

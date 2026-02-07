@@ -1,6 +1,6 @@
 [package]
 name = "kairos-rs"
-version = "0.2.17"
+version = "0.3.0"
 edition = "2021"
 description = "A Rust library for interacting with the Kairos Api Gateway"
 license = "MIT"

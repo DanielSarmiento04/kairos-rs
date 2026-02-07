@@ -44,7 +44,15 @@ async fn main() -> std::io::Result<()> {
     }
     info!("Configuration validated successfully with {} warnings", validation_result.warnings.len());
 
-    let route_handler = RouteHandler::new(config.routers.clone(), 30); // 30 second timeout
+    let mut route_handler = RouteHandler::new(config.routers.clone(), 30); // 30 second timeout
+    
+    // Initialize AI Service if configured
+    if let Some(ai_settings) = config.ai.clone() {
+        use kairos_rs::services::ai::AiService;
+        let ai_service = AiService::new(ai_settings);
+        route_handler = route_handler.with_ai_service(ai_service);
+        info!("AI Service initialized successfully");
+    }
     
     // Initialize metrics collector
     let metrics_collector = metrics::MetricsCollector::default();
