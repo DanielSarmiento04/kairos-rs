@@ -33,54 +33,47 @@ impl AiService {
                 .ok_or_else(|| format!("API key not found in config or {} env var", env_var).into())
         };
 
-        let response = match provider.as_str() {
-            "openai" => {
-                let client = openai::Client::<HttpClient>::new(&get_key("OPENAI_API_KEY")?)?;
-                let agent = client.agent(model).preamble(preamble).build();
-                info!("Sending prompt to OpenAI model: {}", model);
-                agent.prompt(prompt).await?
+        let response = {
+            macro_rules! delegate_prompt {
+                ($client:ty, $key_env:literal, $provider_name:literal) => {{
+                    let client = <$client>::new(&get_key($key_env)?)?;
+                    let agent = client.agent(model).preamble(preamble).build();
+                    info!("Sending prompt to {} model: {}", $provider_name, model);
+                    agent.prompt(prompt).await?
+                }};
             }
-            "anthropic" => {
-                let client = anthropic::Client::<HttpClient>::new(&get_key("ANTHROPIC_API_KEY")?)?;
-                let agent = client.agent(model).preamble(preamble).build();
-                info!("Sending prompt to Anthropic model: {}", model);
-                agent.prompt(prompt).await?
-            }
-            "cohere" => {
-                let client = cohere::Client::<HttpClient>::new(&get_key("COHERE_API_KEY")?)?;
-                let agent = client.agent(model).preamble(preamble).build();
-                info!("Sending prompt to Cohere model: {}", model);
-                agent.prompt(prompt).await?
-            }
-            "perplexity" => {
-                let client =
-                    perplexity::Client::<HttpClient>::new(&get_key("PERPLEXITY_API_KEY")?)?;
-                let agent = client.agent(model).preamble(preamble).build();
-                info!("Sending prompt to Perplexity model: {}", model);
-                agent.prompt(prompt).await?
-            }
-            "mistral" => {
-                let client = mistral::Client::<HttpClient>::new(&get_key("MISTRAL_API_KEY")?)?;
-                let agent = client.agent(model).preamble(preamble).build();
-                info!("Sending prompt to Mistral model: {}", model);
-                agent.prompt(prompt).await?
-            }
-            "groq" => {
-                let client = groq::Client::<HttpClient>::new(&get_key("GROQ_API_KEY")?)?;
-                let agent = client.agent(model).preamble(preamble).build();
-                info!("Sending prompt to Groq model: {}", model);
-                agent.prompt(prompt).await?
-            }
-            "xai" => {
-                let client = xai::Client::<HttpClient>::new(&get_key("XAI_API_KEY")?)?;
-                let agent = client.agent(model).preamble(preamble).build();
-                info!("Sending prompt to xAI model: {}", model);
-                agent.prompt(prompt).await?
-            }
-            _ => {
-                let msg = format!("Unsupported AI provider: {}", provider);
-                error!("{}", msg);
-                return Err(msg.into());
+
+            match provider.as_str() {
+                "openai" => {
+                    delegate_prompt!(openai::Client<HttpClient>, "OPENAI_API_KEY", "OpenAI")
+                }
+                "anthropic" => {
+                    delegate_prompt!(
+                        anthropic::Client<HttpClient>,
+                        "ANTHROPIC_API_KEY",
+                        "Anthropic"
+                    )
+                }
+                "cohere" => {
+                    delegate_prompt!(cohere::Client<HttpClient>, "COHERE_API_KEY", "Cohere")
+                }
+                "perplexity" => {
+                    delegate_prompt!(
+                        perplexity::Client<HttpClient>,
+                        "PERPLEXITY_API_KEY",
+                        "Perplexity"
+                    )
+                }
+                "mistral" => {
+                    delegate_prompt!(mistral::Client<HttpClient>, "MISTRAL_API_KEY", "Mistral")
+                }
+                "groq" => delegate_prompt!(groq::Client<HttpClient>, "GROQ_API_KEY", "Groq"),
+                "xai" => delegate_prompt!(xai::Client<HttpClient>, "XAI_API_KEY", "xAI"),
+                _ => {
+                    let msg = format!("Unsupported AI provider: {}", provider);
+                    error!("{}", msg);
+                    return Err(msg.into());
+                }
             }
         };
 

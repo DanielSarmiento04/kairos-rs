@@ -10,6 +10,7 @@ pub struct AiSettings {
     /// The model identifier (e.g., "gpt-4").
     pub model: String,
     /// API key for the provider. If not set, may be read from environment.
+    #[serde(skip_serializing)]
     pub api_key: Option<String>,
 }
 
