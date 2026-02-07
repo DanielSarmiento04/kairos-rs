@@ -18,9 +18,15 @@ impl AiService {
     }
 
     /// Internal helper to execute a prompt against the configured provider
-    async fn execute_prompt(&self, prompt: &str, preamble: &str) -> Result<String, Box<dyn std::error::Error>> {
-        let provider = self.settings.provider.to_lowercase();
-        let model = &self.settings.model;
+    async fn execute_prompt(
+        &self, 
+        prompt: &str, 
+        preamble: &str,
+        provider_override: Option<&str>,
+        model_override: Option<&str>
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let provider = provider_override.unwrap_or(&self.settings.provider).to_lowercase();
+        let model = model_override.unwrap_or(&self.settings.model);
 
          // Helper to get API key from config or env
          let get_key = |env_var: &str| -> Result<String, Box<dyn std::error::Error>> {
@@ -81,7 +87,7 @@ impl AiService {
     /// Performs a simple completion request to test the integration.
     pub async fn ask(&self, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
         let preamble = "You are a helpful AI assistant integrated into the Kairos-rs gateway.";
-        self.execute_prompt(prompt, preamble).await
+        self.execute_prompt(prompt, preamble, None, None).await
     }
 
     /// Predicts which backend should handle the request based on content.
@@ -90,30 +96,41 @@ impl AiService {
     /// 
     /// * `request_info` - Description of the request (method, path, headers, body preview)
     /// * `backends` - List of available backends
+    /// * `provider` - Optional override for AI provider
+    /// * `model` - Optional override for AI model
     /// 
     /// # Returns
     /// 
     /// Index of the selected backend
-    pub async fn predict_backend(&self, request_info: &str, backends: &[Backend]) -> Result<usize, Box<dyn std::error::Error>> {
+    pub async fn predict_backend(
+        &self, 
+        request_info: &str, 
+        backends: &[Backend],
+        provider: Option<&str>,
+        model: Option<&str>
+    ) -> Result<usize, Box<dyn std::error::Error>> {
         // Format backends list
         let backends_list = backends.iter().enumerate()
             .map(|(i, b)| format!("{}: {} (port {})", i, b.host, b.port))
             .collect::<Vec<_>>()
             .join("\n");
             
+        // Sanitize request info to prevent prompt injection
+        let safe_request_info = request_info.replace("[REQUEST_START]", "").replace("[REQUEST_END]", "");
+
         let prompt = format!(
             "Analyze this HTTP request and select the most appropriate backend service index.\n\n\
             [REQUEST_START]\n{}\n[REQUEST_END]\n\n\
             Available Backends:\n{}\n\n\
             Task: Return ONLY a valid JSON object with a single field 'index' containing the integer index (0 to {}) of the best backend. Do not include any markdown formatting, explanation, or extra text.",
-            request_info,
+            safe_request_info,
             backends_list,
             backends.len().saturating_sub(1)
         );
         
         let preamble = "You are an intelligent API gateway routing engine. Your job is to strictly analyze request content and route it to the correct backend service.";
 
-        let response = self.execute_prompt(&prompt, preamble).await?;
+        let response = self.execute_prompt(&prompt, preamble, provider, model).await?;
         
         // Robust parsing using regex to find JSON or direct integer
         use regex::Regex;

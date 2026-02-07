@@ -453,7 +453,7 @@ impl RouteHandler {
         // AI-Powered Routing Logic
         let ai_backend_index = if let Some(policy) = &route.ai_policy {
             if policy.enabled && self.ai_service.is_some() {
-                if let AiRoutingStrategy::ContentAnalysis { .. } = &policy.strategy {
+                if let AiRoutingStrategy::ContentAnalysis { model } = &policy.strategy {
                     // Prepare request summary for AI
                     let headers_summary = req.headers().iter()
                         .filter(|(k, _)| {
@@ -471,8 +471,9 @@ impl RouteHandler {
                     
                     // Safety: We have the body bytes, take a preview and redact potential secrets
                     let raw_body = String::from_utf8_lossy(&body);
-                    // Simple regex-like redaction for common sensitive patterns (emails, credit cards)
-                    // Note: This is a basic filter. PII scrubbing is complex.
+                    
+                    // TODO: Implement robust PII detection and redaction (e.g. presidio, sensitive-rs).
+                    // Current implementation only truncates and removes newlines.
                     let body_preview = raw_body
                         .chars()
                         .take(500)
@@ -483,7 +484,7 @@ impl RouteHandler {
                         method, path, headers_summary, body_preview);
                     
                     let ai_service = self.ai_service.as_ref().unwrap();
-                    match ai_service.predict_backend(&req_info, &backends).await {
+                    match ai_service.predict_backend(&req_info, &backends, Some(&policy.provider), Some(model)).await {
                         Ok(idx) => {
                             debug!("AI selected backend index: {}", idx);
                             Some(idx)
