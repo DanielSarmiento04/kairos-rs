@@ -17,16 +17,13 @@ impl AiService {
         Self { settings }
     }
 
-    /// Performs a simple completion request to test the integration.
-    pub async fn ask(&self, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
+    /// Internal helper to execute a prompt against the configured provider
+    async fn execute_prompt(&self, prompt: &str, preamble: &str) -> Result<String, Box<dyn std::error::Error>> {
         let provider = self.settings.provider.to_lowercase();
         let model = &self.settings.model;
 
-        // Common preamble for the agent
-        let preamble = "You are a helpful AI assistant integrated into the Kairos-rs gateway.";
-
-        // Helper to get API key from config or env
-        let get_key = |env_var: &str| -> Result<String, Box<dyn std::error::Error>> {
+         // Helper to get API key from config or env
+         let get_key = |env_var: &str| -> Result<String, Box<dyn std::error::Error>> {
             self.settings
                 .api_key
                 .clone()
@@ -34,53 +31,57 @@ impl AiService {
                 .ok_or_else(|| format!("API key not found in config or {} env var", env_var).into())
         };
 
-        let response = {
-            macro_rules! delegate_prompt {
-                ($client:ty, $key_env:literal, $provider_name:literal, $preamble:expr) => {{
-                    let client = <$client>::new(&get_key($key_env)?)?;
-                    let agent = client.agent(model).preamble($preamble).build();
-                    debug!("Sending prompt to {} model: {}", $provider_name, model);
-                    agent.prompt(prompt).await?
-                }};
-            }
+        macro_rules! delegate_prompt {
+            ($client:ty, $key_env:literal, $provider_name:literal, $preamble:expr) => {{
+                let client = <$client>::new(&get_key($key_env)?)?;
+                let agent = client.agent(model).preamble($preamble).build();
+                debug!("Sending prompt to {} model: {}", $provider_name, model);
+                agent.prompt(prompt).await?
+            }};
+        }
 
-            match provider.as_str() {
-                "openai" => {
-                    delegate_prompt!(openai::Client<HttpClient>, "OPENAI_API_KEY", "OpenAI", preamble)
-                }
-                "anthropic" => {
-                    delegate_prompt!(
-                        anthropic::Client<HttpClient>,
-                        "ANTHROPIC_API_KEY",
-                        "Anthropic",
-                        preamble
-                    )
-                }
-                "cohere" => {
-                    delegate_prompt!(cohere::Client<HttpClient>, "COHERE_API_KEY", "Cohere", preamble)
-                }
-                "perplexity" => {
-                    delegate_prompt!(
-                        perplexity::Client<HttpClient>,
-                        "PERPLEXITY_API_KEY",
-                        "Perplexity",
-                        preamble
-                    )
-                }
-                "mistral" => {
-                    delegate_prompt!(mistral::Client<HttpClient>, "MISTRAL_API_KEY", "Mistral", preamble)
-                }
-                "groq" => delegate_prompt!(groq::Client<HttpClient>, "GROQ_API_KEY", "Groq", preamble),
-                "xai" => delegate_prompt!(xai::Client<HttpClient>, "XAI_API_KEY", "xAI", preamble),
-                _ => {
-                    let msg = format!("Unsupported AI provider: {}", provider);
-                    error!("{}", msg);
-                    return Err(msg.into());
-                }
+        let response = match provider.as_str() {
+            "openai" => {
+                delegate_prompt!(openai::Client<HttpClient>, "OPENAI_API_KEY", "OpenAI", preamble)
+            }
+            "anthropic" => {
+                delegate_prompt!(
+                    anthropic::Client<HttpClient>,
+                    "ANTHROPIC_API_KEY",
+                    "Anthropic",
+                    preamble
+                )
+            }
+            "cohere" => {
+                delegate_prompt!(cohere::Client<HttpClient>, "COHERE_API_KEY", "Cohere", preamble)
+            }
+            "perplexity" => {
+                delegate_prompt!(
+                    perplexity::Client<HttpClient>,
+                    "PERPLEXITY_API_KEY",
+                    "Perplexity",
+                    preamble
+                )
+            }
+            "mistral" => {
+                delegate_prompt!(mistral::Client<HttpClient>, "MISTRAL_API_KEY", "Mistral", preamble)
+            }
+            "groq" => delegate_prompt!(groq::Client<HttpClient>, "GROQ_API_KEY", "Groq", preamble),
+            "xai" => delegate_prompt!(xai::Client<HttpClient>, "XAI_API_KEY", "xAI", preamble),
+            _ => {
+                let msg = format!("Unsupported AI provider: {}", provider);
+                error!("{}", msg);
+                return Err(msg.into());
             }
         };
 
         Ok(response)
+    }
+
+    /// Performs a simple completion request to test the integration.
+    pub async fn ask(&self, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
+        let preamble = "You are a helpful AI assistant integrated into the Kairos-rs gateway.";
+        self.execute_prompt(prompt, preamble).await
     }
 
     /// Predicts which backend should handle the request based on content.
@@ -102,88 +103,42 @@ impl AiService {
             
         let prompt = format!(
             "Analyze this HTTP request and select the most appropriate backend service index.\n\n\
-            Request:\n{}\n\n\
+            [REQUEST_START]\n{}\n[REQUEST_END]\n\n\
             Available Backends:\n{}\n\n\
-            Task: Return ONLY the index number (0 to {}) of the best backend. Do not include any explanation or extra text.",
+            Task: Return ONLY a valid JSON object with a single field 'index' containing the integer index (0 to {}) of the best backend. Do not include any markdown formatting, explanation, or extra text.",
             request_info,
             backends_list,
             backends.len().saturating_sub(1)
         );
         
-        // Use a more specific preamble for this task
-        let provider = self.settings.provider.to_lowercase();
-        let model = &self.settings.model;
-        
         let preamble = "You are an intelligent API gateway routing engine. Your job is to strictly analyze request content and route it to the correct backend service.";
-        
-        let get_key = |env_var: &str| -> Result<String, Box<dyn std::error::Error>> {
-            self.settings
-                .api_key
-                .clone()
-                .or_else(|| std::env::var(env_var).ok())
-                .ok_or_else(|| format!("API key not found in config or {} env var", env_var).into())
-        };
 
-        let response = {
-            macro_rules! delegate_prompt {
-                ($client:ty, $key_env:literal, $provider_name:literal, $preamble:expr) => {{
-                    let client = <$client>::new(&get_key($key_env)?)?;
-                    let agent = client.agent(model).preamble($preamble).build();
-                    debug!("Sending routing prompt to {} model: {}", $provider_name, model);
-                    agent.prompt(&prompt).await?
-                }};
-            }
-            
-            // Re-using the same match logic but with the routing preamble
-             match provider.as_str() {
-                "openai" => {
-                    delegate_prompt!(openai::Client<HttpClient>, "OPENAI_API_KEY", "OpenAI", preamble)
-                }
-                "anthropic" => {
-                    delegate_prompt!(
-                        anthropic::Client<HttpClient>,
-                        "ANTHROPIC_API_KEY",
-                        "Anthropic",
-                        preamble
-                    )
-                }
-                "cohere" => {
-                    delegate_prompt!(cohere::Client<HttpClient>, "COHERE_API_KEY", "Cohere", preamble)
-                }
-                "perplexity" => {
-                    delegate_prompt!(
-                        perplexity::Client<HttpClient>,
-                        "PERPLEXITY_API_KEY",
-                        "Perplexity",
-                        preamble
-                    )
-                }
-                "mistral" => {
-                    delegate_prompt!(mistral::Client<HttpClient>, "MISTRAL_API_KEY", "Mistral", preamble)
-                }
-                "groq" => delegate_prompt!(groq::Client<HttpClient>, "GROQ_API_KEY", "Groq", preamble),
-                "xai" => delegate_prompt!(xai::Client<HttpClient>, "XAI_API_KEY", "xAI", preamble),
-                _ => {
-                    return Err(format!("Unsupported AI provider: {}", provider).into());
-                }
-            }
-        };
+        let response = self.execute_prompt(&prompt, preamble).await?;
         
-        // Parse the response to get the index
-        let response_trimmed = response.trim();
-        // Try to find a number in the response if it's "Index: 0" or "The index is 0"
-        let index_str = response_trimmed.chars()
-            .skip_while(|c| !c.is_digit(10))
-            .take_while(|c| c.is_digit(10))
-            .collect::<String>();
-            
-        if let Ok(index) = index_str.parse::<usize>() {
-            if index < backends.len() {
-                return Ok(index);
+        // Robust parsing using regex to find JSON or direct integer
+        use regex::Regex;
+        
+        // Try to find {"index": N} pattern first
+        let re_json = Regex::new(r#""index"\s*:\s*(\d+)"#).unwrap();
+        if let Some(caps) = re_json.captures(&response) {
+            if let Ok(index) = caps[1].parse::<usize>() {
+                 if index < backends.len() {
+                    return Ok(index);
+                }
             }
         }
         
-        Err(format!("AI returned invalid backend index: '{}'", response_trimmed).into())
+        // Fallback: look for just a number
+        let re_num = Regex::new(r"\b(\d+)\b").unwrap();
+        if let Some(caps) = re_num.captures(&response) {
+             if let Ok(index) = caps[1].parse::<usize>() {
+                 if index < backends.len() {
+                    return Ok(index);
+                }
+            }
+        }
+        
+        Err(format!("AI returned invalid or out-of-bounds backend index. Response: '{}'", response).into())
     }
 }
 

@@ -82,12 +82,13 @@ Kairos-rs now supports multiple protocols beyond HTTP:
 
 | Protocol | Status | Features |
 |----------|--------|----------|
-| **HTTP/HTTPS** | Production Ready | Load balancing, circuit breakers, retry logic, JWT auth, rate limiting |
+| **HTTP/HTTPS** | Production Ready | Load balancing, circuit breakers, retry logic, JWT auth, rate limiting, **AI Routing** |
 | **WebSocket** | Beta | Bidirectional messaging, connection upgrading, binary/text support |
 | **FTP** | Beta | File operations via HTTP API (list, download, upload), authentication |
 | **DNS** | Beta | Query forwarding, response caching, load balancing across DNS servers |
 
 See [MULTI_PROTOCOL_GUIDE.md](./docs/MULTI_PROTOCOL_GUIDE.md) for detailed protocol documentation and examples.
+See [AI_ROUTING_GUIDE.md](./docs/AI_ROUTING_GUIDE.md) for configuring intelligent request routing.
 
 ## Quick Start
 
@@ -105,7 +106,7 @@ docker run -d \
   ghcr.io/danielsarmiento04/kairos-rs:latest
 
 # Or use a specific version
-docker pull ghcr.io/danielsarmiento04/kairos-rs:0.2.10
+docker pull ghcr.io/danielsarmiento04/kairos-rs:0.3.0
 ```
 
 **With Docker Compose:**
@@ -233,6 +234,8 @@ wscat -c "ws://localhost:5900/ws/chat"
 Add to your `config.json`:
 
 ```json
+{
+  "routers": [
     {
       "protocol": "websocket",
       "backends": [

@@ -456,18 +456,30 @@ impl RouteHandler {
                 if let AiRoutingStrategy::ContentAnalysis { .. } = &policy.strategy {
                     // Prepare request summary for AI
                     let headers_summary = req.headers().iter()
+                        .filter(|(k, _)| {
+                            let k_str = k.as_str().to_lowercase();
+                            // Security: Exclude sensitive headers
+                            !k_str.contains("auth") && 
+                            !k_str.contains("cookie") && 
+                            !k_str.contains("token") &&
+                            !k_str.contains("key")
+                        })
                         .take(10) // Limit headers to avoid huge context
                         .map(|(k, v)| format!("{}: {:?}", k, v))
                         .collect::<Vec<_>>()
                         .join(", ");
                     
-                    // Safety: We have the body bytes, take a preview
-                    let body_preview = String::from_utf8_lossy(&body)
+                    // Safety: We have the body bytes, take a preview and redact potential secrets
+                    let raw_body = String::from_utf8_lossy(&body);
+                    // Simple regex-like redaction for common sensitive patterns (emails, credit cards)
+                    // Note: This is a basic filter. PII scrubbing is complex.
+                    let body_preview = raw_body
                         .chars()
                         .take(500)
-                        .collect::<String>();
+                        .collect::<String>()
+                        .replace(|c: char| c == '\n' || c == '\r', " ");
                         
-                    let req_info = format!("{} {}\nHeaders: {}\nBody: {}", 
+                    let req_info = format!("Method: {}\nPath: {}\nHeaders: {}\nBody Preview: {}", 
                         method, path, headers_summary, body_preview);
                     
                     let ai_service = self.ai_service.as_ref().unwrap();

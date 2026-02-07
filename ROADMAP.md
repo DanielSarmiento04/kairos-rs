@@ -1,8 +1,8 @@
 # Kairos-rs Development Roadmap
 
-> **Version**: 0.2.15  
-> **Last Updated**: January 2, 2026  
-> **Status**: Production Ready with Real-time Metrics & AI Routing Support
+> **Version**: 0.3.0
+> **Last Updated**: February 6, 2026
+> **Status**: Production Ready with Intelligent AI Routing
 
 ## 🔥 Immediate Priorities (Next 2 Weeks)
 
@@ -10,14 +10,17 @@
 2. **Metrics Charts UI** - Time-series visualization with interactive charts
 3. **Advanced Route Configuration UI** - Multi-backend, load balancing, and retry config forms
 4. **Transformation UI** - Visual editor for request/response transformations
-5. **AI Orchestration Layer** - Implement the core logic for AI-driven routing
+5. **Plugin System** - Explore WASM-based plugins for custom logic
 
-## 🤖 AI/LLM Gateway Vision
+## 🤖 AI/LLM Gateway Vision (Partially Delivered in v0.3.0)
 
 **Innovative Use Cases for AI-Powered API Gateway:**
 
-### Smart Request Routing
-- **Content Analysis**: Route `/api/translate` requests to different translation services based on detected language complexity
+### Smart Request Routing (✅ Implemented in v0.3.0)
+- **Content Analysis**: Route requests to different backends based on content complexity.
+- **Dynamic Selection**: Use LLMs to pick the best service instance for specific queries.
+
+### Upcoming AI Features
 - **Load Prediction**: Use ML to predict which backend will handle requests most efficiently
 - **Failover Intelligence**: AI-driven decisions on when and where to route during service degradation
 
@@ -42,22 +45,15 @@
 - Build plugin architecture for custom AI modules
 - Focus on performance - AI decisions should add <5ms latency
 
-## Success Metricsent load balancing strategies** - Round-robin, weighted, health-based
-2. **Add retry logic with backoff** - Configurable retry policies  
-3. **Request transformation** - Header manipulation, path rewriting
-4. **Performance optimizations** - Connection pooling improvements
-5. **Enhanced documentation** - Add JWT and rate limiting examplesus**: Development mode
+## Success Metrics
 
-## What is this?
-
-This roadmap shows what we're planning to build for Kairos-rs. It's honest about current state and future plans.
-
-**Current Reality**: We have a production-ready HTTP gateway with JWT auth, rate limiting, circuit breakers, metrics, **and a modern web-based admin interface**.
-
-**Future Vision**: A comprehensive API management platform with AI-powered routing capabilities that developers love to use.
+1. **Latency Impact**: AI routing decision should take <200ms (dependent on LLM provider).
+2. **Routing Accuracy**: >95% success rate in choosing the correct backend for test scenarios.
+3. **Developer Adoption**: Positive feedback on the `AI_ROUTING_GUIDE.md`.
 
 ## Current Status (What Actually Works)
 
+- ✅ **AI Orchestration Layer** - Content-aware routing using LLMs (OpenAI, Anthropic, etc.) (v0.3.0)
 - ✅ **Multi-protocol support** - HTTP/HTTPS, WebSocket, FTP, and DNS proxying
 - ✅ Basic HTTP request routing with regex pattern matching
 - ✅ Dynamic path parameters (`/users/{id}` → `/users/123`)
