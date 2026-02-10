@@ -347,7 +347,7 @@ impl RetryConfig {
 pub enum AiRoutingStrategy {
     /// Analyze request content (body/headers) to determine the best backend.
     /// Useful for routing to specialized models or services based on complexity.
-    ContentAnalysis { model: String },
+    ContentAnalysis { model: Option<String> },
     
     /// Predict backend latency based on historical data and current load.
     LatencyPrediction,
@@ -366,7 +366,8 @@ pub struct AiPolicy {
     pub strategy: AiRoutingStrategy,
     
     /// The AI provider to use (e.g., "openai", "local-llm", "internal-model").
-    pub provider: String,
+    /// If None, uses the global default provider.
+    pub provider: Option<String>,
     
     /// Optional index of the backend to use if AI processing fails or is uncertain.
     pub fallback_backend_index: Option<usize>,

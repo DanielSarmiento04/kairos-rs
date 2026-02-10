@@ -5,6 +5,34 @@ use reqwest::Client as HttpClient;
 use rig::client::CompletionClient;
 use rig::completion::Prompt;
 use rig::providers::{anthropic, cohere, groq, mistral, openai, perplexity, xai};
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum AiError {
+    #[error("API key not found for provider: {0}")]
+    ApiKeyMissing(String),
+
+    #[error("Unsupported AI provider: {0}")]
+    UnsupportedProvider(String),
+
+    #[error("AI request failed: {0}")]
+    RequestFailed(#[from] reqwest::Error),
+    
+    #[error("Error from AI provider: {0}")]
+    ProviderError(String),
+}
+
+#[derive(Debug, Error)]
+pub enum PredictBackendError {
+    #[error("AI execution failed")]
+    AiError(#[from] AiError),
+
+    #[error("Failed to parse AI response: {0}")]
+    ResponseParseError(String),
+
+    #[error("AI returned an invalid or out-of-bounds backend index from response: {0}")]
+    InvalidIndex(String),
+}
 
 /// Service for handling AI-related operations.
 pub struct AiService {

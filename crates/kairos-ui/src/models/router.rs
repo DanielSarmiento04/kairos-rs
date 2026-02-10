@@ -211,7 +211,7 @@ pub struct Router {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum AiRoutingStrategy {
-    ContentAnalysis { model: String },
+    ContentAnalysis { model: Option<String> },
     LatencyPrediction,
     AnomalyDetection,
 }
@@ -221,7 +221,7 @@ pub enum AiRoutingStrategy {
 pub struct AiPolicy {
     pub enabled: bool,
     pub strategy: AiRoutingStrategy,
-    pub provider: String,
+    pub provider: Option<String>,
     pub fallback_backend_index: Option<usize>,
 }
 
