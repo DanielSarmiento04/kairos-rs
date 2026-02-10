@@ -472,9 +472,19 @@ impl RouteHandler {
                     // Safety: We have the body bytes, take a preview and redact potential secrets
                     let raw_body = String::from_utf8_lossy(&body);
                     
-                    // TODO: Implement robust PII detection and redaction (e.g. presidio, sensitive-rs).
-                    // Current implementation only truncates and removes newlines.
-                    let body_preview = raw_body
+                    // Improved basic PII redaction using regex
+                    // Redacts potential email addresses and credit card numbers
+                    static EMAIL_RE: once_cell::sync::Lazy<regex::Regex> = once_cell::sync::Lazy::new(|| {
+                        regex::Regex::new(r"(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}").unwrap()
+                    });
+                    static CC_RE: once_cell::sync::Lazy<regex::Regex> = once_cell::sync::Lazy::new(|| {
+                        regex::Regex::new(r"\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b").unwrap()
+                    });
+
+                    let redacted_body = EMAIL_RE.replace_all(&raw_body, "[EMAIL_REDACTED]");
+                    let redacted_body = CC_RE.replace_all(&redacted_body, "[CC_REDACTED]");
+
+                    let body_preview = redacted_body
                         .chars()
                         .take(500)
                         .collect::<String>()
@@ -484,7 +494,7 @@ impl RouteHandler {
                         method, path, headers_summary, body_preview);
                     
                     let ai_service = self.ai_service.as_ref().unwrap();
-                    match ai_service.predict_backend(&req_info, &backends, Some(&policy.provider), Some(model)).await {
+                    match ai_service.predict_backend(&req_info, &backends, policy.provider.as_deref(), model.as_deref()).await {
                         Ok(idx) => {
                             debug!("AI selected backend index: {}", idx);
                             Some(idx)
