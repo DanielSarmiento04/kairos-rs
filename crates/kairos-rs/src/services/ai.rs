@@ -36,7 +36,7 @@ pub enum PredictBackendError {
 
 /// Service for handling AI-related operations.
 pub struct AiService {
-    settings: AiSettings,
+    pub settings: AiSettings,
 }
 
 impl AiService {
@@ -52,25 +52,25 @@ impl AiService {
         preamble: &str,
         provider_override: Option<&str>,
         model_override: Option<&str>
-    ) -> Result<String, Box<dyn std::error::Error>> {
+    ) -> Result<String, AiError> {
         let provider = provider_override.unwrap_or(&self.settings.provider).to_lowercase();
         let model = model_override.unwrap_or(&self.settings.model);
 
          // Helper to get API key from config or env
-         let get_key = |env_var: &str| -> Result<String, Box<dyn std::error::Error>> {
+         let get_key = |env_var: &str| -> Result<String, AiError> {
             self.settings
                 .api_key
                 .clone()
                 .or_else(|| std::env::var(env_var).ok())
-                .ok_or_else(|| format!("API key not found in config or {} env var", env_var).into())
+                .ok_or_else(|| AiError::ApiKeyMissing(env_var.to_string()))
         };
 
         macro_rules! delegate_prompt {
             ($client:ty, $key_env:literal, $provider_name:literal, $preamble:expr) => {{
-                let client = <$client>::new(&get_key($key_env)?)?;
+                let client = <$client>::new(&get_key($key_env)?).map_err(|e| AiError::ProviderError(e.to_string()))?;
                 let agent = client.agent(model).preamble($preamble).build();
                 debug!("Sending prompt to {} model: {}", $provider_name, model);
-                agent.prompt(prompt).await?
+                agent.prompt(prompt).await.map_err(|e| AiError::ProviderError(e.to_string()))?
             }};
         }
 
@@ -105,7 +105,7 @@ impl AiService {
             _ => {
                 let msg = format!("Unsupported AI provider: {}", provider);
                 error!("{}", msg);
-                return Err(msg.into());
+                return Err(AiError::UnsupportedProvider(provider));
             }
         };
 
@@ -113,7 +113,7 @@ impl AiService {
     }
 
     /// Performs a simple completion request to test the integration.
-    pub async fn ask(&self, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn ask(&self, prompt: &str) -> Result<String, AiError> {
         let preamble = "You are a helpful AI assistant integrated into the Kairos-rs gateway.";
         self.execute_prompt(prompt, preamble, None, None).await
     }
@@ -136,7 +136,7 @@ impl AiService {
         backends: &[Backend],
         provider: Option<&str>,
         model: Option<&str>
-    ) -> Result<usize, Box<dyn std::error::Error>> {
+    ) -> Result<usize, PredictBackendError> {
         // Format backends list
         let backends_list = backends.iter().enumerate()
             .map(|(i, b)| format!("{}: {} (port {})", i, b.host, b.port))
@@ -183,25 +183,7 @@ impl AiService {
             }
         }
         
-        Err(format!("AI returned invalid or out-of-bounds backend index. Response: '{}'", response).into())
+        Err(PredictBackendError::InvalidIndex(response))
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_ai_settings_initialization() {
-        let settings = AiSettings {
-            provider: "openai".to_string(),
-            model: "gpt-4".to_string(),
-            api_key: Some("test-key".to_string()),
-        };
-
-        let service = AiService::new(settings);
-        assert_eq!(service.settings.provider, "openai");
-        assert_eq!(service.settings.model, "gpt-4");
-        assert_eq!(service.settings.api_key, Some("test-key".to_string()));
-    }
-}
