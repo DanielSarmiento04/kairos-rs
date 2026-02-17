@@ -7,7 +7,7 @@
 //! - Connection duration
 //! - Error rates
 
-use std::sync::atomic::{AtomicU64, AtomicI64, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::Arc;
 
 /// Global WebSocket metrics tracker
@@ -26,6 +26,12 @@ pub struct WebSocketMetricsGlobal {
     connections_total: Arc<AtomicU64>,
     /// Total connection errors
     connection_errors: Arc<AtomicU64>,
+}
+
+impl Default for WebSocketMetricsGlobal {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl WebSocketMetricsGlobal {
@@ -105,7 +111,11 @@ impl WebSocketMetrics {
     /// let global = Arc::new(WebSocketMetricsGlobal::new());
     /// let metrics = WebSocketMetrics::new_with_global("/ws/chat".to_string(), "backend1".to_string(), global);
     /// ```
-    pub fn new_with_global(route: String, backend: String, global: Arc<WebSocketMetricsGlobal>) -> Self {
+    pub fn new_with_global(
+        route: String,
+        backend: String,
+        global: Arc<WebSocketMetricsGlobal>,
+    ) -> Self {
         // Increment active connections
         global.active_connections.fetch_add(1, Ordering::Relaxed);
         // Increment total connections
@@ -132,7 +142,9 @@ impl WebSocketMetrics {
     /// * `size_bytes` - Size of the message in bytes
     pub fn record_message_sent(&self, _message_type: &str, size_bytes: usize) {
         self.global.messages_sent.fetch_add(1, Ordering::Relaxed);
-        self.global.bytes_sent.fetch_add(size_bytes as u64, Ordering::Relaxed);
+        self.global
+            .bytes_sent
+            .fetch_add(size_bytes as u64, Ordering::Relaxed);
     }
 
     /// Records a message received from the client
@@ -142,8 +154,12 @@ impl WebSocketMetrics {
     /// * `message_type` - Type of message (text, binary, ping, pong, close)
     /// * `size_bytes` - Size of the message in bytes
     pub fn record_message_received(&self, _message_type: &str, size_bytes: usize) {
-        self.global.messages_received.fetch_add(1, Ordering::Relaxed);
-        self.global.bytes_received.fetch_add(size_bytes as u64, Ordering::Relaxed);
+        self.global
+            .messages_received
+            .fetch_add(1, Ordering::Relaxed);
+        self.global
+            .bytes_received
+            .fetch_add(size_bytes as u64, Ordering::Relaxed);
     }
 
     /// Records a connection error
@@ -152,7 +168,9 @@ impl WebSocketMetrics {
     ///
     /// * `error_type` - Type of error (upgrade_failed, backend_unreachable, forwarding_error, etc.)
     pub fn record_error(&self, _error_type: &str) {
-        self.global.connection_errors.fetch_add(1, Ordering::Relaxed);
+        self.global
+            .connection_errors
+            .fetch_add(1, Ordering::Relaxed);
     }
 
     /// Records ping/pong round-trip time
@@ -172,9 +190,11 @@ impl WebSocketMetrics {
     /// * `close_reason` - Reason for connection closure (normal, error, timeout, etc.)
     pub fn record_close(&self, _close_reason: &str) {
         let _duration = self.connection_start.elapsed().as_secs_f64();
-        
+
         // Decrement active connections
-        self.global.active_connections.fetch_sub(1, Ordering::Relaxed);
+        self.global
+            .active_connections
+            .fetch_sub(1, Ordering::Relaxed);
     }
 }
 
@@ -183,7 +203,9 @@ impl Drop for WebSocketMetrics {
         // Ensure we decrement active connections if not explicitly closed
         let current = self.global.active_connections.load(Ordering::Relaxed);
         if current > 0 {
-            self.global.active_connections.fetch_sub(1, Ordering::Relaxed);
+            self.global
+                .active_connections
+                .fetch_sub(1, Ordering::Relaxed);
         }
     }
 }
