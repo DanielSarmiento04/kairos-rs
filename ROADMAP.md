@@ -211,8 +211,8 @@
 - [x] **Connection pooling optimization** - Better upstream connections
 - [ ] **Compression** - gzip/brotli response compression
 - [ ] **Performance monitoring** - Latency histograms, throughput metrics
-- ✅ **Historical metrics storage** - COMPLETED (v0.2.12) - Time-series data with retention and aggregation
-- [ ] **Historical metrics API** - REST endpoints for querying time-series data (IN PROGRESS)
+- [x] **Historical metrics storage** - COMPLETED (v0.2.12) - Time-series data with retention and aggregation
+- [x] **Historical metrics API** - REST endpoints for querying time-series data (v0.3.2)
 - [ ] **Time-series charts** - Interactive visualization in UI (PLANNED)
 - [ ] **Per-route analytics** - Detailed breakdown by route
 - [ ] **Distributed tracing** - OpenTelemetry integration
@@ -268,9 +268,9 @@ Based on feedback from users and contributors:
 - ✅ **Retry logic** - COMPLETED - Exponential backoff with configurable policies
 - ✅ **Request transformation** - COMPLETED (v0.2.12) - Header manipulation, path rewriting, query parameters
 - ✅ **Response transformation** - COMPLETED (v0.2.12) - Header modification, status code mapping
-- ✅ **Historical metrics storage** - COMPLETED (v0.2.12) - Time-series data with retention and aggregation
-- [ ] **Historical metrics API** - IN PROGRESS - REST endpoints for time-series queries
-- [ ] **Time-series charts** - PLANNED - Interactive visualization in UI
+- [x] **Historical metrics storage** - COMPLETED (v0.2.12) - Time-series data with retention and aggregation
+- [x] **Historical metrics API** - REST endpoints for time-series queries (v0.3.2)
+- [ ] **Time-series charts** - Interactive visualization in UI (PLANNED)
 - [ ] **WebSocket real-time updates** - PLANNED - Replace polling with live connections
 - [ ] **🤖 AI/LLM Integration** - FUTURE - Intelligent routing and request processing
 
