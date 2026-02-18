@@ -51,7 +51,7 @@ pub enum RouteMatchError {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```text
 /// // Pattern: "/api/users/{id}/posts/{post_id}"
 /// // Regex: "^/api/users/([^/]+)/posts/([^/]+)$"
 /// // Param names: ["id", "post_id"]

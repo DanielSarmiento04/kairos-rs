@@ -1,7 +1,7 @@
 # Kairos-rs Development Roadmap
 
-> **Version**: 0.3.0
-> **Last Updated**: February 6, 2026
+> **Version**: 0.3.2
+> **Last Updated**: February 17, 2026
 > **Status**: Production Ready with Intelligent AI Routing
 
 ## 🔥 Immediate Priorities (Next 2 Weeks)
@@ -208,7 +208,7 @@
 **Goal**: Handle serious production loads with comprehensive monitoring
 
 - [ ] **Response caching** - In-memory and Redis backends
-- [ ] **Connection pooling optimization** - Better upstream connections
+- [x] **Connection pooling optimization** - Better upstream connections
 - [ ] **Compression** - gzip/brotli response compression
 - [ ] **Performance monitoring** - Latency histograms, throughput metrics
 - ✅ **Historical metrics storage** - COMPLETED (v0.2.12) - Time-series data with retention and aggregation

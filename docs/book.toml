@@ -1,0 +1,10 @@
+[book]
+authors = ["Daniel Sarmiento"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Kairos-rs Documentation"
+
+[output.html]
+git-repository-url = "https://github.com/DanielSarmiento04/kairos-rs"
+site-url = "/kairos-rs/"
