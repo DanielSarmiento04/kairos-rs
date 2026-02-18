@@ -5,8 +5,8 @@
 
 use crate::models::router::Backend;
 use crate::services::ftp::FtpHandler;
-use actix_web::{web, HttpResponse, Error};
-use base64::{Engine, engine::general_purpose};
+use actix_web::{web, Error, HttpResponse};
+use base64::{engine::general_purpose, Engine};
 use log::info;
 use serde::{Deserialize, Serialize};
 
@@ -83,14 +83,9 @@ pub async fn handle_ftp_list(
     info!("FTP LIST request for path: {}", query.path);
 
     let files = handler
-        .list_directory(
-            &backend,
-            &query.username,
-            &query.password,
-            &query.path,
-        )
+        .list_directory(&backend, &query.username, &query.password, &query.path)
         .await
-        .map_err(|e| actix_web::error::ErrorInternalServerError(e))?;
+        .map_err(actix_web::error::ErrorInternalServerError)?;
 
     let count = files.len();
 
@@ -122,14 +117,9 @@ pub async fn handle_ftp_download(
     info!("FTP RETR request for file: {}", query.path);
 
     let content = handler
-        .retrieve_file(
-            &backend,
-            &query.username,
-            &query.password,
-            &query.path,
-        )
+        .retrieve_file(&backend, &query.username, &query.password, &query.path)
         .await
-        .map_err(|e| actix_web::error::ErrorInternalServerError(e))?;
+        .map_err(actix_web::error::ErrorInternalServerError)?;
 
     let size = content.len();
     // Base64 encode for JSON transport
@@ -174,9 +164,7 @@ pub async fn handle_ftp_upload(
     // Decode base64 content
     let content = general_purpose::STANDARD
         .decode(&body.content)
-        .map_err(|e| {
-            actix_web::error::ErrorBadRequest(format!("Invalid base64 content: {}", e))
-        })?;
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid base64 content: {}", e)))?;
 
     handler
         .store_file(
@@ -187,7 +175,7 @@ pub async fn handle_ftp_upload(
             &content,
         )
         .await
-        .map_err(|e| actix_web::error::ErrorInternalServerError(e))?;
+        .map_err(actix_web::error::ErrorInternalServerError)?;
 
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "success": true,
@@ -231,11 +219,11 @@ pub async fn handle_ftp_upload(
 /// ```
 pub fn configure_ftp(cfg: &mut web::ServiceConfig) {
     info!("Configuring FTP proxy routes");
-    
+
     cfg.service(
         web::scope("/ftp")
             .route("/list", web::get().to(handle_ftp_list))
             .route("/download", web::get().to(handle_ftp_download))
-            .route("/upload", web::post().to(handle_ftp_upload))
+            .route("/upload", web::post().to(handle_ftp_upload)),
     );
 }

@@ -123,11 +123,10 @@ impl DnsHandler {
         backend: &Backend,
     ) -> Result<Vec<u8>, GatewayError> {
         // Parse the DNS query
-        let query_msg = Message::from_vec(query_bytes)
-            .map_err(|e| GatewayError::Config {
-                message: format!("Failed to parse DNS query: {}", e),
-                route: "dns".to_string(),
-            })?;
+        let query_msg = Message::from_vec(query_bytes).map_err(|e| GatewayError::Config {
+            message: format!("Failed to parse DNS query: {}", e),
+            route: "dns".to_string(),
+        })?;
 
         debug!("Parsed DNS query: {:?}", query_msg.queries());
 
@@ -139,12 +138,12 @@ impl DnsHandler {
             let cache = self.cache.read().await;
             if let Some(entry) = cache.get(&cache_key) {
                 let now = Instant::now();
-                
+
                 if entry.expires_at > now {
                     debug!("DNS cache hit for: {}", cache_key);
                     // Serialize the cached response
-                    let response_bytes = entry.response.to_vec()
-                        .map_err(|e| GatewayError::Config {
+                    let response_bytes =
+                        entry.response.to_vec().map_err(|e| GatewayError::Config {
                             message: format!("Failed to serialize cached response: {}", e),
                             route: "dns".to_string(),
                         })?;
@@ -170,11 +169,10 @@ impl DnsHandler {
             })?;
 
         // Parse DNS server address
-        let server_addr: SocketAddr = dns_addr.parse()
-            .map_err(|e| GatewayError::Config {
-                message: format!("Invalid DNS server address: {}", e),
-                route: dns_addr.clone(),
-            })?;
+        let server_addr: SocketAddr = dns_addr.parse().map_err(|e| GatewayError::Config {
+            message: format!("Invalid DNS server address: {}", e),
+            route: dns_addr.clone(),
+        })?;
 
         // Send query with timeout
         timeout(
@@ -216,7 +214,7 @@ impl DnsHandler {
                 let expires_at = Instant::now() + Duration::from_secs(min_ttl as u64);
 
                 debug!("Caching DNS response for {} seconds", min_ttl);
-                
+
                 let mut cache = self.cache.write().await;
                 cache.insert(
                     cache_key,
@@ -238,8 +236,8 @@ impl DnsHandler {
             format!(
                 "{}:{}:{}",
                 query.name(),
-                query.query_type().to_string(),
-                query.query_class().to_string()
+                query.query_type(),
+                query.query_class()
             )
         } else {
             String::from("unknown")
@@ -249,11 +247,11 @@ impl DnsHandler {
     /// Extracts the minimum TTL from a DNS response for caching.
     fn get_min_ttl(&self, message: &Message) -> u32 {
         let mut min_ttl = u32::MAX;
-        
+
         for answer in message.answers() {
             min_ttl = min_ttl.min(answer.ttl());
         }
-        
+
         if min_ttl == u32::MAX {
             0 // No answers, don't cache
         } else {
@@ -269,20 +267,23 @@ impl DnsHandler {
             .strip_prefix("dns://")
             .or_else(|| url.strip_prefix("udp://"))
             .unwrap_or(url);
-        
+
         Ok(host.to_string())
     }
 
     /// Clears expired entries from the cache.
     pub async fn clear_expired(&self) {
         debug!("Running DNS cache cleanup");
-        
+
         let now = Instant::now();
-        
+
         let mut cache = self.cache.write().await;
         cache.retain(|_, entry| entry.expires_at > now);
-        
-        debug!("DNS cache cleanup completed, {} entries remaining", cache.len());
+
+        debug!(
+            "DNS cache cleanup completed, {} entries remaining",
+            cache.len()
+        );
     }
 
     /// Returns the number of cached entries.

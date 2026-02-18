@@ -5,7 +5,7 @@
 
 use crate::models::router::Backend;
 use crate::services::dns::DnsHandler;
-use actix_web::{web, HttpResponse, Error};
+use actix_web::{web, Error, HttpResponse};
 use log::info;
 use serde::{Deserialize, Serialize};
 
@@ -69,7 +69,7 @@ pub async fn handle_dns_query(
     let response_bytes = handler
         .forward_query(&query_bytes, &backend)
         .await
-        .map_err(|e| actix_web::error::ErrorInternalServerError(e))?;
+        .map_err(actix_web::error::ErrorInternalServerError)?;
 
     // Encode response as hex
     let response_hex = hex::encode(&response_bytes);
@@ -129,9 +129,7 @@ pub async fn handle_dns_cache_cleanup(
 ///   "size": 42
 /// }
 /// ```
-pub async fn handle_dns_cache_stats(
-    handler: web::Data<DnsHandler>,
-) -> Result<HttpResponse, Error> {
+pub async fn handle_dns_cache_stats(handler: web::Data<DnsHandler>) -> Result<HttpResponse, Error> {
     let size = handler.cache_size().await;
 
     Ok(HttpResponse::Ok().json(DnsCacheStats { size }))
@@ -171,14 +169,14 @@ pub async fn handle_dns_cache_stats(
 /// ```
 pub fn configure_dns(cfg: &mut web::ServiceConfig) {
     info!("Configuring DNS proxy routes");
-    
+
     cfg.service(
         web::scope("/dns")
             .route("/query", web::post().to(handle_dns_query))
             .service(
                 web::scope("/cache")
                     .route("/cleanup", web::post().to(handle_dns_cache_cleanup))
-                    .route("/stats", web::get().to(handle_dns_cache_stats))
-            )
+                    .route("/stats", web::get().to(handle_dns_cache_stats)),
+            ),
     );
 }

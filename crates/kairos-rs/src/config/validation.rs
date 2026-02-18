@@ -1,11 +1,11 @@
 //! Advanced configuration validation with detailed error reporting.
-//! 
+//!
 //! This module provides comprehensive validation for gateway configuration,
 //! including security checks, performance recommendations, and detailed
 //! error reporting for troubleshooting.
 
 use crate::models::settings::Settings;
-use log::{warn, info};
+use log::{info, warn};
 use std::collections::HashSet;
 
 /// Result of configuration validation containing errors, warnings, and recommendations.
@@ -39,6 +39,12 @@ pub struct ValidationResult {
     pub recommendations: Vec<String>,
 }
 
+impl Default for ValidationResult {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ValidationResult {
     /// Creates a new validation result with no errors, warnings, or recommendations.
     ///
@@ -59,7 +65,7 @@ impl ValidationResult {
             recommendations: Vec::new(),
         }
     }
-    
+
     /// Adds a critical error and marks validation as failed.
     ///
     /// # Parameters
@@ -79,7 +85,7 @@ impl ValidationResult {
         self.is_valid = false;
         self.errors.push(error);
     }
-    
+
     /// Adds a non-critical warning that should be addressed.
     ///
     /// # Parameters
@@ -98,7 +104,7 @@ impl ValidationResult {
     pub fn add_warning(&mut self, warning: String) {
         self.warnings.push(warning);
     }
-    
+
     /// Adds a recommendation for improving the configuration.
     ///
     /// # Parameters
@@ -182,48 +188,50 @@ impl ConfigValidator {
     /// ```
     pub fn validate_comprehensive(settings: &Settings) -> ValidationResult {
         let mut result = ValidationResult::new();
-        
+
         // Basic validation
         Self::validate_basic_structure(settings, &mut result);
-        
+
         // Security validation
         Self::validate_security(settings, &mut result);
-        
+
         // Performance validation
         Self::validate_performance(settings, &mut result);
-        
+
         // Route conflicts
         Self::validate_route_conflicts(settings, &mut result);
-        
+
         // Protocol-specific validation
         Self::validate_protocols(settings, &mut result);
-        
+
         // Log results
         Self::log_validation_results(&result);
-        
+
         result
     }
-    
+
     fn validate_basic_structure(settings: &Settings, result: &mut ValidationResult) {
         if settings.routers.is_empty() {
-            result.add_error("No routers configured - gateway will not handle any requests".to_string());
+            result.add_error(
+                "No routers configured - gateway will not handle any requests".to_string(),
+            );
         }
-        
+
         for (index, router) in settings.routers.iter().enumerate() {
             if let Err(error) = router.validate() {
                 result.add_error(format!("Router {} validation failed: {}", index, error));
             }
         }
     }
-    
+
     fn validate_security(settings: &Settings, result: &mut ValidationResult) {
         let mut http_routes = 0;
         let mut https_routes = 0;
-        
+
         for router in &settings.routers {
             // Get backends to check hosts
             let backends = router.get_backends();
-            
+
             for backend in backends {
                 if backend.host.starts_with("http://") {
                     http_routes += 1;
@@ -234,7 +242,7 @@ impl ConfigValidator {
                         ));
                     } else {
                         result.add_warning(format!(
-                            "Insecure HTTP backend detected: {} - consider HTTPS", 
+                            "Insecure HTTP backend detected: {} - consider HTTPS",
                             backend.host
                         ));
                     }
@@ -242,15 +250,16 @@ impl ConfigValidator {
                     https_routes += 1;
                 }
             }
-            
+
             // Check for overly permissive methods
             if router.methods.len() > 4 {
                 result.add_warning(format!(
                     "Route {} allows many HTTP methods ({}) - consider restricting for security",
-                    router.external_path, router.methods.len()
+                    router.external_path,
+                    router.methods.len()
                 ));
             }
-            
+
             // Check for dangerous paths
             if router.external_path.contains("..") || router.internal_path.contains("..") {
                 result.add_error(format!(
@@ -259,31 +268,35 @@ impl ConfigValidator {
                 ));
             }
         }
-        
+
         if http_routes > 0 && https_routes == 0 {
-            result.add_warning("All routes use HTTP - consider HTTPS for production security".to_string());
+            result.add_warning(
+                "All routes use HTTP - consider HTTPS for production security".to_string(),
+            );
         }
     }
-    
+
     fn validate_performance(settings: &Settings, result: &mut ValidationResult) {
-        let dynamic_routes = settings.routers.iter()
+        let dynamic_routes = settings
+            .routers
+            .iter()
             .filter(|r| r.external_path.contains('{'))
             .count();
         let static_routes = settings.routers.len() - dynamic_routes;
-        
+
         if dynamic_routes > 50 {
             result.add_warning(format!(
                 "High number of dynamic routes ({}) may impact performance - consider route optimization",
                 dynamic_routes
             ));
         }
-        
+
         if static_routes == 0 && dynamic_routes > 0 {
             result.add_recommendation(
                 "Consider adding static routes for frequently accessed endpoints to improve performance".to_string()
             );
         }
-        
+
         // Check for complex patterns
         for router in &settings.routers {
             let param_count = router.external_path.matches('{').count();
@@ -295,11 +308,11 @@ impl ConfigValidator {
             }
         }
     }
-    
+
     fn validate_route_conflicts(settings: &Settings, result: &mut ValidationResult) {
         let mut seen_paths = HashSet::new();
         let mut potential_conflicts = Vec::new();
-        
+
         for router in &settings.routers {
             if seen_paths.contains(&router.external_path) {
                 result.add_error(format!(
@@ -308,20 +321,20 @@ impl ConfigValidator {
                 ));
             }
             seen_paths.insert(&router.external_path);
-            
+
             // Check for potential conflicts between static and dynamic routes
             for other_router in &settings.routers {
-                if router.external_path != other_router.external_path {
-                    if Self::routes_may_conflict(&router.external_path, &other_router.external_path) {
-                        potential_conflicts.push((
-                            router.external_path.clone(),
-                            other_router.external_path.clone()
-                        ));
-                    }
+                if router.external_path != other_router.external_path
+                    && Self::routes_may_conflict(&router.external_path, &other_router.external_path)
+                {
+                    potential_conflicts.push((
+                        router.external_path.clone(),
+                        other_router.external_path.clone(),
+                    ));
                 }
             }
         }
-        
+
         for (route1, route2) in potential_conflicts {
             result.add_warning(format!(
                 "Potential route conflict between '{}' and '{}' - order matters",
@@ -329,16 +342,16 @@ impl ConfigValidator {
             ));
         }
     }
-    
+
     fn routes_may_conflict(path1: &str, path2: &str) -> bool {
         // Simple heuristic: if one is static and matches the pattern of a dynamic route
         let path1_segments: Vec<&str> = path1.split('/').collect();
         let path2_segments: Vec<&str> = path2.split('/').collect();
-        
+
         if path1_segments.len() != path2_segments.len() {
             return false;
         }
-        
+
         for (seg1, seg2) in path1_segments.iter().zip(path2_segments.iter()) {
             if seg1.starts_with('{') || seg2.starts_with('{') {
                 continue; // Parameter segment, could match
@@ -347,31 +360,32 @@ impl ConfigValidator {
                 return false; // Different static segments
             }
         }
-        
+
         // If we get here, routes could potentially conflict
         true
     }
-    
+
     fn validate_protocols(settings: &Settings, result: &mut ValidationResult) {
         use crate::models::router::Protocol;
-        
+
         for router in &settings.routers {
             match router.protocol {
                 Protocol::WebSocket => {
                     // Validate WebSocket-specific requirements
                     let backends = router.get_backends();
                     for backend in backends {
-                        if !backend.host.starts_with("ws://") 
-                            && !backend.host.starts_with("wss://") 
+                        if !backend.host.starts_with("ws://")
+                            && !backend.host.starts_with("wss://")
                             && !backend.host.starts_with("http://")
-                            && !backend.host.starts_with("https://") {
+                            && !backend.host.starts_with("https://")
+                        {
                             result.add_error(format!(
                                 "WebSocket route {} requires backend URL with ws://, wss://, http://, or https:// protocol",
                                 router.external_path
                             ));
                         }
                     }
-                    
+
                     if !router.methods.contains(&"GET".to_string()) {
                         result.add_warning(format!(
                             "WebSocket route {} should allow GET method for upgrade",
@@ -383,15 +397,16 @@ impl ConfigValidator {
                     // Validate FTP-specific requirements
                     let backends = router.get_backends();
                     for backend in backends {
-                        if !backend.host.starts_with("ftp://") 
+                        if !backend.host.starts_with("ftp://")
                             && !backend.host.starts_with("ftps://")
-                            && !backend.host.contains("ftp") {
+                            && !backend.host.contains("ftp")
+                        {
                             result.add_warning(format!(
                                 "FTP route {} backend may require ftp:// or ftps:// protocol: {}",
                                 router.external_path, backend.host
                             ));
                         }
-                        
+
                         if backend.port != 21 && backend.port != 22 {
                             result.add_recommendation(format!(
                                 "FTP route {} uses non-standard port {} (standard is 21)",
@@ -410,16 +425,18 @@ impl ConfigValidator {
                                 router.external_path, backend.port
                             ));
                         }
-                        
+
                         // Validate DNS server address format
-                        if backend.host.starts_with("http://") || backend.host.starts_with("https://") {
+                        if backend.host.starts_with("http://")
+                            || backend.host.starts_with("https://")
+                        {
                             result.add_error(format!(
                                 "DNS route {} backend should not use HTTP/HTTPS protocol: {}",
                                 router.external_path, backend.host
                             ));
                         }
                     }
-                    
+
                     if !router.methods.contains(&"POST".to_string()) {
                         result.add_warning(format!(
                             "DNS route {} should allow POST method for query forwarding",
@@ -433,7 +450,7 @@ impl ConfigValidator {
             }
         }
     }
-    
+
     fn log_validation_results(result: &ValidationResult) {
         if result.is_valid {
             info!("Configuration validation passed");
@@ -442,11 +459,11 @@ impl ConfigValidator {
                 log::error!("Validation error: {}", error);
             }
         }
-        
+
         for warning in &result.warnings {
             warn!("Validation warning: {}", warning);
         }
-        
+
         for recommendation in &result.recommendations {
             info!("Recommendation: {}", recommendation);
         }

@@ -1,5 +1,5 @@
 //! Advanced rate limiting middleware with multi-dimensional limiting strategies.
-//! 
+//!
 //! This module provides sophisticated rate limiting capabilities beyond basic
 //! per-IP limiting, including per-user, per-route, and composite limiting
 //! strategies with sliding window algorithms and burst allowances.
@@ -9,27 +9,27 @@ use actix_web::{
     Error as ActixError, HttpMessage,
 };
 use futures::future::{LocalBoxFuture, Ready};
+use log::{debug, info, warn};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
-    time::{Duration, Instant},
     task::{Context, Poll},
+    time::{Duration, Instant},
 };
-use serde::{Deserialize, Serialize};
-use log::{debug, warn, info};
 
 /// Configuration for advanced rate limiting with multiple strategies.
-/// 
+///
 /// Supports different rate limiting approaches including per-IP, per-user,
 /// per-route, and composite strategies with configurable time windows,
 /// burst allowances, and sliding window algorithms.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use std::time::Duration;
 /// use kairos_rs::middleware::rate_limit::{RateLimitConfig, LimitStrategy, WindowType};
-/// 
+///
 /// // Basic per-IP rate limiting
 /// let config = RateLimitConfig {
 ///     strategy: LimitStrategy::PerIP,
@@ -61,7 +61,7 @@ pub struct RateLimitConfig {
 }
 
 /// Strategies for rate limiting with different dimensions.
-/// 
+///
 /// Each strategy applies rate limits based on different request characteristics,
 /// allowing for fine-grained control over traffic patterns.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -81,7 +81,7 @@ pub enum LimitStrategy {
 }
 
 /// Time window algorithms for rate limiting calculations.
-/// 
+///
 /// Different algorithms provide trade-offs between memory usage,
 /// accuracy, and computational overhead.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,7 +95,7 @@ pub enum WindowType {
 }
 
 /// Tracks request counts and timing for rate limiting decisions.
-/// 
+///
 /// This structure maintains the state needed to determine whether
 /// a request should be allowed or rejected based on the configured
 /// rate limiting strategy.
@@ -111,6 +111,12 @@ pub struct RateLimitEntry {
     pub available_tokens: f64,
     /// Last token refill time
     pub last_refill: Instant,
+}
+
+impl Default for RateLimitEntry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RateLimitEntry {
@@ -132,7 +138,7 @@ impl RateLimitEntry {
 }
 
 /// In-memory rate limiting store with time-based cleanup.
-/// 
+///
 /// Maintains rate limiting state for different keys (IP, user, route)
 /// with automatic cleanup of expired entries to prevent memory leaks.
 #[derive(Debug)]
@@ -141,6 +147,12 @@ pub struct RateLimitStore {
     entries: Arc<RwLock<HashMap<String, RateLimitEntry>>>,
     /// Last cleanup time to prevent memory growth
     last_cleanup: Arc<RwLock<Instant>>,
+}
+
+impl Default for RateLimitStore {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RateLimitStore {
@@ -157,17 +169,17 @@ impl RateLimitStore {
     }
 
     /// Checks if a request should be allowed based on rate limiting rules.
-    /// 
+    ///
     /// This method implements the core rate limiting logic, checking
     /// against the configured strategy and updating internal counters.
-    /// 
+    ///
     /// # Parameters
-    /// 
+    ///
     /// * `key` - The rate limiting key (IP, user ID, route, etc.)
     /// * `config` - Rate limiting configuration to apply
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// * `Ok(true)` - Request is allowed, counters updated
     /// * `Ok(false)` - Request should be rate limited
     /// * `Err()` - Internal error during rate limiting check
@@ -175,8 +187,13 @@ impl RateLimitStore {
         // Cleanup old entries periodically
         self.cleanup_expired_entries(config);
 
-        let mut entries = self.entries.write().map_err(|e| format!("Lock error: {}", e))?;
-        let entry = entries.entry(key.to_string()).or_insert_with(RateLimitEntry::new);
+        let mut entries = self
+            .entries
+            .write()
+            .map_err(|e| format!("Lock error: {}", e))?;
+        let entry = entries
+            .entry(key.to_string())
+            .or_insert_with(RateLimitEntry::new);
 
         match config.window_type {
             WindowType::FixedWindow => self.check_fixed_window(entry, config),
@@ -185,7 +202,11 @@ impl RateLimitStore {
         }
     }
 
-    fn check_fixed_window(&self, entry: &mut RateLimitEntry, config: &RateLimitConfig) -> Result<bool, String> {
+    fn check_fixed_window(
+        &self,
+        entry: &mut RateLimitEntry,
+        config: &RateLimitConfig,
+    ) -> Result<bool, String> {
         let now = Instant::now();
         let window_duration = config.window_duration;
 
@@ -197,7 +218,7 @@ impl RateLimitStore {
 
         // Check rate limit
         let allowed = entry.request_count < (config.requests_per_window + config.burst_allowance);
-        
+
         if allowed {
             entry.request_count += 1;
         }
@@ -205,12 +226,18 @@ impl RateLimitStore {
         Ok(allowed)
     }
 
-    fn check_sliding_window(&self, entry: &mut RateLimitEntry, config: &RateLimitConfig) -> Result<bool, String> {
+    fn check_sliding_window(
+        &self,
+        entry: &mut RateLimitEntry,
+        config: &RateLimitConfig,
+    ) -> Result<bool, String> {
         let now = Instant::now();
         let window_duration = config.window_duration;
 
         // Remove requests outside the sliding window
-        entry.request_times.retain(|&time| now.duration_since(time) < window_duration);
+        entry
+            .request_times
+            .retain(|&time| now.duration_since(time) < window_duration);
 
         // Check rate limit
         let current_count = entry.request_times.len() as u64;
@@ -223,27 +250,32 @@ impl RateLimitStore {
         Ok(allowed)
     }
 
-    fn check_token_bucket(&self, entry: &mut RateLimitEntry, config: &RateLimitConfig) -> Result<bool, String> {
+    fn check_token_bucket(
+        &self,
+        entry: &mut RateLimitEntry,
+        config: &RateLimitConfig,
+    ) -> Result<bool, String> {
         let now = Instant::now();
         let time_passed = now.duration_since(entry.last_refill).as_secs_f64();
-        
+
         // Calculate token refill rate (tokens per second)
         let refill_rate = config.requests_per_window as f64 / config.window_duration.as_secs_f64();
-        
+
         // For new entries, initialize with the base request limit (not burst)
         // This allows immediate requests while respecting the configured rate
         if entry.available_tokens == 0.0 && time_passed < 0.001 {
             entry.available_tokens = config.requests_per_window as f64;
         }
-        
+
         // Refill tokens based on time passed
         let max_tokens = (config.requests_per_window + config.burst_allowance) as f64;
-        entry.available_tokens = (entry.available_tokens + time_passed * refill_rate).min(max_tokens);
+        entry.available_tokens =
+            (entry.available_tokens + time_passed * refill_rate).min(max_tokens);
         entry.last_refill = now;
 
         // Check if we have tokens available
         let allowed = entry.available_tokens >= 1.0;
-        
+
         if allowed {
             entry.available_tokens -= 1.0;
         }
@@ -254,7 +286,7 @@ impl RateLimitStore {
     fn cleanup_expired_entries(&self, config: &RateLimitConfig) {
         let now = Instant::now();
         let mut last_cleanup = self.last_cleanup.write().unwrap();
-        
+
         // Only cleanup every 5 minutes to avoid performance impact
         if now.duration_since(*last_cleanup) < Duration::from_secs(300) {
             return;
@@ -262,10 +294,8 @@ impl RateLimitStore {
 
         if let Ok(mut entries) = self.entries.write() {
             let cleanup_threshold = config.window_duration * 2; // Keep entries for 2x window duration
-            entries.retain(|_, entry| {
-                now.duration_since(entry.window_start) < cleanup_threshold
-            });
-            
+            entries.retain(|_, entry| now.duration_since(entry.window_start) < cleanup_threshold);
+
             info!("Rate limiter cleanup: {} entries retained", entries.len());
         }
 
@@ -274,7 +304,7 @@ impl RateLimitStore {
 }
 
 /// Advanced rate limiting middleware factory.
-/// 
+///
 /// Creates middleware instances that apply sophisticated rate limiting
 /// strategies based on configuration. Supports multiple limiting dimensions
 /// and algorithms for fine-grained traffic control.
@@ -286,17 +316,17 @@ pub struct AdvancedRateLimit {
 
 impl AdvancedRateLimit {
     /// Creates a new advanced rate limiting middleware with the specified configuration.
-    /// 
+    ///
     /// # Parameters
-    /// 
+    ///
     /// * `config` - Rate limiting configuration defining strategy and limits
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```rust
     /// use kairos_rs::middleware::rate_limit::{AdvancedRateLimit, RateLimitConfig, LimitStrategy, WindowType};
     /// use std::time::Duration;
-    /// 
+    ///
     /// let config = RateLimitConfig {
     ///     strategy: LimitStrategy::PerIPAndRoute,
     ///     requests_per_window: 60,
@@ -306,7 +336,7 @@ impl AdvancedRateLimit {
     ///     enable_redis: false,
     ///     redis_key_prefix: "kairos".to_string(),
     /// };
-    /// 
+    ///
     /// let middleware = AdvancedRateLimit::new(config);
     /// ```
     pub fn new(config: RateLimitConfig) -> Self {
@@ -317,18 +347,19 @@ impl AdvancedRateLimit {
     }
 
     /// Extracts the rate limiting key based on the configured strategy.
-    /// 
+    ///
     /// Different strategies require different key extraction logic to
     /// identify the dimension being rate limited.
     fn extract_key(&self, req: &ServiceRequest) -> Result<String, String> {
         match &self.config.strategy {
             LimitStrategy::PerIP => {
-                let ip = req.connection_info()
+                let ip = req
+                    .connection_info()
                     .peer_addr()
                     .unwrap_or("unknown")
                     .to_string();
                 Ok(format!("ip:{}", ip))
-            },
+            }
             LimitStrategy::PerUser => {
                 // Extract user ID from JWT claims
                 if let Some(claims) = req.extensions().get::<crate::middleware::auth::Claims>() {
@@ -336,17 +367,17 @@ impl AdvancedRateLimit {
                 } else {
                     Err("No user claims found for per-user rate limiting".to_string())
                 }
-            },
+            }
             LimitStrategy::PerRoute => {
                 let route = req.path();
                 Ok(format!("route:{}", route))
-            },
+            }
             LimitStrategy::PerIPAndRoute => {
                 let conn_info = req.connection_info();
                 let ip = conn_info.peer_addr().unwrap_or("unknown");
                 let route = req.path();
                 Ok(format!("ip_route:{}:{}", ip, route))
-            },
+            }
             LimitStrategy::PerUserAndRoute => {
                 if let Some(claims) = req.extensions().get::<crate::middleware::auth::Claims>() {
                     let route = req.path();
@@ -354,7 +385,7 @@ impl AdvancedRateLimit {
                 } else {
                     Err("No user claims found for per-user-route rate limiting".to_string())
                 }
-            },
+            }
             LimitStrategy::Composite(configs) => {
                 // For composite strategies, we'll check the first config's strategy
                 // In a full implementation, this would check all strategies
@@ -391,7 +422,7 @@ where
 }
 
 /// Advanced rate limiting middleware implementation.
-/// 
+///
 /// Handles the actual rate limiting logic during request processing,
 /// checking limits and rejecting requests that exceed configured thresholds.
 pub struct AdvancedRateLimitMiddleware<S> {
@@ -441,20 +472,21 @@ where
                 Ok(true) => {
                     debug!("Rate limit check passed for key: {}", key);
                     service.call(req).await
-                },
+                }
                 Ok(false) => {
                     warn!("Rate limit exceeded for key: {}", key);
-                    
+
                     // Return an actix error which will be handled properly
                     let error_msg = serde_json::json!({
                         "error": "Rate limit exceeded",
                         "message": "Too many requests. Please try again later.",
                         "timestamp": chrono::Utc::now().to_rfc3339(),
                         "type": "rate_limit_error"
-                    }).to_string();
-                    
-                    Err(ActixError::from(actix_web::error::ErrorTooManyRequests(error_msg)))
-                },
+                    })
+                    .to_string();
+
+                    Err(actix_web::error::ErrorTooManyRequests(error_msg))
+                }
                 Err(err) => {
                     warn!("Rate limiting error: {}", err);
                     // On internal error, allow the request but log the issue
@@ -516,7 +548,7 @@ mod tests {
         assert!(store.check_rate_limit("test_key", &config).unwrap());
         assert!(store.check_rate_limit("test_key", &config).unwrap());
         assert!(store.check_rate_limit("test_key", &config).unwrap());
-        
+
         // Fourth request should be rejected
         assert!(!store.check_rate_limit("test_key", &config).unwrap());
     }
@@ -552,7 +584,7 @@ mod tests {
 
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: RateLimitConfig = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(config.requests_per_window, deserialized.requests_per_window);
         assert_eq!(config.window_duration, deserialized.window_duration);
     }
