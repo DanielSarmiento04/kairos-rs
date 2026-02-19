@@ -776,6 +776,110 @@ fn HistoricalView() -> impl IntoView {
         },
     );
 
+    let chart_data_signal = Signal::derive(move || {
+        historical_data_resource
+            .get()
+            .and_then(|res| res.ok())
+            .map(|json_data| {
+                let data: Vec<MetricPoint> = serde_json::from_value(json_data).unwrap_or_default();
+
+                let labels: Vec<String> = data
+                    .iter()
+                    .map(|p| p.timestamp.format("%H:%M").to_string())
+                    .collect();
+
+                let values: Vec<f64> = data
+                    .iter()
+                    .map(|p| match p.value {
+                        MetricValue::Counter(v) => v as f64,
+                        MetricValue::Gauge(v) => v,
+                        MetricValue::Histogram { count, .. } => count as f64,
+                    })
+                    .collect();
+
+                serde_json::json!({
+                    "labels": labels,
+                    "datasets": [{
+                        "label": metric_name.get(),
+                        "data": values,
+                        "borderColor": "rgb(99, 102, 241)",
+                        "backgroundColor": "rgba(99, 102, 241, 0.1)",
+                        "borderWidth": 2,
+                        "pointRadius": 0,
+                        "pointHoverRadius": 4,
+                        "tension": 0.4,
+                        "fill": true
+                    }]
+                })
+            })
+            .unwrap_or(serde_json::json!({
+                "labels": [],
+                "datasets": []
+            }))
+    });
+
+    let stats_signal = Signal::derive(move || {
+        historical_data_resource
+            .get()
+            .and_then(|res| res.ok())
+            .map(|json_data| {
+                let data: Vec<MetricPoint> = serde_json::from_value(json_data).unwrap_or_default();
+                let values: Vec<f64> = data
+                    .iter()
+                    .map(|p| match p.value {
+                        MetricValue::Counter(v) => v as f64,
+                        MetricValue::Gauge(v) => v,
+                        MetricValue::Histogram { count, .. } => count as f64,
+                    })
+                    .collect();
+
+                let min_val = values.iter().fold(f64::INFINITY, |a, &b| a.min(b));
+                let max_val = values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+                let avg_val = if !values.is_empty() {
+                    values.iter().sum::<f64>() / values.len() as f64
+                } else {
+                    0.0
+                };
+
+                (min_val, max_val, avg_val)
+            })
+            .unwrap_or((0.0, 0.0, 0.0))
+    });
+
+    let chart_options = Signal::derive(move || {
+        serde_json::json!({
+            "responsive": true,
+            "maintainAspectRatio": false,
+            "interaction": {
+                "mode": "index",
+                "intersect": false,
+            },
+            "plugins": {
+                "legend": { "display": false },
+                "tooltip": {
+                    "backgroundColor": "rgba(17, 24, 39, 0.9)",
+                    "titleColor": "#f3f4f6",
+                    "bodyColor": "#d1d5db",
+                    "borderColor": "#374151",
+                    "borderWidth": 1,
+                    "padding": 10,
+                    "displayColors": false,
+                }
+            },
+            "scales": {
+                "x": {
+                    "grid": { "display": false, "drawBorder": false },
+                    "ticks": { "maxTicksLimit": 8, "color": "#6b7280" }
+                },
+                "y": {
+                    "beginAtZero": true,
+                    "grid": { "color": "#e5e7eb", "borderDash": [2, 4], "drawBorder": false },
+                    "ticks": { "color": "#6b7280", "callback": "function(value) { return value >= 1000 ? (value/1000) + 'k' : value; }" }
+                }
+            }
+        })
+    });
+
     view! {
         <div class="historical-view">
             <div class="controls-container">
