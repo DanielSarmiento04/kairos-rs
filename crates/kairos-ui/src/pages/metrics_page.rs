@@ -731,31 +731,56 @@ fn CircuitBreakersView(metrics: MetricsData) -> impl IntoView {
 // Historical View
 // ============================================================================
 
-// ============================================================================
-// Historical View
-// ============================================================================
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TimeRange {
+    OneHour,
+    SixHours,
+    TwentyFourHours,
+    SevenDays,
+}
+
+impl TimeRange {
+    fn duration(&self) -> Duration {
+        match self {
+            TimeRange::OneHour => Duration::hours(1),
+            TimeRange::SixHours => Duration::hours(6),
+            TimeRange::TwentyFourHours => Duration::hours(24),
+            TimeRange::SevenDays => Duration::days(7),
+        }
+    }
+
+    fn label(&self) -> &'static str {
+        match self {
+            TimeRange::OneHour => "1 Hour",
+            TimeRange::SixHours => "6 Hours",
+            TimeRange::TwentyFourHours => "24 Hours",
+            TimeRange::SevenDays => "7 Days",
+        }
+    }
+}
 
 #[component]
 fn HistoricalView() -> impl IntoView {
     let (metric_name, set_metric_name) = signal("requests_total".to_string());
     let (interval, set_interval) = signal(AggregationInterval::FiveMinutes);
+    let (time_range, set_time_range) = signal(TimeRange::TwentyFourHours);
 
     let metrics_list_resource = Resource::new(|| (), |_| async move { list_metrics().await });
 
     let historical_data_resource = Resource::new(
-        move || (metric_name.get(), interval.get()),
-        move |(name, interval)| async move {
+        move || (metric_name.get(), interval.get(), time_range.get()),
+        move |(name, interval, range)| async move {
             let end = Utc::now();
-            let start = end - Duration::hours(24);
+            let start = end - range.duration();
             get_historical_metrics(name, start, end, Some(interval)).await
         },
     );
 
     view! {
         <div class="historical-view">
-            <div class="controls">
+            <div class="controls-container">
                 <div class="control-group">
-                    <label>"Metric:"</label>
+                    <label>"Metric"</label>
                     <select
                         on:change=move |ev| set_metric_name.set(event_target_value(&ev))
                         prop:value=metric_name
@@ -774,7 +799,7 @@ fn HistoricalView() -> impl IntoView {
                 </div>
 
                 <div class="control-group">
-                    <label>"Interval:"</label>
+                    <label>"Aggregation"</label>
                     <select
                         on:change=move |ev| {
                             let val = event_target_value(&ev);
@@ -793,20 +818,38 @@ fn HistoricalView() -> impl IntoView {
                         <option value="OneDay" selected=move || interval.get() == AggregationInterval::OneDay>"1 Day"</option>
                     </select>
                 </div>
+
+                <div class="control-group time-range-group">
+                    <label>"Time Range"</label>
+                    <div class="btn-group">
+                        {
+                            [TimeRange::OneHour, TimeRange::SixHours, TimeRange::TwentyFourHours, TimeRange::SevenDays]
+                                .into_iter()
+                                .map(|range| {
+                                    let label = range.label();
+                                    view! {
+                                        <button
+                                            class=move || if time_range.get() == range { "btn-range active" } else { "btn-range" }
+                                            on:click=move |_| set_time_range.set(range)
+                                        >
+                                            {label}
+                                        </button>
+                                    }
+                                })
+                                .collect::<Vec<_>>()
+                        }
+                    </div>
+                </div>
             </div>
 
-            <div class="chart-container" style="height: 400px;">
+            <div class="chart-section">
                 <Suspense fallback=move || view! { <LoadingSpinner message="Loading historical data...".to_string() /> }>
                     {move || {
                         historical_data_resource.get().map(|result| match result {
                             Ok(json_data) => {
                                 let data: Vec<MetricPoint> = serde_json::from_value(json_data).unwrap_or_default();
 
-                                // Transform data for Chart.js
-                                let labels: Vec<String> = data.iter()
-                                    .map(|p| p.timestamp.format("%H:%M").to_string())
-                                    .collect();
-
+                                // Calculate statistics
                                 let values: Vec<f64> = data.iter()
                                     .map(|p| match p.value {
                                         MetricValue::Counter(v) => v as f64,
@@ -815,14 +858,30 @@ fn HistoricalView() -> impl IntoView {
                                     })
                                     .collect();
 
+                                let min_val = values.iter().fold(f64::INFINITY, |a, &b| a.min(b));
+                                let max_val = values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+                                let avg_val = if !values.is_empty() {
+                                    values.iter().sum::<f64>() / values.len() as f64
+                                } else {
+                                    0.0
+                                };
+
+                                // Transform data for Chart.js
+                                let labels: Vec<String> = data.iter()
+                                    .map(|p| p.timestamp.format("%H:%M").to_string())
+                                    .collect();
+
                                 let chart_data = serde_json::json!({
                                     "labels": labels,
                                     "datasets": [{
                                         "label": metric_name.get(),
                                         "data": values,
-                                        "borderColor": "rgb(75, 192, 192)",
-                                        "backgroundColor": "rgba(75, 192, 192, 0.2)",
-                                        "tension": 0.3,
+                                        "borderColor": "rgb(99, 102, 241)", // Indigo 500
+                                        "backgroundColor": "rgba(99, 102, 241, 0.1)",
+                                        "borderWidth": 2,
+                                        "pointRadius": 0,
+                                        "pointHoverRadius": 4,
+                                        "tension": 0.4,
                                         "fill": true
                                     }]
                                 });
@@ -830,29 +889,74 @@ fn HistoricalView() -> impl IntoView {
                                 let options = serde_json::json!({
                                     "responsive": true,
                                     "maintainAspectRatio": false,
+                                    "interaction": {
+                                        "mode": "index",
+                                        "intersect": false,
+                                    },
                                     "plugins": {
                                         "legend": {
-                                            "position": "top",
+                                            "display": false,
                                         },
-                                        "title": {
-                                            "display": true,
-                                            "text": format!("{} (Last 24 Hours)", metric_name.get())
+                                        "tooltip": {
+                                            "backgroundColor": "rgba(17, 24, 39, 0.9)",
+                                            "titleColor": "#f3f4f6",
+                                            "bodyColor": "#d1d5db",
+                                            "borderColor": "#374151",
+                                            "borderWidth": 1,
+                                            "padding": 10,
+                                            "displayColors": false,
                                         }
                                     },
                                     "scales": {
+                                        "x": {
+                                            "grid": {
+                                                "display": false,
+                                                "drawBorder": false
+                                            },
+                                            "ticks": {
+                                                "maxTicksLimit": 8,
+                                                "color": "#6b7280"
+                                            }
+                                        },
                                         "y": {
-                                            "beginAtZero": true
+                                            "beginAtZero": true,
+                                            "grid": {
+                                                "color": "#e5e7eb",
+                                                "borderDash": [2, 4],
+                                                "drawBorder": false
+                                            },
+                                            "ticks": {
+                                                "color": "#6b7280",
+                                                "callback": "function(value) { return value >= 1000 ? (value/1000) + 'k' : value; }"
+                                            }
                                         }
                                     }
                                 });
 
                                 view! {
-                                    <Chart
-                                        id="historical-chart"
-                                        kind="line"
-                                        data=chart_data
-                                        options=options
-                                    />
+                                    <div class="stats-cards">
+                                        <div class="stat-card">
+                                            <span class="stat-label">"Minimum"</span>
+                                            <span class="stat-val">{format!("{:.1}", if min_val == f64::INFINITY { 0.0 } else { min_val })}</span>
+                                        </div>
+                                        <div class="stat-card">
+                                            <span class="stat-label">"Average"</span>
+                                            <span class="stat-val">{format!("{:.1}", avg_val)}</span>
+                                        </div>
+                                        <div class="stat-card">
+                                            <span class="stat-label">"Maximum"</span>
+                                            <span class="stat-val">{format!("{:.1}", if max_val == f64::NEG_INFINITY { 0.0 } else { max_val })}</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="chart-container" style="height: 400px; width: 100%;">
+                                        <Chart
+                                            id="historical-chart"
+                                            kind="line"
+                                            data=chart_data
+                                            options=options
+                                        />
+                                    </div>
                                 }.into_any()
                             }
                             Err(e) => view! {
