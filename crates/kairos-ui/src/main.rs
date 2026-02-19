@@ -3,11 +3,11 @@
 async fn main() -> std::io::Result<()> {
     use actix_files::Files;
     use actix_web::*;
-    use leptos::prelude::*;
-    use leptos::config::get_configuration;
-    use leptos_meta::MetaTags;
-    use leptos_actix::{generate_route_list, LeptosRoutes};
     use kairos_ui::app::*;
+    use leptos::config::get_configuration;
+    use leptos::prelude::*;
+    use leptos_actix::{generate_route_list, LeptosRoutes};
+    use leptos_meta::MetaTags;
 
     let conf = get_configuration(None).unwrap();
     let addr = conf.leptos_options.site_addr;
@@ -39,6 +39,7 @@ async fn main() -> std::io::Result<()> {
                                 <AutoReload options=leptos_options.clone() />
                                 <HydrationScripts options=leptos_options.clone()/>
                                 <MetaTags/>
+                                <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                             </head>
                             <body>
                                 <App/>

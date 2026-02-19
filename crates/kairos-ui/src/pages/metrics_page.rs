@@ -1,11 +1,11 @@
 //! Advanced metrics visualization page with detailed analytics.
 
+use crate::components::*;
+use crate::models::*;
+use crate::server_functions::*;
+use chrono::{Duration, Utc};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use crate::components::*;
-use crate::server_functions::*;
-use crate::models::*;
-use chrono::{Utc, Duration};
 
 #[derive(Clone, Copy, PartialEq)]
 enum MetricsView {
@@ -23,7 +23,7 @@ enum MetricsView {
 pub fn MetricsPage() -> impl IntoView {
     let (active_view, set_active_view) = signal(MetricsView::Overview);
     let refresh_trigger = RwSignal::new(0u32);
-    
+
     // Auto-refresh every 10 seconds
     spawn_local(async move {
         loop {
@@ -38,21 +38,21 @@ pub fn MetricsPage() -> impl IntoView {
             }
         }
     });
-    
+
     // Fetch metrics data
     let metrics_resource = Resource::new(
         move || refresh_trigger.get(),
-        |_| async move { get_metrics().await }
+        |_| async move { get_metrics().await },
     );
-    
+
     view! {
         <div class="metrics-page">
             <div class="page-header">
                 <h1 class="page-title">"📊 Metrics & Analytics"</h1>
                 <p class="page-subtitle">"Detailed performance metrics and analytics"</p>
-                
+
                 <div class="header-actions">
-                    <button 
+                    <button
                         class="btn btn-secondary"
                         on:click=move |_| refresh_trigger.update(|n| *n += 1)
                     >
@@ -61,7 +61,7 @@ pub fn MetricsPage() -> impl IntoView {
                     <span class="auto-refresh-notice">"Auto-refreshes every 10s"</span>
                 </div>
             </div>
-            
+
             // Metrics View Tabs
             <div class="metrics-tabs">
                 <button
@@ -107,7 +107,7 @@ pub fn MetricsPage() -> impl IntoView {
                     "📅 Historical"
                 </button>
             </div>
-            
+
             // Metrics Content
             <div class="metrics-content">
                 <Suspense fallback=move || view! { <LoadingSpinner message="Loading metrics data...".to_string() /> }>
@@ -125,7 +125,7 @@ pub fn MetricsPage() -> impl IntoView {
                                 }
                             }
                             Err(e) => view! {
-                                <ErrorBoundaryView 
+                                <ErrorBoundaryView
                                     error=format!("{}", e)
                                     title="Failed to load metrics".to_string()
                                 />
@@ -144,14 +144,16 @@ pub fn MetricsPage() -> impl IntoView {
 
 #[component]
 fn OverviewView(metrics: MetricsData) -> impl IntoView {
-    let total_errors = metrics.http_4xx_errors + metrics.http_5xx_errors + 
-                       metrics.timeout_errors + metrics.connection_errors;
+    let total_errors = metrics.http_4xx_errors
+        + metrics.http_5xx_errors
+        + metrics.timeout_errors
+        + metrics.connection_errors;
     let error_rate = if metrics.requests_total > 0 {
         (total_errors as f64 / metrics.requests_total as f64) * 100.0
     } else {
         0.0
     };
-    
+
     view! {
         <div class="overview-view">
             <div class="metrics-summary">
@@ -162,7 +164,7 @@ fn OverviewView(metrics: MetricsData) -> impl IntoView {
                         <div class="summary-label">"Total Requests"</div>
                     </div>
                 </div>
-                
+
                 <div class="summary-card success-card">
                     <div class="summary-icon">"✅"</div>
                     <div class="summary-content">
@@ -170,7 +172,7 @@ fn OverviewView(metrics: MetricsData) -> impl IntoView {
                         <div class="summary-label">"Success Rate"</div>
                     </div>
                 </div>
-                
+
                 <div class="summary-card warning-card">
                     <div class="summary-icon">"⚡"</div>
                     <div class="summary-content">
@@ -178,7 +180,7 @@ fn OverviewView(metrics: MetricsData) -> impl IntoView {
                         <div class="summary-label">"Avg Response Time"</div>
                     </div>
                 </div>
-                
+
                 <div class="summary-card error-card">
                     <div class="summary-icon">"❌"</div>
                     <div class="summary-content">
@@ -187,7 +189,7 @@ fn OverviewView(metrics: MetricsData) -> impl IntoView {
                     </div>
                 </div>
             </div>
-            
+
             <div class="metrics-grid">
                 <div class="metric-panel">
                     <h3>"Connection Statistics"</h3>
@@ -206,7 +208,7 @@ fn OverviewView(metrics: MetricsData) -> impl IntoView {
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="metric-panel">
                     <h3>"Data Transfer"</h3>
                     <div class="panel-content">
@@ -236,11 +238,11 @@ fn OverviewView(metrics: MetricsData) -> impl IntoView {
 #[component]
 fn PerformanceView(metrics: MetricsData) -> impl IntoView {
     let total = metrics.requests_total.max(1);
-    
+
     view! {
         <div class="performance-view">
             <h2>"Response Time Distribution"</h2>
-            
+
             <div class="response-time-chart">
                 <div class="chart-bar">
                     <div class="chart-bar-label">
@@ -248,7 +250,7 @@ fn PerformanceView(metrics: MetricsData) -> impl IntoView {
                         <span class="label-badge excellent">"Excellent"</span>
                     </div>
                     <div class="chart-bar-container">
-                        <div 
+                        <div
                             class="chart-bar-fill excellent"
                             style=format!("width: {}%", (metrics.response_time_bucket_100ms as f64 / total as f64 * 100.0))
                         >
@@ -257,14 +259,14 @@ fn PerformanceView(metrics: MetricsData) -> impl IntoView {
                     </div>
                     <span class="chart-percentage">{format!("{:.1}%", metrics.response_time_bucket_100ms as f64 / total as f64 * 100.0)}</span>
                 </div>
-                
+
                 <div class="chart-bar">
                     <div class="chart-bar-label">
                         <span class="label-text">"100ms - 500ms"</span>
                         <span class="label-badge good">"Good"</span>
                     </div>
                     <div class="chart-bar-container">
-                        <div 
+                        <div
                             class="chart-bar-fill good"
                             style=format!("width: {}%", ((metrics.response_time_bucket_500ms - metrics.response_time_bucket_100ms) as f64 / total as f64 * 100.0))
                         >
@@ -273,14 +275,14 @@ fn PerformanceView(metrics: MetricsData) -> impl IntoView {
                     </div>
                     <span class="chart-percentage">{format!("{:.1}%", (metrics.response_time_bucket_500ms - metrics.response_time_bucket_100ms) as f64 / total as f64 * 100.0)}</span>
                 </div>
-                
+
                 <div class="chart-bar">
                     <div class="chart-bar-label">
                         <span class="label-text">"500ms - 1s"</span>
                         <span class="label-badge fair">"Fair"</span>
                     </div>
                     <div class="chart-bar-container">
-                        <div 
+                        <div
                             class="chart-bar-fill fair"
                             style=format!("width: {}%", ((metrics.response_time_bucket_1s - metrics.response_time_bucket_500ms) as f64 / total as f64 * 100.0))
                         >
@@ -289,14 +291,14 @@ fn PerformanceView(metrics: MetricsData) -> impl IntoView {
                     </div>
                     <span class="chart-percentage">{format!("{:.1}%", (metrics.response_time_bucket_1s - metrics.response_time_bucket_500ms) as f64 / total as f64 * 100.0)}</span>
                 </div>
-                
+
                 <div class="chart-bar">
                     <div class="chart-bar-label">
                         <span class="label-text">"1s - 5s"</span>
                         <span class="label-badge poor">"Poor"</span>
                     </div>
                     <div class="chart-bar-container">
-                        <div 
+                        <div
                             class="chart-bar-fill poor"
                             style=format!("width: {}%", ((metrics.response_time_bucket_5s - metrics.response_time_bucket_1s) as f64 / total as f64 * 100.0))
                         >
@@ -305,14 +307,14 @@ fn PerformanceView(metrics: MetricsData) -> impl IntoView {
                     </div>
                     <span class="chart-percentage">{format!("{:.1}%", (metrics.response_time_bucket_5s - metrics.response_time_bucket_1s) as f64 / total as f64 * 100.0)}</span>
                 </div>
-                
+
                 <div class="chart-bar">
                     <div class="chart-bar-label">
                         <span class="label-text">"> 5s"</span>
                         <span class="label-badge critical">"Critical"</span>
                     </div>
                     <div class="chart-bar-container">
-                        <div 
+                        <div
                             class="chart-bar-fill critical"
                             style=format!("width: {}%", (metrics.response_time_bucket_inf as f64 / total as f64 * 100.0))
                         >
@@ -322,7 +324,7 @@ fn PerformanceView(metrics: MetricsData) -> impl IntoView {
                     <span class="chart-percentage">{format!("{:.1}%", metrics.response_time_bucket_inf as f64 / total as f64 * 100.0)}</span>
                 </div>
             </div>
-            
+
             <div class="performance-insights">
                 <div class="insight-card">
                     <div class="insight-icon">"⚡"</div>
@@ -340,7 +342,7 @@ fn PerformanceView(metrics: MetricsData) -> impl IntoView {
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="insight-card">
                     <div class="insight-icon">"📊"</div>
                     <div class="insight-content">
@@ -364,9 +366,11 @@ fn PerformanceView(metrics: MetricsData) -> impl IntoView {
 
 #[component]
 fn ErrorsView(metrics: MetricsData) -> impl IntoView {
-    let total_errors = metrics.http_4xx_errors + metrics.http_5xx_errors + 
-                       metrics.timeout_errors + metrics.connection_errors;
-    
+    let total_errors = metrics.http_4xx_errors
+        + metrics.http_5xx_errors
+        + metrics.timeout_errors
+        + metrics.connection_errors;
+
     view! {
         <div class="errors-view">
             <div class="error-summary-cards">
@@ -378,7 +382,7 @@ fn ErrorsView(metrics: MetricsData) -> impl IntoView {
                         <div class="error-description">"Invalid requests, auth failures, not found"</div>
                     </div>
                 </div>
-                
+
                 <div class="error-card server-error">
                     <div class="error-icon">"❌"</div>
                     <div class="error-content">
@@ -387,7 +391,7 @@ fn ErrorsView(metrics: MetricsData) -> impl IntoView {
                         <div class="error-description">"Backend failures, internal errors"</div>
                     </div>
                 </div>
-                
+
                 <div class="error-card timeout-error">
                     <div class="error-icon">"⏱️"</div>
                     <div class="error-content">
@@ -396,7 +400,7 @@ fn ErrorsView(metrics: MetricsData) -> impl IntoView {
                         <div class="error-description">"Requests that exceeded timeout threshold"</div>
                     </div>
                 </div>
-                
+
                 <div class="error-card connection-error">
                     <div class="error-icon">"🔌"</div>
                     <div class="error-content">
@@ -406,10 +410,10 @@ fn ErrorsView(metrics: MetricsData) -> impl IntoView {
                     </div>
                 </div>
             </div>
-            
+
             <div class="error-analysis">
                 <h3>"Error Analysis"</h3>
-                
+
                 <div class="analysis-panel">
                     <div class="analysis-metric">
                         <span class="analysis-label">"Total Errors:"</span>
@@ -430,7 +434,7 @@ fn ErrorsView(metrics: MetricsData) -> impl IntoView {
                         <span class="analysis-value">{format!("{:.2}%", metrics.success_rate)}</span>
                     </div>
                 </div>
-                
+
                 <div class="error-recommendations">
                     <h4>"💡 Recommendations"</h4>
                     <ul class="recommendations-list">
@@ -501,7 +505,7 @@ fn TrafficView(metrics: MetricsData) -> impl IntoView {
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="traffic-card">
                     <div class="traffic-header">
                         <span class="traffic-icon">"📤"</span>
@@ -530,7 +534,7 @@ fn TrafficView(metrics: MetricsData) -> impl IntoView {
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="traffic-card">
                     <div class="traffic-header">
                         <span class="traffic-icon">"🌐"</span>
@@ -552,13 +556,13 @@ fn TrafficView(metrics: MetricsData) -> impl IntoView {
                     </div>
                 </div>
             </div>
-            
+
             <div class="bandwidth-breakdown">
                 <h3>"Bandwidth Breakdown"</h3>
                 <div class="bandwidth-chart">
                     <div class="bandwidth-segment">
                         <div class="segment-bar request-bar" style=format!(
-                            "width: {}%", 
+                            "width: {}%",
                             if metrics.data_transferred_bytes > 0 {
                                 metrics.request_bytes_total as f64 / metrics.data_transferred_bytes as f64 * 100.0
                             } else {
@@ -570,7 +574,7 @@ fn TrafficView(metrics: MetricsData) -> impl IntoView {
                     </div>
                     <div class="bandwidth-segment">
                         <div class="segment-bar response-bar" style=format!(
-                            "width: {}%", 
+                            "width: {}%",
                             if metrics.data_transferred_bytes > 0 {
                                 metrics.response_bytes_total as f64 / metrics.data_transferred_bytes as f64 * 100.0
                             } else {
@@ -581,12 +585,12 @@ fn TrafficView(metrics: MetricsData) -> impl IntoView {
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="bandwidth-legend">
                     <div class="legend-item">
                         <span class="legend-color request-color"></span>
                         <span class="legend-label">
-                            {format!("Request Data: {} ({:.1}%)", 
+                            {format!("Request Data: {} ({:.1}%)",
                                 MetricsData::format_bytes(metrics.request_bytes_total),
                                 if metrics.data_transferred_bytes > 0 {
                                     metrics.request_bytes_total as f64 / metrics.data_transferred_bytes as f64 * 100.0
@@ -599,7 +603,7 @@ fn TrafficView(metrics: MetricsData) -> impl IntoView {
                     <div class="legend-item">
                         <span class="legend-color response-color"></span>
                         <span class="legend-label">
-                            {format!("Response Data: {} ({:.1}%)", 
+                            {format!("Response Data: {} ({:.1}%)",
                                 MetricsData::format_bytes(metrics.response_bytes_total),
                                 if metrics.data_transferred_bytes > 0 {
                                     metrics.response_bytes_total as f64 / metrics.data_transferred_bytes as f64 * 100.0
@@ -621,11 +625,13 @@ fn TrafficView(metrics: MetricsData) -> impl IntoView {
 
 #[component]
 fn CircuitBreakersView(metrics: MetricsData) -> impl IntoView {
-    let healthy_count = metrics.circuit_breakers.iter()
+    let healthy_count = metrics
+        .circuit_breakers
+        .iter()
         .filter(|cb| cb.state.is_healthy())
         .count();
     let total_count = metrics.circuit_breakers.len();
-    
+
     view! {
         <div class="circuit-breakers-view">
             <div class="cb-summary">
@@ -642,7 +648,7 @@ fn CircuitBreakersView(metrics: MetricsData) -> impl IntoView {
                     <span class="cb-stat-label">"Unhealthy (Open/Half-Open)"</span>
                 </div>
             </div>
-            
+
             {if metrics.circuit_breakers.is_empty() {
                 view! {
                     <div class="empty-state">
@@ -661,7 +667,7 @@ fn CircuitBreakersView(metrics: MetricsData) -> impl IntoView {
                                 CircuitBreakerState::Open => ("cb-open", "❌", "Open (Failed)"),
                                 CircuitBreakerState::HalfOpen => ("cb-half-open", "⚠️", "Half-Open (Testing)"),
                             };
-                            
+
                             view! {
                                 <div class=format!("cb-item {}", state_class)>
                                     <div class="cb-header">
@@ -673,7 +679,7 @@ fn CircuitBreakersView(metrics: MetricsData) -> impl IntoView {
                                             {state_label}
                                         </div>
                                     </div>
-                                    
+
                                     <div class="cb-stats-grid">
                                         <div class="cb-stat-item success">
                                             <span class="cb-stat-icon">"✅"</span>
@@ -682,7 +688,7 @@ fn CircuitBreakersView(metrics: MetricsData) -> impl IntoView {
                                                 <span class="cb-stat-label">"Successes"</span>
                                             </div>
                                         </div>
-                                        
+
                                         <div class="cb-stat-item error">
                                             <span class="cb-stat-icon">"❌"</span>
                                             <div class="cb-stat-content">
@@ -690,7 +696,7 @@ fn CircuitBreakersView(metrics: MetricsData) -> impl IntoView {
                                                 <span class="cb-stat-label">"Failures"</span>
                                             </div>
                                         </div>
-                                        
+
                                         {cb.last_failure_time.as_ref().map(|time| view! {
                                             <div class="cb-stat-item">
                                                 <span class="cb-stat-icon">"🕐"</span>
@@ -700,7 +706,7 @@ fn CircuitBreakersView(metrics: MetricsData) -> impl IntoView {
                                                 </div>
                                             </div>
                                         })}
-                                        
+
                                         {cb.next_attempt_time.as_ref().map(|time| view! {
                                             <div class="cb-stat-item">
                                                 <span class="cb-stat-icon">"⏰"</span>
@@ -725,23 +731,24 @@ fn CircuitBreakersView(metrics: MetricsData) -> impl IntoView {
 // Historical View
 // ============================================================================
 
+// ============================================================================
+// Historical View
+// ============================================================================
+
 #[component]
 fn HistoricalView() -> impl IntoView {
     let (metric_name, set_metric_name) = signal("requests_total".to_string());
     let (interval, set_interval) = signal(AggregationInterval::FiveMinutes);
-    
-    let metrics_list_resource = Resource::new(
-        || (),
-        |_| async move { list_metrics().await }
-    );
-    
+
+    let metrics_list_resource = Resource::new(|| (), |_| async move { list_metrics().await });
+
     let historical_data_resource = Resource::new(
         move || (metric_name.get(), interval.get()),
         move |(name, interval)| async move {
             let end = Utc::now();
             let start = end - Duration::hours(24);
             get_historical_metrics(name, start, end, Some(interval)).await
-        }
+        },
     );
 
     view! {
@@ -765,7 +772,7 @@ fn HistoricalView() -> impl IntoView {
                         </Suspense>
                     </select>
                 </div>
-                
+
                 <div class="control-group">
                     <label>"Interval:"</label>
                     <select
@@ -787,26 +794,72 @@ fn HistoricalView() -> impl IntoView {
                     </select>
                 </div>
             </div>
-            
-            <div class="chart-container">
+
+            <div class="chart-container" style="height: 400px;">
                 <Suspense fallback=move || view! { <LoadingSpinner message="Loading historical data...".to_string() /> }>
                     {move || {
                         historical_data_resource.get().map(|result| match result {
-                            Ok(data) => {
-                                // For now, just display the raw JSON data
-                                // In a real implementation, we would render a chart here
+                            Ok(json_data) => {
+                                let data: Vec<MetricPoint> = serde_json::from_value(json_data).unwrap_or_default();
+
+                                // Transform data for Chart.js
+                                let labels: Vec<String> = data.iter()
+                                    .map(|p| p.timestamp.format("%H:%M").to_string())
+                                    .collect();
+
+                                let values: Vec<f64> = data.iter()
+                                    .map(|p| match p.value {
+                                        MetricValue::Counter(v) => v as f64,
+                                        MetricValue::Gauge(v) => v,
+                                        MetricValue::Histogram { count, .. } => count as f64,
+                                    })
+                                    .collect();
+
+                                let chart_data = serde_json::json!({
+                                    "labels": labels,
+                                    "datasets": [{
+                                        "label": metric_name.get(),
+                                        "data": values,
+                                        "borderColor": "rgb(75, 192, 192)",
+                                        "backgroundColor": "rgba(75, 192, 192, 0.2)",
+                                        "tension": 0.3,
+                                        "fill": true
+                                    }]
+                                });
+
+                                let options = serde_json::json!({
+                                    "responsive": true,
+                                    "maintainAspectRatio": false,
+                                    "plugins": {
+                                        "legend": {
+                                            "position": "top",
+                                        },
+                                        "title": {
+                                            "display": true,
+                                            "text": format!("{} (Last 24 Hours)", metric_name.get())
+                                        }
+                                    },
+                                    "scales": {
+                                        "y": {
+                                            "beginAtZero": true
+                                        }
+                                    }
+                                });
+
                                 view! {
-                                    <div class="raw-data">
-                                        <h3>"Raw Data"</h3>
-                                        <pre>{serde_json::to_string_pretty(&data).unwrap_or_default()}</pre>
-                                    </div>
+                                    <Chart
+                                        id="historical-chart"
+                                        kind="line"
+                                        data=chart_data
+                                        options=options
+                                    />
                                 }.into_any()
                             }
                             Err(e) => view! {
                                 <div class="error-message">
-                                    {format!("Failed to load historical data: {}", e)}
+                                    {format!("Error loading data: {}", e)}
                                 </div>
-                            }.into_any(),
+                            }.into_any()
                         })
                     }}
                 </Suspense>
