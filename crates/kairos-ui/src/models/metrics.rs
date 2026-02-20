@@ -1,7 +1,7 @@
 //! Metrics data structures for UI display.
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
- use chrono::{DateTime, Utc};
 
 /// Metrics data structure parsed from Prometheus format.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,10 +40,7 @@ pub struct MetricPoint {
 pub enum MetricValue {
     Counter(u64),
     Gauge(f64),
-    Histogram {
-        le: f64,
-        count: u64,
-    },
+    Histogram { le: f64, count: u64 },
 }
 
 /// Aggregation interval for metrics.
@@ -95,7 +92,7 @@ impl MetricsData {
         const MB: u64 = KB * 1024;
         const GB: u64 = MB * 1024;
         const TB: u64 = GB * 1024;
-        
+
         if bytes >= TB {
             format!("{:.2} TB", bytes as f64 / TB as f64)
         } else if bytes >= GB {
@@ -108,30 +105,30 @@ impl MetricsData {
             format!("{} B", bytes)
         }
     }
-    
+
     /// Parse Prometheus-formatted metrics text.
-    /// 
+    ///
     /// This is a simple parser for demo purposes.
     /// In production, use a proper Prometheus parser library.
     pub fn parse_prometheus(text: &str) -> Result<Self, String> {
         let mut metrics = Self::default();
         let mut success_total = 0u64;
-        
+
         for line in text.lines() {
             if line.starts_with('#') || line.trim().is_empty() {
                 continue;
             }
-            
+
             let parts: Vec<&str> = line.split_whitespace().collect();
             if parts.len() < 2 {
                 continue;
             }
-            
+
             let name = parts[0];
             let value_str = parts.last().unwrap();
             let value_f64 = value_str.parse::<f64>().unwrap_or(0.0);
             let value_u64 = value_f64 as u64;
-            
+
             if name == "kairos_requests_total" {
                 metrics.requests_total = value_u64;
             } else if name == "kairos_requests_success_total" {
@@ -158,22 +155,28 @@ impl MetricsData {
             } else if name == "kairos_success_rate" {
                 metrics.success_rate = value_f64;
             } else if name.starts_with("kairos_response_time_bucket") {
-                if name.contains("le=\"100\"") { metrics.response_time_bucket_100ms = value_u64; }
-                else if name.contains("le=\"500\"") { metrics.response_time_bucket_500ms = value_u64; }
-                else if name.contains("le=\"1000\"") { metrics.response_time_bucket_1s = value_u64; }
-                else if name.contains("le=\"5000\"") { metrics.response_time_bucket_5s = value_u64; }
-                else if name.contains("le=\"+Inf\"") { metrics.response_time_bucket_inf = value_u64; }
+                if name.contains("le=\"100\"") {
+                    metrics.response_time_bucket_100ms = value_u64;
+                } else if name.contains("le=\"500\"") {
+                    metrics.response_time_bucket_500ms = value_u64;
+                } else if name.contains("le=\"1000\"") {
+                    metrics.response_time_bucket_1s = value_u64;
+                } else if name.contains("le=\"5000\"") {
+                    metrics.response_time_bucket_5s = value_u64;
+                } else if name.contains("le=\"+Inf\"") {
+                    metrics.response_time_bucket_inf = value_u64;
+                }
             } else if name.starts_with("kairos_circuit_breaker_state") {
                 // Parse circuit breaker metrics
                 // Format: kairos_circuit_breaker_state{service="http://localhost:8081"} 0
                 if let Some(start) = name.find("service=\"") {
-                    if let Some(end) = name[start..].find("\",") { // Handle multiple labels if any, or just end quote
+                    if let Some(_end) = name[start..].find("\",") { // Handle multiple labels if any, or just end quote
                          // Simplified parsing for now, assuming service is the only label or first
                     }
                     let service_start = start + 9;
                     if let Some(service_end) = name[service_start..].find('"') {
                         let service = &name[service_start..service_start + service_end];
-                        
+
                         // Find or create CB metric
                         let mut found = false;
                         for cb in &mut metrics.circuit_breakers {
@@ -206,7 +209,7 @@ impl MetricsData {
                     }
                 }
             } else if name.starts_with("kairos_circuit_breaker_failures") {
-                 if let Some(start) = name.find("service=\"") {
+                if let Some(start) = name.find("service=\"") {
                     let service_start = start + 9;
                     if let Some(service_end) = name[service_start..].find('"') {
                         let service = &name[service_start..service_start + service_end];
@@ -217,9 +220,9 @@ impl MetricsData {
                             }
                         }
                     }
-                 }
+                }
             } else if name.starts_with("kairos_circuit_breaker_successes") {
-                 if let Some(start) = name.find("service=\"") {
+                if let Some(start) = name.find("service=\"") {
                     let service_start = start + 9;
                     if let Some(service_end) = name[service_start..].find('"') {
                         let service = &name[service_start..service_start + service_end];
@@ -230,18 +233,18 @@ impl MetricsData {
                             }
                         }
                     }
-                 }
+                }
             }
         }
-        
+
         if metrics.requests_total > 0 {
             metrics.success_rate = (success_total as f64 / metrics.requests_total as f64) * 100.0;
         } else {
             metrics.success_rate = 100.0;
         }
-        
+
         metrics.data_transferred_bytes = metrics.request_bytes_total + metrics.response_bytes_total;
-        
+
         Ok(metrics)
     }
 }
