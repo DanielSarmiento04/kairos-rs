@@ -2419,3 +2419,181 @@ main {
     }
   }
 }
+
+// ============================================================================
+// Profile Page Styles
+// ============================================================================
+
+.profile-page {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: $space-xl;
+  padding: $space-xl;
+  background-color: $bg-primary;
+  border-radius: $border-radius;
+  box-shadow: $shadow-md;
+  margin-bottom: $space-xl;
+}
+
+.profile-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, $primary-color, $primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.profile-avatar-icon {
+  font-size: 2.5rem;
+}
+
+.profile-info {
+  flex: 1;
+}
+
+.profile-name {
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-bold;
+  margin-bottom: $space-xs;
+}
+
+.profile-role {
+  color: $text-secondary;
+  font-size: $font-size-base;
+  margin-bottom: $space-sm;
+}
+
+.profile-badges {
+  display: flex;
+  gap: $space-sm;
+  flex-wrap: wrap;
+}
+
+.profile-badge {
+  padding: $space-xs $space-sm;
+  border-radius: $border-radius;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+
+  &-admin {
+    background-color: rgba($primary-color, 0.1);
+    color: $primary-color;
+  }
+
+  &-active {
+    background-color: rgba($success-color, 0.1);
+    color: $success-color;
+  }
+}
+
+.profile-section {
+  background-color: $bg-primary;
+  border-radius: $border-radius;
+  box-shadow: $shadow-sm;
+  padding: $space-xl;
+  margin-bottom: $space-xl;
+}
+
+.profile-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: $space-lg;
+}
+
+.profile-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: $space-xs;
+}
+
+.profile-detail-label {
+  font-size: $font-size-sm;
+  color: $text-secondary;
+  font-weight: $font-weight-medium;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.profile-detail-value {
+  font-size: $font-size-base;
+  color: $text-primary;
+  font-weight: $font-weight-medium;
+}
+
+.profile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: $space-lg;
+}
+
+.profile-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $space-sm;
+  padding: $space-lg;
+  background-color: $bg-secondary;
+  border-radius: $border-radius;
+  text-align: center;
+  transition: transform $transition-speed;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+}
+
+.profile-stat-icon {
+  font-size: $font-size-xxl;
+}
+
+.profile-stat-value {
+  font-size: 2rem;
+  font-weight: $font-weight-bold;
+  color: $primary-color;
+}
+
+.profile-stat-label {
+  font-size: $font-size-sm;
+  color: $text-secondary;
+}
+
+.profile-quick-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: $space-md;
+}
+
+.profile-quick-link {
+  display: flex;
+  align-items: center;
+  gap: $space-md;
+  padding: $space-md $space-lg;
+  background-color: $bg-secondary;
+  border-radius: $border-radius;
+  text-decoration: none;
+  color: $text-primary;
+  font-weight: $font-weight-medium;
+  transition: all $transition-speed;
+  border: 1px solid $border-color;
+
+  &:hover {
+    background-color: rgba($primary-color, 0.05);
+    color: $primary-color;
+    border-color: $primary-color;
+    transform: translateY(-1px);
+    box-shadow: $shadow-sm;
+  }
+}
+
+.profile-quick-link-icon {
+  font-size: $font-size-xl;
+}
+}

@@ -17,6 +17,7 @@ pub fn Navbar() -> impl IntoView {
             "/metrics" => "Metrics",
             "/config" => "Configuration",
             "/health" => "Health",
+            "/profile" => "Profile",
             _ => "Kairos Gateway",
         }
     };

@@ -40,6 +40,11 @@ pub fn Sidebar() -> impl IntoView {
                     <span class="sidebar-icon">"❤️"</span>
                     <span class="sidebar-text">"Health"</span>
                 </A>
+                
+                <A href="/profile" class:active=move || is_active("/profile") attr:class="sidebar-link">
+                    <span class="sidebar-icon">"👤"</span>
+                    <span class="sidebar-text">"Profile"</span>
+                </A>
             </nav>
             
             <div class="sidebar-footer">
