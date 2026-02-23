@@ -34,7 +34,7 @@ jobs:
           python-version: 3.x
 
       - name: Install MkDocs Material
-        run: pip install mkdocs-material mkdocs-minify-plugin mkdocs-git-revision-date-localized-plugin
+        run: pip install "mkdocs<2" "mkdocs-material<10" mkdocs-minify-plugin mkdocs-git-revision-date-localized-plugin
 
       - name: Build API Docs
         run: cargo doc --no-deps --workspace

@@ -1,4 +1,5 @@
 site_name: Kairos Gateway
+site_url: https://danielsarmiento04.github.io/kairos-rs/
 site_description: High-performance multi-protocol AI/API gateway built with Rust
 site_author: Daniel Sarmiento
 repo_url: https://github.com/DanielSarmiento04/kairos-rs
