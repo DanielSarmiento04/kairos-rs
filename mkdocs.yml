@@ -62,3 +62,4 @@ nav:
       - Postman: POSTMAN_GUIDE.md
       - WebSocket: WEBSOCKET_GUIDE.md
       - WebSocket Metrics: WEBSOCKET_METRICS_GUIDE.md
+  - API Reference: https://danielsarmiento04.github.io/kairos-rs/api/index.html
