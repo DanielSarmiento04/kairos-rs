@@ -521,6 +521,6 @@ Error: WebSocket connection failed
 
 ## Related Documentation
 
-- [Metrics Guide](https://github.com/DanielSarmiento04/kairos-rs/blob/main/Readme.md#metrics-and-observability)
+- [Metrics Guide](../../Readme.md#protocol-support)
 - [WebSocket Proxying Guide](./WEBSOCKET_GUIDE.md)
-- [API Reference](https://github.com/DanielSarmiento04/kairos-rs/blob/main/Readme.md#api-endpoints)
+- [API Reference](../../Readme.md#route-management-api)
