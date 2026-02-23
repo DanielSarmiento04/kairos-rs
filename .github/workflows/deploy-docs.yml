@@ -22,27 +22,32 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install mdbook
-        uses: peaceiris/actions-mdbook@v2
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          mdbook-version: 'latest'
+          python-version: 3.x
 
-      - name: Build mdBook
-        run: mdbook build docs
+      - name: Install MkDocs Material
+        run: pip install mkdocs-material mkdocs-minify-plugin mkdocs-git-revision-date-localized-plugin
 
       - name: Build API Docs
         run: cargo doc --no-deps --workspace
 
+      - name: Build MkDocs
+        run: mkdocs build
+
       - name: Organize Documentation
         run: |
-          mkdir -p docs/book/api
-          cp -r target/doc/* docs/book/api/
-          # Create a redirect from /api to /api/index.html or the main crate page if preferred
-          echo '<meta http-equiv="refresh" content="0; url=kairos_rs/index.html">' > docs/book/api/index.html
+          mkdir -p site/api
+          cp -r target/doc/* site/api/
+          # Create a redirect from /api to /api/kairos_rs/index.html
+          echo '<meta http-equiv="refresh" content="0; url=kairos_rs/index.html">' > site/api/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -50,7 +55,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'docs/book'
+          path: 'site'
 
       - name: Deploy to GitHub Pages
         id: deployment

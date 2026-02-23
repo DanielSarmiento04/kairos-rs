@@ -1,9 +1,0 @@
-[book]
-authors = ["Daniel Sarmiento"]
-language = "en"
-src = "src"
-title = "Kairos-rs Documentation"
-
-[output.html]
-git-repository-url = "https://github.com/DanielSarmiento04/kairos-rs"
-site-url = "/kairos-rs/"
