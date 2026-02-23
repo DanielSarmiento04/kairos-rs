@@ -1,0 +1,65 @@
+site_name: Kairos Gateway
+site_description: High-performance multi-protocol AI/API gateway built with Rust
+site_author: Daniel Sarmiento
+repo_url: https://github.com/DanielSarmiento04/kairos-rs
+repo_name: DanielSarmiento04/kairos-rs
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
+
+plugins:
+  - search
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: timeago
+  - minify:
+      minify_html: true
+
+docs_dir: docs/src
+
+nav:
+  - Introduction: index.md
+  - Guides:
+      - Overview: GUIDES.md
+      - AI Routing: AI_ROUTING_GUIDE.md
+      - Postman: POSTMAN_GUIDE.md
+      - WebSocket: WEBSOCKET_GUIDE.md
+      - WebSocket Metrics: WEBSOCKET_METRICS_GUIDE.md
+  - API Reference: https://danielsarmiento04.github.io/kairos-rs/api/index.html

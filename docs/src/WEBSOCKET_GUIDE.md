@@ -447,7 +447,6 @@ RUST_LOG=debug cargo run --bin kairos-gateway
 
 ## See Also
 
-- [Multi-Protocol Guide](MULTI_PROTOCOL_GUIDE.md) - Overview of all protocol support
-- [Configuration Guide](../Readme.md#configuration) - General configuration documentation
-- [JWT Authentication](../Readme.md#jwt-authentication) - JWT setup and usage
+- [Configuration Guide](https://github.com/DanielSarmiento04/kairos-rs/blob/main/Readme.md#configuration) - General configuration documentation
+- [JWT Authentication](https://github.com/DanielSarmiento04/kairos-rs/blob/main/Readme.md#jwt-authentication) - JWT setup and usage
 - [RFC 6455](https://datatracker.ietf.org/doc/html/rfc6455) - WebSocket Protocol Specification
