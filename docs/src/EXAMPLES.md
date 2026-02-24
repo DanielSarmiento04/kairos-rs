@@ -24,7 +24,7 @@ This example demonstrates how to use Kairos Gateway to route HTTP traffic to a P
 
 2. Start the services using Docker Compose:
    ```bash
-   docker-compose up --build
+   docker compose up --build
    ```
 
 ### Testing the Routing
