@@ -4,7 +4,7 @@ Welcome to the official documentation for **Kairos Gateway**, a high-performance
 
 [![Crates.io](https://img.shields.io/crates/v/kairos-gateway.svg)](https://crates.io/crates/kairos-gateway)
 [![Documentation](https://docs.rs/kairos-gateway/badge.svg)](https://docs.rs/kairos-gateway)
-[![License](https://img.shields.io/crates/l/kairos-gateway.svg)](https://github.com/DanielSarmiento04/kairos-rs/blob/main/License)
+[![License](https://img.shields.io/crates/l/kairos-gateway.svg)](https://github.com/DanielSarmiento04/kairos-rs/blob/main/LICENSE)
 
 ## What is Kairos?
 
