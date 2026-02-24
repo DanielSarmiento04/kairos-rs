@@ -113,7 +113,7 @@ Kairos Gateway integrates with the `rig-core` library, providing out-of-the-box 
 | **Perplexity** | `perplexity` | `PERPLEXITY_API_KEY` | `llama-3-sonar-large-32k-online` |
 | **Mistral** | `mistral` | `MISTRAL_API_KEY` | `mistral-large-latest` |
 | **Groq** | `groq` | `GROQ_API_KEY` | `llama3-70b-8192` |
-| **xAI** | `xai` | `XAI_API_KEY` | `grok-beta` |
+| **xAI** | `xai` | `XAI_API_KEY` | `Grok-1` |
 
 *Note: It is highly recommended to use environment variables for API keys rather than hardcoding them in `config.json`.*
 - **Caching**: Ensure your AI provider (or an intermediate cache) is performant.
