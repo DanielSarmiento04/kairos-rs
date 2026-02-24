@@ -135,7 +135,7 @@ To secure routes, configure the global `jwt` settings and set `auth_required: tr
 ```json
 {
   "jwt": {
-    "secret": "your-super-secret-key",
+    "secret": "your-super-secure-jwt-secret-key-must-be-at-least-32-characters-long",
     "issuer": "kairos-gateway",
     "audience": "your-app",
     "required_claims": ["sub", "exp", "role"]
