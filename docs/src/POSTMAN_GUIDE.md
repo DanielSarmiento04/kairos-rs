@@ -1,18 +1,18 @@
-# Postman Testing Guide for Kairos-rs
+# Postman Testing Guide
 
-This guide provides complete examples for testing Kairos-rs gateway using Postman with the current configuration.
+This guide provides complete examples for testing Kairos Gateway using Postman. It covers testing public routes, JWT-protected routes, and the configuration management API.
 
 ## 🚀 Quick Setup
 
-1. **Start Kairos-rs Gateway:**
+1. **Start Kairos Gateway:**
    ```bash
-   cd kairos-rs
+   cd crates/kairos-gateway
    cargo run
    ```
-   Server runs on `http://localhost:5900`
+   The server runs on `http://localhost:5900` by default.
 
 2. **Current Configuration:**
-   The gateway is configured with these routes (from `config.json`):
+   The examples below assume you are using the default `config.json` provided in the repository.
 
 ## 📋 Postman Collection Examples
 

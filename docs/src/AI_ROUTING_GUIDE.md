@@ -97,7 +97,25 @@ Enable AI routing for a specific route by adding an `ai_policy`.
 
 ## Performance Considerations
 
-- **Latency**: AI calls add latency. Use this feature for heavy or complex operations where the routing decision adds significant value (e.g., choosing between a $0.01 model and a $0.001 model).
+- **Latency**: AI calls add latency (typically 200ms - 1000ms depending on the provider and model). Use this feature for heavy or complex operations where the routing decision adds significant value (e.g., choosing between a $0.01 model and a $0.001 model, or routing a complex database query to a specialized read replica).
+- **Cost**: Every AI routing decision consumes tokens. Be mindful of the volume of traffic hitting AI-enabled routes.
+- **Fallback**: Always configure a `fallback_backend_index`. If the AI provider is down, times out, or returns an unparseable response, Kairos will instantly route the request to the fallback backend to ensure high availability.
+
+## Supported Providers
+
+Kairos Gateway integrates with the `rig-core` library, providing out-of-the-box support for the following AI providers. You can configure the provider globally or override it per-route.
+
+| Provider | Config Value | Environment Variable | Example Models |
+| :--- | :--- | :--- | :--- |
+| **OpenAI** | `openai` | `OPENAI_API_KEY` | `gpt-4o`, `gpt-3.5-turbo` |
+| **Anthropic** | `anthropic` | `ANTHROPIC_API_KEY` | `claude-3-opus`, `claude-3-sonnet` |
+| **Cohere** | `cohere` | `COHERE_API_KEY` | `command-r`, `command-r-plus` |
+| **Perplexity** | `perplexity` | `PERPLEXITY_API_KEY` | `llama-3-sonar-large-32k-online` |
+| **Mistral** | `mistral` | `MISTRAL_API_KEY` | `mistral-large-latest` |
+| **Groq** | `groq` | `GROQ_API_KEY` | `llama3-70b-8192` |
+| **xAI** | `xai` | `XAI_API_KEY` | `Grok-1` |
+
+*Note: It is highly recommended to use environment variables for API keys rather than hardcoding them in `config.json`.*
 - **Caching**: Ensure your AI provider (or an intermediate cache) is performant.
 - **Fast Providers**: For real-time routing, consider using fast providers like Groq or lighter models like `gpt-3.5-turbo`.
 

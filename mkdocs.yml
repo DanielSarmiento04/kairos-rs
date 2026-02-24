@@ -59,6 +59,9 @@ nav:
   - Introduction: index.md
   - Guides:
       - Overview: GUIDES.md
+      - Configuration: CONFIGURATION.md
+      - UI Dashboard: UI_DASHBOARD.md
+      - Examples: EXAMPLES.md
       - AI Routing: AI_ROUTING_GUIDE.md
       - Postman: POSTMAN_GUIDE.md
       - WebSocket: WEBSOCKET_GUIDE.md

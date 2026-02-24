@@ -458,7 +458,7 @@ This crate works with the [`kairos-gateway`](https://crates.io/crates/kairos-gat
 ## Documentation
 
 - [Main Documentation](../../Readme.md)
-- [Configuration Guide](../../docs/)
+- [Guides](../../docs/src/GUIDES.md)
 - [API Documentation](https://docs.rs/kairos-cli)
 - [Examples](../../examples/)
 
