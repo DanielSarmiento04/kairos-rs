@@ -97,7 +97,7 @@ The `routers` array contains the routing rules for the gateway. Each route defin
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `external_path` | string | Yes | The path the client requests (e.g., `/api/users`). Supports regex and path parameters. |
+| `external_path` | string | Yes | The path the client requests (e.g., `/api/users`). Supports `{param}` path placeholders (e.g., `/api/users/{id}`); regular expressions are not supported. |
 | `internal_path` | string | Yes | The path forwarded to the backend (e.g., `/users`). |
 | `methods` | array | Yes | Allowed HTTP methods (e.g., `["GET", "POST"]`). |
 | `protocol` | string | No | The protocol to use (`http`, `websocket`, `ftp`, `dns`). Default is `http`. |
