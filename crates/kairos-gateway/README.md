@@ -298,7 +298,7 @@ This crate depends on [`kairos-rs`](https://crates.io/crates/kairos-rs) which pr
 ## Documentation
 
 - [Main Documentation](../../Readme.md)
-- [WebSocket Guide](../../docs/WEBSOCKET_GUIDE.md)
+- [Guides](../../docs/src/GUIDES.md)
 - [API Documentation](https://docs.rs/kairos-gateway)
 - [Examples](../../examples/)
 

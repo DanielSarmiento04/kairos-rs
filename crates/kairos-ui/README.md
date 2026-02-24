@@ -278,6 +278,7 @@ cargo test
 - [Leptos Documentation](https://leptos.dev/)
 - [Leptos Book](https://book.leptos.dev/)
 - [Kairos Gateway Documentation](../../Readme.md)
+- [Guides](../../docs/src/GUIDES.md)
 - [Actix Web](https://actix.rs/)
 - [Rust Documentation](https://doc.rust-lang.org/)
 

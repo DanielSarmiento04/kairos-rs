@@ -85,7 +85,7 @@ Kairos-rs now supports multiple protocols beyond HTTP:
 | **FTP** | Beta | File operations via HTTP API (list, download, upload), authentication |
 | **DNS** | Beta | Query forwarding, response caching, load balancing across DNS servers |
 
-See [MULTI_PROTOCOL_GUIDE.md](./docs/MULTI_PROTOCOL_GUIDE.md) for detailed protocol documentation and examples.
+See [MULTI_PROTOCOL_GUIDE.md](../../docs/src/GUIDES.md) for detailed protocol documentation and examples.
 
 ## Quick Start
 
