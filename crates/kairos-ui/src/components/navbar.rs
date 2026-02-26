@@ -7,7 +7,7 @@ use leptos_router::hooks::use_location;
 #[component]
 pub fn Navbar() -> impl IntoView {
     let location = use_location();
-    
+
     // Extract current page name from path
     let page_name = move || {
         let path = location.pathname.get();
@@ -20,7 +20,7 @@ pub fn Navbar() -> impl IntoView {
             _ => "Kairos Gateway",
         }
     };
-    
+
     view! {
         <nav class="navbar">
             <div class="navbar-brand">
@@ -29,11 +29,11 @@ pub fn Navbar() -> impl IntoView {
                     " Kairos Gateway"
                 </h1>
             </div>
-            
+
             <div class="navbar-center">
                 <span class="navbar-page-title">{page_name}</span>
             </div>
-            
+
             <div class="navbar-actions">
                 <div class="navbar-status">
                     <span class="status-dot status-dot-active"></span>

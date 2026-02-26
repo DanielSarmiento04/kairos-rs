@@ -1,18 +1,18 @@
 //! Configuration management page for gateway settings.
-//! 
+//!
 //! Provides a tabbed interface for managing JWT, rate limiting, CORS,
 //! metrics, and server configuration.
 
-use leptos::prelude::*;
-use leptos::task::spawn_local;
 use crate::models::{
-    Settings, JwtSettings, RateLimitConfig, LimitStrategy, WindowType,
-    CorsConfig, MetricsConfig, ServerConfig
+    AiSettings, CorsConfig, JwtSettings, LimitStrategy, MetricsConfig, RateLimitConfig,
+    ServerConfig, Settings, WindowType,
 };
 use crate::server_functions::api::{
-    get_config, update_jwt_config, update_rate_limit_config,
-    update_cors_config, update_metrics_config, update_server_config
+    get_config, update_cors_config, update_jwt_config, update_metrics_config,
+    update_rate_limit_config, update_server_config,
 };
+use leptos::prelude::*;
+use leptos::task::spawn_local;
 
 #[derive(Clone, Copy, PartialEq)]
 enum ConfigTab {
@@ -21,6 +21,7 @@ enum ConfigTab {
     Cors,
     Metrics,
     Server,
+    Ai,
 }
 
 /// Main configuration page component with tabbed interface.
@@ -31,13 +32,13 @@ pub fn ConfigPage() -> impl IntoView {
     let (loading, set_loading) = signal(true);
     let (error_message, set_error_message) = signal(None::<String>);
     let (success_message, set_success_message) = signal(None::<String>);
-    
+
     // Load configuration on mount
     Effect::new(move || {
         spawn_local(async move {
             set_loading.set(true);
             set_error_message.set(None);
-            
+
             match get_config().await {
                 Ok(config) => {
                     set_settings.set(config);
@@ -50,28 +51,28 @@ pub fn ConfigPage() -> impl IntoView {
             }
         });
     });
-    
+
     view! {
         <div class="config-page">
             <div class="page-header">
                 <h1 class="page-title">"⚙️ Configuration"</h1>
                 <p class="page-subtitle">"Manage gateway configuration and settings"</p>
             </div>
-            
+
             {move || error_message.get().map(|msg| view! {
                 <div class="alert alert-error">
                     <span class="alert-icon">"⚠️"</span>
                     <span class="alert-message">{msg}</span>
                 </div>
             })}
-            
+
             {move || success_message.get().map(|msg| view! {
                 <div class="alert alert-success">
                     <span class="alert-icon">"✅"</span>
                     <span class="alert-message">{msg}</span>
                 </div>
             })}
-            
+
             {move || {
                 if loading.get() {
                     view! {
@@ -114,8 +115,14 @@ pub fn ConfigPage() -> impl IntoView {
                                 >
                                     "🖥️ Server"
                                 </button>
+                                <button
+                                    class=move || if active_tab.get() == ConfigTab::Ai { "tab-button active" } else { "tab-button" }
+                                    on:click=move |_| set_active_tab.set(ConfigTab::Ai)
+                                >
+                                    "🤖 AI Configuration"
+                                </button>
                             </div>
-                            
+
                             <div class="tab-content">
                                 {move || match active_tab.get() {
                                     ConfigTab::Jwt => view! {
@@ -198,6 +205,22 @@ pub fn ConfigPage() -> impl IntoView {
                                             }
                                         />
                                     }.into_any(),
+                                    ConfigTab::Ai => view! {
+                                        <AiConfigForm
+                                            ai_settings=settings.get().ai
+                                            on_save=move |config| {
+                                                let set_success = set_success_message.clone();
+                                                let set_error = set_error_message.clone();
+                                                spawn_local(async move {
+                                                    set_error.set(None);
+                                                    match crate::server_functions::api::update_ai_config(config).await {
+                                                        Ok(_) => set_success.set(Some("AI configuration updated successfully!".to_string())),
+                                                        Err(e) => set_error.set(Some(format!("Failed to update AI config: {}", e))),
+                                                    }
+                                                });
+                                            }
+                                        />
+                                    }.into_any(),
                                 }}
                             </div>
                         </div>
@@ -223,51 +246,60 @@ where
     let (audience, set_audience) = signal(initial.audience.clone().unwrap_or_default());
     let (required_claims, set_required_claims) = signal(initial.required_claims.join(", "));
     let (validation_error, set_validation_error) = signal(None::<String>);
-    
+
     let handle_save = move |_| {
         set_validation_error.set(None);
-        
+
         // Validation
         if secret.get().is_empty() {
             set_validation_error.set(Some("Secret cannot be empty".to_string()));
             return;
         }
-        
+
         if secret.get().len() < 32 {
             set_validation_error.set(Some("Secret must be at least 32 characters".to_string()));
             return;
         }
-        
-        let claims: Vec<String> = required_claims.get()
+
+        let claims: Vec<String> = required_claims
+            .get()
             .split(',')
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
-        
+
         let config = JwtSettings {
             secret: secret.get(),
-            issuer: if issuer.get().is_empty() { None } else { Some(issuer.get()) },
-            audience: if audience.get().is_empty() { None } else { Some(audience.get()) },
+            issuer: if issuer.get().is_empty() {
+                None
+            } else {
+                Some(issuer.get())
+            },
+            audience: if audience.get().is_empty() {
+                None
+            } else {
+                Some(audience.get())
+            },
             required_claims: claims,
         };
-        
+
         on_save(config);
     };
-    
+
     view! {
         <div class="config-form jwt-config">
             <h2>"JWT Authentication Settings"</h2>
             <p class="form-description">
                 "Configure JSON Web Token authentication for protected routes."
             </p>
-            
+
             {move || validation_error.get().map(|err| view! {
                 <div class="alert alert-error">
                     <span class="alert-icon">"⚠️"</span>
                     <span class="alert-message">{err}</span>
                 </div>
             })}
-            
+
             <div class="form-group">
                 <label class="form-label required">
                     "Secret Key"
@@ -284,7 +316,7 @@ where
                     "Strong secret key for signing JWT tokens. Must be at least 32 characters."
                 </p>
             </div>
-            
+
             <div class="form-group">
                 <label class="form-label">
                     "Issuer"
@@ -301,7 +333,7 @@ where
                     "Expected issuer (iss claim) for JWT validation."
                 </p>
             </div>
-            
+
             <div class="form-group">
                 <label class="form-label">
                     "Audience"
@@ -318,7 +350,7 @@ where
                     "Expected audience (aud claim) for JWT validation."
                 </p>
             </div>
-            
+
             <div class="form-group">
                 <label class="form-label">
                     "Required Claims"
@@ -335,7 +367,7 @@ where
                     "Comma-separated list of claims that must be present in valid tokens."
                 </p>
             </div>
-            
+
             <div class="form-actions">
                 <button class="btn btn-primary" on:click=handle_save>
                     "💾 Save JWT Configuration"
@@ -356,41 +388,47 @@ where
 {
     let initial = rate_limit.unwrap_or_default();
     let (strategy, set_strategy) = signal(initial.strategy);
-    let (requests_per_window, set_requests_per_window) = signal(initial.requests_per_window.to_string());
+    let (requests_per_window, set_requests_per_window) =
+        signal(initial.requests_per_window.to_string());
     let (window_duration, set_window_duration) = signal(initial.window_duration.to_string());
     let (burst_allowance, set_burst_allowance) = signal(initial.burst_allowance.to_string());
     let (window_type, set_window_type) = signal(initial.window_type);
     let (enable_redis, set_enable_redis) = signal(initial.enable_redis);
     let (redis_prefix, set_redis_prefix) = signal(initial.redis_key_prefix);
     let (validation_error, set_validation_error) = signal(None::<String>);
-    
+
     let handle_save = move |_| {
         set_validation_error.set(None);
-        
+
         let requests: u64 = match requests_per_window.get().parse() {
             Ok(v) if v > 0 => v,
             _ => {
-                set_validation_error.set(Some("Requests per window must be a positive number".to_string()));
+                set_validation_error.set(Some(
+                    "Requests per window must be a positive number".to_string(),
+                ));
                 return;
             }
         };
-        
+
         let duration: u64 = match window_duration.get().parse() {
             Ok(v) if v > 0 => v,
             _ => {
-                set_validation_error.set(Some("Window duration must be a positive number".to_string()));
+                set_validation_error.set(Some(
+                    "Window duration must be a positive number".to_string(),
+                ));
                 return;
             }
         };
-        
+
         let burst: u64 = match burst_allowance.get().parse() {
             Ok(v) => v,
             _ => {
-                set_validation_error.set(Some("Burst allowance must be a valid number".to_string()));
+                set_validation_error
+                    .set(Some("Burst allowance must be a valid number".to_string()));
                 return;
             }
         };
-        
+
         let config = RateLimitConfig {
             strategy: strategy.get(),
             requests_per_window: requests,
@@ -400,24 +438,24 @@ where
             enable_redis: enable_redis.get(),
             redis_key_prefix: redis_prefix.get(),
         };
-        
+
         on_save(config);
     };
-    
+
     view! {
         <div class="config-form rate-limit-config">
             <h2>"Rate Limiting Configuration"</h2>
             <p class="form-description">
                 "Configure rate limiting to protect your gateway from abuse and ensure fair usage."
             </p>
-            
+
             {move || validation_error.get().map(|err| view! {
                 <div class="alert alert-error">
                     <span class="alert-icon">"⚠️"</span>
                     <span class="alert-message">{err}</span>
                 </div>
             })}
-            
+
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label required">"Strategy"</label>
@@ -442,7 +480,7 @@ where
                         <option value="PerUserAndRoute" selected=move || matches!(strategy.get(), LimitStrategy::PerUserAndRoute)>"Per User + Route"</option>
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label class="form-label required">"Window Type"</label>
                     <select
@@ -463,7 +501,7 @@ where
                     </select>
                 </div>
             </div>
-            
+
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label required">"Requests per Window"</label>
@@ -476,7 +514,7 @@ where
                         on:input=move |ev| set_requests_per_window.set(event_target_value(&ev))
                     />
                 </div>
-                
+
                 <div class="form-group">
                     <label class="form-label required">"Window Duration (seconds)"</label>
                     <input
@@ -488,7 +526,7 @@ where
                         on:input=move |ev| set_window_duration.set(event_target_value(&ev))
                     />
                 </div>
-                
+
                 <div class="form-group">
                     <label class="form-label">"Burst Allowance"</label>
                     <input
@@ -501,7 +539,7 @@ where
                     />
                 </div>
             </div>
-            
+
             <div class="form-group">
                 <label class="form-checkbox">
                     <input
@@ -512,7 +550,7 @@ where
                     <span>"Enable Redis for distributed rate limiting"</span>
                 </label>
             </div>
-            
+
             {move || enable_redis.get().then(|| view! {
                 <div class="form-group">
                     <label class="form-label">"Redis Key Prefix"</label>
@@ -525,7 +563,7 @@ where
                     />
                 </div>
             })}
-            
+
             <div class="form-actions">
                 <button class="btn btn-primary" on:click=handle_save>
                     "💾 Save Rate Limit Configuration"
@@ -550,33 +588,41 @@ where
     let (allowed_methods, set_allowed_methods) = signal(initial.allowed_methods.join(", "));
     let (allowed_headers, set_allowed_headers) = signal(initial.allowed_headers.join(", "));
     let (allow_credentials, set_allow_credentials) = signal(initial.allow_credentials);
-    let (max_age, set_max_age) = signal(initial.max_age_secs.map(|v| v.to_string()).unwrap_or_default());
-    
+    let (max_age, set_max_age) = signal(
+        initial
+            .max_age_secs
+            .map(|v| v.to_string())
+            .unwrap_or_default(),
+    );
+
     let handle_save = move |_| {
-        let origins: Vec<String> = allowed_origins.get()
+        let origins: Vec<String> = allowed_origins
+            .get()
             .lines()
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
-        
-        let methods: Vec<String> = allowed_methods.get()
+
+        let methods: Vec<String> = allowed_methods
+            .get()
             .split(',')
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
-        
-        let headers: Vec<String> = allowed_headers.get()
+
+        let headers: Vec<String> = allowed_headers
+            .get()
             .split(',')
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
-        
+
         let max_age_secs = if max_age.get().is_empty() {
             None
         } else {
             max_age.get().parse().ok()
         };
-        
+
         let config = CorsConfig {
             enabled: enabled.get(),
             allowed_origins: origins,
@@ -585,17 +631,17 @@ where
             allow_credentials: allow_credentials.get(),
             max_age_secs,
         };
-        
+
         on_save(config);
     };
-    
+
     view! {
         <div class="config-form cors-config">
             <h2>"CORS Configuration"</h2>
             <p class="form-description">
                 "Configure Cross-Origin Resource Sharing (CORS) to control which domains can access your API."
             </p>
-            
+
             <div class="form-group">
                 <label class="form-checkbox">
                     <input
@@ -606,7 +652,7 @@ where
                     <span>"Enable CORS"</span>
                 </label>
             </div>
-            
+
             {move || enabled.get().then(|| view! {
                 <>
                     <div class="form-group">
@@ -622,7 +668,7 @@ where
                             "Specify allowed origins. Use * to allow all origins (not recommended for production)."
                         </p>
                     </div>
-                    
+
                     <div class="form-group">
                         <label class="form-label">"Allowed Methods"<span class="label-hint">" (comma-separated)"</span></label>
                         <input
@@ -633,7 +679,7 @@ where
                             on:input=move |ev| set_allowed_methods.set(event_target_value(&ev))
                         />
                     </div>
-                    
+
                     <div class="form-group">
                         <label class="form-label">"Allowed Headers"<span class="label-hint">" (comma-separated)"</span></label>
                         <input
@@ -644,7 +690,7 @@ where
                             on:input=move |ev| set_allowed_headers.set(event_target_value(&ev))
                         />
                     </div>
-                    
+
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-checkbox">
@@ -656,7 +702,7 @@ where
                                 <span>"Allow Credentials (cookies, auth headers)"</span>
                             </label>
                         </div>
-                        
+
                         <div class="form-group">
                             <label class="form-label">"Max Age (seconds)"</label>
                             <input
@@ -671,7 +717,7 @@ where
                     </div>
                 </>
             })}
-            
+
             <div class="form-actions">
                 <button class="btn btn-primary" on:click=handle_save>
                     "💾 Save CORS Configuration"
@@ -694,24 +740,24 @@ where
     let (enabled, set_enabled) = signal(initial.enabled);
     let (endpoint, set_endpoint) = signal(initial.prometheus_endpoint);
     let (collect_per_route, set_collect_per_route) = signal(initial.collect_per_route);
-    
+
     let handle_save = move |_| {
         let config = MetricsConfig {
             enabled: enabled.get(),
             prometheus_endpoint: endpoint.get(),
             collect_per_route: collect_per_route.get(),
         };
-        
+
         on_save(config);
     };
-    
+
     view! {
         <div class="config-form metrics-config">
             <h2>"Metrics Configuration"</h2>
             <p class="form-description">
                 "Configure Prometheus metrics collection and exposure."
             </p>
-            
+
             <div class="form-group">
                 <label class="form-checkbox">
                     <input
@@ -722,7 +768,7 @@ where
                     <span>"Enable Metrics Collection"</span>
                 </label>
             </div>
-            
+
             {move || enabled.get().then(|| view! {
                 <>
                     <div class="form-group">
@@ -738,7 +784,7 @@ where
                             "Path where Prometheus metrics will be exposed."
                         </p>
                     </div>
-                    
+
                     <div class="form-group">
                         <label class="form-checkbox">
                             <input
@@ -754,7 +800,7 @@ where
                     </div>
                 </>
             })}
-            
+
             <div class="form-actions">
                 <button class="btn btn-primary" on:click=handle_save>
                     "💾 Save Metrics Configuration"
@@ -779,18 +825,20 @@ where
     let (workers, set_workers) = signal(initial.workers.to_string());
     let (keep_alive, set_keep_alive) = signal(initial.keep_alive_secs.to_string());
     let (validation_error, set_validation_error) = signal(None::<String>);
-    
+
     let handle_save = move |_| {
         set_validation_error.set(None);
-        
+
         let port_num: u16 = match port.get().parse() {
             Ok(v) if v > 0 => v,
             _ => {
-                set_validation_error.set(Some("Port must be a valid number between 1-65535".to_string()));
+                set_validation_error.set(Some(
+                    "Port must be a valid number between 1-65535".to_string(),
+                ));
                 return;
             }
         };
-        
+
         let workers_num: usize = match workers.get().parse() {
             Ok(v) if v > 0 => v,
             _ => {
@@ -798,7 +846,7 @@ where
                 return;
             }
         };
-        
+
         let keep_alive_num: u64 = match keep_alive.get().parse() {
             Ok(v) => v,
             _ => {
@@ -806,31 +854,31 @@ where
                 return;
             }
         };
-        
+
         let config = ServerConfig {
             host: host.get(),
             port: port_num,
             workers: workers_num,
             keep_alive_secs: keep_alive_num,
         };
-        
+
         on_save(config);
     };
-    
+
     view! {
         <div class="config-form server-config">
             <h2>"Server Configuration"</h2>
             <p class="form-description">
                 "Configure server runtime settings and performance tuning."
             </p>
-            
+
             {move || validation_error.get().map(|err| view! {
                 <div class="alert alert-error">
                     <span class="alert-icon">"⚠️"</span>
                     <span class="alert-message">{err}</span>
                 </div>
             })}
-            
+
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label required">"Host"</label>
@@ -845,7 +893,7 @@ where
                         "Bind address (0.0.0.0 for all interfaces, 127.0.0.1 for localhost only)."
                     </p>
                 </div>
-                
+
                 <div class="form-group">
                     <label class="form-label required">"Port"</label>
                     <input
@@ -859,7 +907,7 @@ where
                     />
                 </div>
             </div>
-            
+
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label required">"Worker Threads"</label>
@@ -875,7 +923,7 @@ where
                         "Number of worker threads (typically CPU cores)."
                     </p>
                 </div>
-                
+
                 <div class="form-group">
                     <label class="form-label">"Keep-Alive (seconds)"</label>
                     <input
@@ -891,10 +939,118 @@ where
                     </p>
                 </div>
             </div>
-            
+
             <div class="form-actions">
                 <button class="btn btn-primary" on:click=handle_save>
                     "💾 Save Server Configuration"
+                </button>
+            </div>
+        </div>
+    }
+}
+
+// ============================================================================
+// AI Configuration Form
+// ============================================================================
+
+#[component]
+fn AiConfigForm<F>(ai_settings: Option<AiSettings>, on_save: F) -> impl IntoView
+where
+    F: Fn(AiSettings) + 'static + Clone,
+{
+    let initial = ai_settings.unwrap_or_default();
+    let (provider, set_provider) = signal(initial.provider.clone());
+    let (model, set_model) = signal(initial.model.clone());
+    let (api_key, set_api_key) = signal(initial.api_key.clone().unwrap_or_default());
+    let (validation_error, set_validation_error) = signal(None::<String>);
+
+    let handle_save = move |_| {
+        set_validation_error.set(None);
+
+        if provider.get().is_empty() {
+            set_validation_error.set(Some("Provider is required".to_string()));
+            return;
+        }
+
+        if model.get().is_empty() {
+            set_validation_error.set(Some("Model is required".to_string()));
+            return;
+        }
+
+        let config = AiSettings {
+            provider: provider.get(),
+            model: model.get(),
+            api_key: if api_key.get().is_empty() {
+                None
+            } else {
+                Some(api_key.get())
+            },
+        };
+
+        on_save(config);
+    };
+
+    view! {
+        <div class="config-form ai-config">
+            <h2>"AI Configuration"</h2>
+            <p class="form-description">
+                "Configure AI provider settings for routing and semantic operations."
+            </p>
+
+            {move || validation_error.get().map(|err| view! {
+                <div class="alert alert-error">
+                    <span class="alert-icon">"⚠️"</span>
+                    <span class="alert-message">{err}</span>
+                </div>
+            })}
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label required">"Provider"</label>
+                    <select
+                        class="form-select"
+                        on:change=move |ev| {
+                            let value = event_target_value(&ev);
+                            set_provider.set(value);
+                        }
+                    >
+                        <option value="openai" selected=move || provider.get() == "openai">"OpenAI"</option>
+                        <option value="claude" selected=move || provider.get() == "claude">"Claude (Anthropic)"</option>
+                        <option value="cohere" selected=move || provider.get() == "cohere">"Cohere"</option>
+                        <option value="gemini" selected=move || provider.get() == "gemini">"Gemini (Google)"</option>
+                        <option value="xai" selected=move || provider.get() == "xai">"xAI (Grok)"</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label required">"Model"</label>
+                    <input
+                        type="text"
+                        class="form-input"
+                        placeholder="e.g., gpt-4, claude-3-opus-20240229"
+                        prop:value=move || model.get()
+                        on:input=move |ev| set_model.set(event_target_value(&ev))
+                    />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">
+                    "API Key"
+                    <span class="label-hint">"(optional, overrides environment variables)"</span>
+                </label>
+                <input
+                    type="password"
+                    class="form-input"
+                    placeholder="Enter provider API key"
+                    prop:value=move || api_key.get()
+                    on:input=move |ev| set_api_key.set(event_target_value(&ev))
+                />
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-primary" on:click=handle_save>
+                    "💾 Save AI Configuration"
                 </button>
             </div>
         </div>

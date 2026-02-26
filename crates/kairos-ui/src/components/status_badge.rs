@@ -25,9 +25,9 @@ impl StatusVariant {
 }
 
 /// Displays a colored status badge with text.
-/// 
+///
 /// # Properties
-/// 
+///
 /// * `text` - The badge text to display
 /// * `variant` - The badge color variant
 #[component]
@@ -38,7 +38,7 @@ pub fn StatusBadge(
     variant: StatusVariant,
 ) -> impl IntoView {
     let badge_class = format!("status-badge {}", variant.as_class());
-    
+
     view! {
         <span class=badge_class>
             {text}
