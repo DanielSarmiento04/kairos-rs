@@ -951,117 +951,126 @@ fn HistoricalView() -> impl IntoView {
                     {move || {
                         historical_data_resource.get().map(|result| match result {
                             Ok(json_data) => {
-                                let data: Vec<MetricPoint> = serde_json::from_value(json_data).unwrap_or_default();
+                                match serde_json::from_value::<Vec<MetricPoint>>(json_data) {
+                                    Ok(data) => {
+                                        // Calculate statistics
+                                        let values: Vec<f64> = data.iter()
+                                            .map(|p| match p.value {
+                                                MetricValue::Counter(v) => v as f64,
+                                                MetricValue::Gauge(v) => v,
+                                                MetricValue::Histogram { count, .. } => count as f64,
+                                            })
+                                            .collect();
 
-                                // Calculate statistics
-                                let values: Vec<f64> = data.iter()
-                                    .map(|p| match p.value {
-                                        MetricValue::Counter(v) => v as f64,
-                                        MetricValue::Gauge(v) => v,
-                                        MetricValue::Histogram { count, .. } => count as f64,
-                                    })
-                                    .collect();
+                                        let min_val = values.iter().fold(f64::INFINITY, |a, &b| a.min(b));
+                                        let max_val = values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+                                        let avg_val = if !values.is_empty() {
+                                            values.iter().sum::<f64>() / values.len() as f64
+                                        } else {
+                                            0.0
+                                        };
 
-                                let min_val = values.iter().fold(f64::INFINITY, |a, &b| a.min(b));
-                                let max_val = values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-                                let avg_val = if !values.is_empty() {
-                                    values.iter().sum::<f64>() / values.len() as f64
-                                } else {
-                                    0.0
-                                };
+                                        // Transform data for Chart.js
+                                        let labels: Vec<String> = data.iter()
+                                            .map(|p| p.timestamp.format("%H:%M").to_string())
+                                            .collect();
 
-                                // Transform data for Chart.js
-                                let labels: Vec<String> = data.iter()
-                                    .map(|p| p.timestamp.format("%H:%M").to_string())
-                                    .collect();
+                                        let chart_data = serde_json::json!({
+                                            "labels": labels,
+                                            "datasets": [{
+                                                "label": metric_name.get(),
+                                                "data": values,
+                                                "borderColor": "rgb(99, 102, 241)", // Indigo 500
+                                                "backgroundColor": "rgba(99, 102, 241, 0.1)",
+                                                "borderWidth": 2,
+                                                "pointRadius": 0,
+                                                "pointHoverRadius": 4,
+                                                "tension": 0.4,
+                                                "fill": true
+                                            }]
+                                        });
 
-                                let chart_data = serde_json::json!({
-                                    "labels": labels,
-                                    "datasets": [{
-                                        "label": metric_name.get(),
-                                        "data": values,
-                                        "borderColor": "rgb(99, 102, 241)", // Indigo 500
-                                        "backgroundColor": "rgba(99, 102, 241, 0.1)",
-                                        "borderWidth": 2,
-                                        "pointRadius": 0,
-                                        "pointHoverRadius": 4,
-                                        "tension": 0.4,
-                                        "fill": true
-                                    }]
-                                });
-
-                                let options = serde_json::json!({
-                                    "responsive": true,
-                                    "maintainAspectRatio": false,
-                                    "interaction": {
-                                        "mode": "index",
-                                        "intersect": false,
-                                    },
-                                    "plugins": {
-                                        "legend": {
-                                            "display": false,
-                                        },
-                                        "tooltip": {
-                                            "backgroundColor": "rgba(17, 24, 39, 0.9)",
-                                            "titleColor": "#f3f4f6",
-                                            "bodyColor": "#d1d5db",
-                                            "borderColor": "#374151",
-                                            "borderWidth": 1,
-                                            "padding": 10,
-                                            "displayColors": false,
-                                        }
-                                    },
-                                    "scales": {
-                                        "x": {
-                                            "grid": {
-                                                "display": false,
-                                                "drawBorder": false
+                                        let options = serde_json::json!({
+                                            "responsive": true,
+                                            "maintainAspectRatio": false,
+                                            "interaction": {
+                                                "mode": "index",
+                                                "intersect": false,
                                             },
-                                            "ticks": {
-                                                "maxTicksLimit": 8,
-                                                "color": "#6b7280"
-                                            }
-                                        },
-                                        "y": {
-                                            "beginAtZero": true,
-                                            "grid": {
-                                                "color": "#e5e7eb",
-                                                "borderDash": [2, 4],
-                                                "drawBorder": false
+                                            "plugins": {
+                                                "legend": {
+                                                    "display": false,
+                                                },
+                                                "tooltip": {
+                                                    "backgroundColor": "rgba(17, 24, 39, 0.9)",
+                                                    "titleColor": "#f3f4f6",
+                                                    "bodyColor": "#d1d5db",
+                                                    "borderColor": "#374151",
+                                                    "borderWidth": 1,
+                                                    "padding": 10,
+                                                    "displayColors": false,
+                                                }
                                             },
-                                            "ticks": {
-                                                "color": "#6b7280",
-                                                "callback": "function(value) { return value >= 1000 ? (value/1000) + 'k' : value; }"
+                                            "scales": {
+                                                "x": {
+                                                    "grid": {
+                                                        "display": false,
+                                                        "drawBorder": false
+                                                    },
+                                                    "ticks": {
+                                                        "maxTicksLimit": 8,
+                                                        "color": "#6b7280"
+                                                    }
+                                                },
+                                                "y": {
+                                                    "beginAtZero": true,
+                                                    "grid": {
+                                                        "color": "#e5e7eb",
+                                                        "borderDash": [2, 4],
+                                                        "drawBorder": false
+                                                    },
+                                                    "ticks": {
+                                                        "color": "#6b7280",
+                                                        "callback": "function(value) { return value >= 1000 ? (value/1000) + 'k' : value; }"
+                                                    }
+                                                }
                                             }
-                                        }
+                                        });
+
+                                        view! {
+                                            <div class="stats-cards">
+                                                <div class="stat-card">
+                                                    <span class="stat-label">"Minimum"</span>
+                                                    <span class="stat-val">{format!("{:.1}", if min_val == f64::INFINITY { 0.0 } else { min_val })}</span>
+                                                </div>
+                                                <div class="stat-card">
+                                                    <span class="stat-label">"Average"</span>
+                                                    <span class="stat-val">{format!("{:.1}", avg_val)}</span>
+                                                </div>
+                                                <div class="stat-card">
+                                                    <span class="stat-label">"Maximum"</span>
+                                                    <span class="stat-val">{format!("{:.1}", if max_val == f64::NEG_INFINITY { 0.0 } else { max_val })}</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="chart-container" style="height: 400px; width: 100%;">
+                                                <Chart
+                                                    id="historical-chart"
+                                                    kind="line"
+                                                    data=chart_data
+                                                    options=options
+                                                />
+                                            </div>
+                                        }.into_any()
                                     }
-                                });
-
-                                view! {
-                                    <div class="stats-cards">
-                                        <div class="stat-card">
-                                            <span class="stat-label">"Minimum"</span>
-                                            <span class="stat-val">{format!("{:.1}", if min_val == f64::INFINITY { 0.0 } else { min_val })}</span>
-                                        </div>
-                                        <div class="stat-card">
-                                            <span class="stat-label">"Average"</span>
-                                            <span class="stat-val">{format!("{:.1}", avg_val)}</span>
-                                        </div>
-                                        <div class="stat-card">
-                                            <span class="stat-label">"Maximum"</span>
-                                            <span class="stat-val">{format!("{:.1}", if max_val == f64::NEG_INFINITY { 0.0 } else { max_val })}</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="chart-container" style="height: 400px; width: 100%;">
-                                        <Chart
-                                            id="historical-chart"
-                                            kind="line"
-                                            data=chart_data
-                                            options=options
-                                        />
-                                    </div>
-                                }.into_any()
+                                    Err(e) => {
+                                        view! {
+                                            <div class="error-message">
+                                                {format!("Failed to parse historical data: {}", e)}
+                                            </div>
+                                        }.into_any()
+                                    }
+                                }
                             }
                             Err(e) => view! {
                                 <div class="error-message">

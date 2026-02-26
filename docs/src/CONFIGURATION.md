@@ -148,9 +148,24 @@ To secure routes, configure the global `jwt` settings and set `auth_required: tr
 Protect your backends from overload by configuring rate limits per route.
 
 ```json
-"rate_limit": {
-  "requests_per_second": 100,
-  "burst_size": 20
+{
+  "routers": [
+    {
+      "external_path": "/api/users",
+      "internal_path": "/users",
+      "methods": ["GET"],
+      "backends": [
+        {
+          "host": "http://backend1",
+          "port": 8080
+        }
+      ],
+      "rate_limit": {
+        "requests_per_second": 100,
+        "burst_size": 20
+      }
+    }
+  ]
 }
 ```
 

@@ -1,7 +1,7 @@
 //! Settings model for UI - WASM-compatible version.
 
-use serde::{Deserialize, Serialize};
 use crate::models::router::Router;
+use serde::{Deserialize, Serialize};
 
 /// JWT configuration settings matching backend structure.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
@@ -120,6 +120,15 @@ impl Default for ServerConfig {
     }
 }
 
+/// AI configuration settings.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct AiSettings {
+    pub provider: String,
+    pub model: String,
+    #[serde(skip_serializing)]
+    pub api_key: Option<String>,
+}
+
 /// Complete gateway configuration matching backend Settings structure.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
@@ -134,6 +143,8 @@ pub struct Settings {
     pub metrics: Option<MetricsConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub server: Option<ServerConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ai: Option<AiSettings>,
     pub routers: Vec<Router>,
 }
 
@@ -146,7 +157,12 @@ impl Default for Settings {
             cors: Some(CorsConfig {
                 enabled: true,
                 allowed_origins: vec!["*".to_string()],
-                allowed_methods: vec!["GET".to_string(), "POST".to_string(), "PUT".to_string(), "DELETE".to_string()],
+                allowed_methods: vec![
+                    "GET".to_string(),
+                    "POST".to_string(),
+                    "PUT".to_string(),
+                    "DELETE".to_string(),
+                ],
                 allowed_headers: vec!["*".to_string()],
                 allow_credentials: false,
                 max_age_secs: Some(3600),
@@ -157,6 +173,7 @@ impl Default for Settings {
                 collect_per_route: true,
             }),
             server: Some(ServerConfig::default()),
+            ai: None,
             routers: Vec::new(),
         }
     }
@@ -173,12 +190,14 @@ impl Settings {
             if jwt.secret.len() < 32 {
                 return Err("JWT secret should be at least 32 characters for security".to_string());
             }
-            if jwt.secret == "please-change-this-secret" || 
-               jwt.secret == "your-super-secure-jwt-secret-key-must-be-at-least-32-characters-long" {
+            if jwt.secret == "please-change-this-secret"
+                || jwt.secret
+                    == "your-super-secure-jwt-secret-key-must-be-at-least-32-characters-long"
+            {
                 return Err("JWT secret must be changed from default value".to_string());
             }
         }
-        
+
         // Validate rate limiting settings if present
         if let Some(ref rate_limit) = self.rate_limit {
             if rate_limit.requests_per_window == 0 {
@@ -188,7 +207,7 @@ impl Settings {
                 return Err("Rate limit window_duration must be greater than 0".to_string());
             }
         }
-        
+
         // Validate server settings if present
         if let Some(ref server) = self.server {
             if server.host.is_empty() {
@@ -201,12 +220,12 @@ impl Settings {
                 return Err("Server workers must be greater than 0".to_string());
             }
         }
-        
+
         // Validate all routers
         for router in &self.routers {
             router.validate()?;
         }
-        
+
         Ok(())
     }
 }

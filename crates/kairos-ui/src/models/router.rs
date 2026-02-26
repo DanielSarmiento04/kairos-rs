@@ -3,8 +3,8 @@
 //! This module provides router configuration models that work in both
 //! server-side rendering (SSR) and WebAssembly (WASM) contexts.
 
-use serde::{Deserialize, Serialize};
 use crate::models::transform::{RequestTransformation, ResponseTransformation};
+use serde::{Deserialize, Serialize};
 
 /// Protocol type for gateway routes.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -58,23 +58,25 @@ fn default_weight() -> u32 {
 impl Backend {
     pub fn validate(&self) -> Result<(), String> {
         let valid_schemes = ["http://", "https://", "ws://", "wss://"];
-        let has_valid_scheme = valid_schemes.iter().any(|scheme| self.host.starts_with(scheme));
-        
+        let has_valid_scheme = valid_schemes
+            .iter()
+            .any(|scheme| self.host.starts_with(scheme));
+
         if !has_valid_scheme {
             return Err(format!(
-                "Backend host must start with http://, https://, ws://, or wss://: {}", 
+                "Backend host must start with http://, https://, ws://, or wss://: {}",
                 self.host
             ));
         }
-        
+
         if self.port == 0 {
             return Err("Backend port must be between 1 and 65535".to_string());
         }
-        
+
         if self.weight == 0 {
             return Err("Backend weight must be greater than 0".to_string());
         }
-        
+
         Ok(())
     }
 }
@@ -138,15 +140,15 @@ impl RetryConfig {
         if self.max_retries > 10 {
             return Err("max_retries should not exceed 10 to prevent excessive delays".to_string());
         }
-        
+
         if self.initial_backoff_ms > self.max_backoff_ms {
             return Err("initial_backoff_ms cannot be greater than max_backoff_ms".to_string());
         }
-        
+
         if self.backoff_multiplier < 1.0 {
             return Err("backoff_multiplier must be >= 1.0".to_string());
         }
-        
+
         Ok(())
     }
 }
@@ -160,36 +162,36 @@ pub struct Router {
     /// Legacy: Single target host (deprecated, use backends instead).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub host: Option<String>,
-    
+
     /// Legacy: Target port (deprecated, use backends instead).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub port: Option<u16>,
-    
+
     /// List of backend servers for load balancing.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub backends: Option<Vec<Backend>>,
-    
+
     /// Protocol type (http, websocket, ftp, dns).
     #[serde(default)]
     pub protocol: Protocol,
-    
+
     /// Load balancing strategy.
     #[serde(default)]
     pub load_balancing_strategy: LoadBalancingStrategy,
-    
+
     /// External path pattern that clients use.
     pub external_path: String,
-    
+
     /// Internal path pattern for upstream service.
     pub internal_path: String,
-    
+
     /// Allowed HTTP methods.
     pub methods: Vec<String>,
-    
+
     /// Whether JWT authentication is required.
     #[serde(default)]
     pub auth_required: bool,
-    
+
     /// Retry configuration.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retry: Option<RetryConfig>,
@@ -197,7 +199,7 @@ pub struct Router {
     /// Request transformation configuration.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_transformation: Option<RequestTransformation>,
-    
+
     /// Response transformation configuration.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_transformation: Option<ResponseTransformation>,
@@ -251,7 +253,7 @@ impl Router {
             ai_policy: None,
         }
     }
-    
+
     /// Create a new router with load balancing.
     pub fn new_with_backends(
         backends: Vec<Backend>,
@@ -277,58 +279,60 @@ impl Router {
             ai_policy: None,
         }
     }
-    
+
     /// Validate the router configuration.
     pub fn validate(&self) -> Result<(), String> {
         // Validate paths
         if !self.external_path.starts_with('/') {
             return Err("External path must start with '/'".to_string());
         }
-        
+
         if !self.internal_path.starts_with('/') {
             return Err("Internal path must start with '/'".to_string());
         }
-        
+
         // Validate methods
         if self.methods.is_empty() {
             return Err("At least one HTTP method must be specified".to_string());
         }
-        
-        let valid_methods = ["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "PATCH", "TRACE"];
+
+        let valid_methods = [
+            "GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "PATCH", "TRACE",
+        ];
         for method in &self.methods {
             if !valid_methods.contains(&method.as_str()) {
                 return Err(format!("Invalid HTTP method: {}", method));
             }
         }
-        
+
         // Validate backends or legacy host/port
         if let Some(backends) = &self.backends {
             if backends.is_empty() {
                 return Err("At least one backend must be specified".to_string());
             }
-            
+
             for (i, backend) in backends.iter().enumerate() {
-                backend.validate().map_err(|e| {
-                    format!("Backend {} validation failed: {}", i, e)
-                })?;
+                backend
+                    .validate()
+                    .map_err(|e| format!("Backend {} validation failed: {}", i, e))?;
             }
         } else if let (Some(host), Some(port)) = (&self.host, &self.port) {
             if !host.starts_with("http://") && !host.starts_with("https://") {
                 return Err("Host must start with http:// or https://".to_string());
             }
-            
+
             if *port == 0 {
                 return Err("Port must be between 1 and 65535".to_string());
             }
         } else {
             return Err("Either backends or host/port must be specified".to_string());
         }
-        
+
         // Validate retry config if present
         if let Some(retry_config) = &self.retry {
             retry_config.validate()?;
         }
-        
+
         Ok(())
     }
 }

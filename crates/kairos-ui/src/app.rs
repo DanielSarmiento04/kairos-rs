@@ -1,7 +1,7 @@
 //! Main application component with routing and layout.
 
 use leptos::prelude::*;
-use leptos_meta::{provide_meta_context, Stylesheet, Title, Meta};
+use leptos_meta::{provide_meta_context, Meta, Stylesheet, Title};
 use leptos_router::{
     components::{Route, Router, Routes},
     StaticSegment,
@@ -19,24 +19,24 @@ pub fn App() -> impl IntoView {
     view! {
         // Inject stylesheet
         <Stylesheet id="leptos" href="/pkg/kairos-ui.css"/>
-        
+
         // Set document title
         <Title text="Kairos Gateway - Admin UI"/>
-        
+
         // Meta tags for SEO and responsiveness
         <Meta name="description" content="Kairos Gateway Admin Interface - Real-time monitoring and configuration"/>
         <Meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-        
+
         // Main router
         <Router>
             // Top navigation bar
             <Navbar />
-            
+
             // Main content area with sidebar
             <main>
                 // Left sidebar navigation
                 <Sidebar />
-                
+
                 // Content area with routes
                 <div class="content">
                     <Routes fallback=move || view! { <NotFound /> }>
