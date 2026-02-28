@@ -54,10 +54,6 @@ Create a `config.json` file to define your routes:
 ```json
 {
   "version": 1,
-  "server": {
-    "host": "0.0.0.0",
-    "port": 5900
-  },
   "routers": [
     {
       "external_path": "/api/users",
@@ -75,6 +71,8 @@ Create a `config.json` file to define your routes:
 }
 ```
 
+> **Note:** The gateway bind address and port are configured via the `KAIROS_HOST` (default: `0.0.0.0`) and `KAIROS_PORT` (default: `5900`) environment variables, not in the config file.
+
 ### 3. Run the Gateway
 
 === "Docker"
@@ -82,6 +80,8 @@ Create a `config.json` file to define your routes:
     ```bash
     docker run -d \
       -p 5900:5900 \
+      -e KAIROS_HOST=0.0.0.0 \
+      -e KAIROS_PORT=5900 \
       -v $(pwd)/config.json:/app/config.json:ro \
       ghcr.io/danielsarmiento04/kairos-rs:latest
     ```
@@ -89,7 +89,7 @@ Create a `config.json` file to define your routes:
 === "Binary"
 
     ```bash
-    kairos-gateway --config ./config.json
+    KAIROS_HOST=0.0.0.0 KAIROS_PORT=5900 kairos-gateway --config ./config.json
     ```
 
 ### 4. Verify

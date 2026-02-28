@@ -9,19 +9,18 @@ The root of the configuration file contains global settings for the gateway.
 ```json
 {
   "version": 1,
-  "server": {
-    "host": "0.0.0.0",
-    "port": 5900
+  "jwt": {
+    "secret": "your-secret-key-at-least-32-characters",
+    "issuer": "kairos-gateway",
+    "audience": "api-clients",
+    "required_claims": ["sub", "exp"]
   },
-  "metrics": {
-    "enabled": true,
-    "path": "/metrics"
-  },
-  "cors": {
-    "allowed_origins": ["*"],
-    "allowed_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    "allowed_headers": ["Authorization", "Content-Type"],
-    "max_age": 3600
+  "rate_limit": {
+    "strategy": "PerIP",
+    "requests_per_window": 100,
+    "window_duration": 60,
+    "burst_allowance": 20,
+    "window_type": "SlidingWindow"
   },
   "routers": [
     // Route definitions...
@@ -29,28 +28,14 @@ The root of the configuration file contains global settings for the gateway.
 }
 ```
 
-### Server Configuration
+> **Note:** The gateway bind address and port are **not** set in the config file. Use the `KAIROS_HOST` (default: `0.0.0.0`) and `KAIROS_PORT` (default: `5900`) environment variables to configure where the gateway listens.
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `host` | string | `"0.0.0.0"` | The IP address to bind the gateway to. |
-| `port` | number | `5900` | The port to listen on. |
+### Environment Variables
 
-### Metrics Configuration
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enabled` | boolean | `true` | Enable or disable Prometheus metrics. |
-| `path` | string | `"/metrics"` | The endpoint path for metrics scraping. |
-
-### CORS Configuration
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `allowed_origins` | array | `["*"]` | List of allowed origins. |
-| `allowed_methods` | array | `["GET", "POST", "PUT", "DELETE", "OPTIONS"]` | List of allowed HTTP methods. |
-| `allowed_headers` | array | `["Authorization", "Content-Type"]` | List of allowed HTTP headers. |
-| `max_age` | number | `3600` | Preflight request cache duration in seconds. |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `KAIROS_HOST` | `0.0.0.0` | The IP address to bind the gateway to. |
+| `KAIROS_PORT` | `5900` | The port to listen on. |
 
 ## Route Configuration
 
