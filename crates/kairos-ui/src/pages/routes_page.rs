@@ -5,7 +5,7 @@
 
 use crate::components::*;
 use crate::models::router::*;
-use crate::server_functions::api::*;
+use crate::server_functions::*;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
@@ -633,10 +633,9 @@ fn RoutesList(
                         } else {
                             0
                         };
-                        
+
                         let route_for_edit = route.clone();
                         let route_path_for_delete = external_path.clone();
-                        
                         view! {
                             <tr>
                                 <td>
@@ -673,14 +672,14 @@ fn RoutesList(
                                     </div>
                                 </td>
                                 <td class="actions-cell">
-                                    <button 
+                                    <button
                                         class="btn-icon btn-icon-edit"
                                         on:click=move |_| on_edit(route_for_edit.clone())
                                         title="Edit route"
                                     >
                                         "✏️"
                                     </button>
-                                    <button 
+                                    <button
                                         class="btn-icon btn-icon-delete"
                                         on:click=move |_| {
                                             if web_sys::window()
