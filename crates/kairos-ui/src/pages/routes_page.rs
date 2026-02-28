@@ -5,7 +5,7 @@
 
 use crate::components::*;
 use crate::models::router::*;
-use crate::server_functions::api::*;
+use crate::server_functions::*;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
@@ -259,7 +259,7 @@ fn RouteForm(
             </div>
 
             <form on:submit=handle_submit class="route-form">
-                <div class="tab-content" style="padding: 15px; border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 20px;">
+                <div class="tab-content tab-content-wrapper">
                     // --- BASIC TAB ---
                     <div style=move || if active_tab.get() == RouteFormTab::Basic { "display: block;" } else { "display: none;" }>
                         <div class="form-grid">
@@ -376,7 +376,7 @@ fn RouteForm(
                         </div>
 
                         <div class="form-group">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div class="tabs-nav">
                                 <label style="margin: 0; font-weight: bold;">"Backend Targets"</label>
                                 <button type="button" class="btn btn-sm btn-secondary" on:click=move |_| {
                                     set_draft.update(|d| {
@@ -402,7 +402,7 @@ fn RouteForm(
                                     } else {
                                         backends.into_iter().enumerate().map(|(idx, backend)| {
                                             view! {
-                                                <div class="backend-item" style="border: 1px solid var(--border-color); padding: 15px; border-radius: 6px; display: flex; gap: 15px; align-items: flex-end; background-color: var(--card-bg);">
+                                                <div class="backend-item backend-item-card">
                                                     <div style="flex: 2;">
                                                         <label class="form-label">"Host"</label>
                                                         <input type="text" class="form-input" prop:value=backend.host.clone() on:input=move |ev| {
@@ -412,22 +412,26 @@ fn RouteForm(
                                                     <div style="flex: 1;">
                                                         <label class="form-label">"Port"</label>
                                                         <input type="number" class="form-input" min="1" max="65535" prop:value=backend.port on:input=move |ev| {
-                                                            if let Ok(p) = event_target_value(&ev).parse::<u16>() {
-                                                                set_draft.update(|d| if let Some(ref mut b) = d.backends { b[idx].port = p });
-                                                            }
+                                                            let p = event_target_value(&ev).parse::<u16>().unwrap_or(0);
+                                                            set_draft.update(|d| if let Some(ref mut b) = d.backends { b[idx].port = p });
                                                         } />
                                                     </div>
                                                     <div style="flex: 1;">
                                                         <label class="form-label">"Weight"</label>
                                                         <input type="number" class="form-input" min="1" prop:value=backend.weight on:input=move |ev| {
-                                                            if let Ok(w) = event_target_value(&ev).parse::<u32>() {
-                                                                set_draft.update(|d| if let Some(ref mut b) = d.backends { b[idx].weight = w });
-                                                            }
+                                                            let w = event_target_value(&ev).parse::<u32>().unwrap_or(0);
+                                                            set_draft.update(|d| if let Some(ref mut b) = d.backends { b[idx].weight = w });
                                                         } />
                                                     </div>
-                                                    <button type="button" class="btn-icon btn-icon-delete" style="padding: 10px;" on:click=move |_| {
+                                                    <button type="button" class="btn-icon btn-icon-delete backend-delete-btn" on:click=move |_| {
+                                                        let host = backend.host.clone();
+                                                        let port = backend.port;
                                                         set_draft.update(|d| {
-                                                            if let Some(ref mut b) = d.backends { b.remove(idx); }
+                                                            if let Some(ref mut b) = d.backends {
+                                                                if let Some(pos) = b.iter().position(|be| be.host == host && be.port == port) {
+                                                                    b.remove(pos);
+                                                                }
+                                                            }
                                                         });
                                                     }>
                                                         "🗑️"
@@ -633,10 +637,9 @@ fn RoutesList(
                         } else {
                             0
                         };
-                        
+
                         let route_for_edit = route.clone();
                         let route_path_for_delete = external_path.clone();
-                        
                         view! {
                             <tr>
                                 <td>
@@ -673,14 +676,14 @@ fn RoutesList(
                                     </div>
                                 </td>
                                 <td class="actions-cell">
-                                    <button 
+                                    <button
                                         class="btn-icon btn-icon-edit"
                                         on:click=move |_| on_edit(route_for_edit.clone())
                                         title="Edit route"
                                     >
                                         "✏️"
                                     </button>
-                                    <button 
+                                    <button
                                         class="btn-icon btn-icon-delete"
                                         on:click=move |_| {
                                             if web_sys::window()

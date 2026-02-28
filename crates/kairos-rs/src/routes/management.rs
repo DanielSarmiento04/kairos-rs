@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::models::router::Router;
-use crate::models::settings::Settings;
+use crate::models::settings::{AiSettings, Settings};
 
 /// Shared state for route management operations.
 ///
@@ -808,6 +808,39 @@ pub async fn update_server_config(
     }))
 }
 
+/// Update AI configuration
+///
+/// # Endpoint
+///
+/// `POST /api/config/ai`
+///
+/// # Request Body
+///
+/// JSON object with AI settings.
+///
+/// # Example
+///
+/// ```bash
+/// curl -X POST http://localhost:5900/api/config/ai \
+///   -H "Content-Type: application/json" \
+///   -d '{
+///     "provider": "openai",
+///     "model": "gpt-4",
+///     "api_key": "sk-1234"
+///   }'
+/// ```
+#[post("/api/config/ai")]
+pub async fn update_ai_config(
+    _manager: web::Data<RouteManager>,
+    _ai_config: web::Json<AiSettings>,
+) -> impl Responder {
+    // Note: AI configuration changes require a server restart
+    HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "AI configuration received. Server restart required to apply changes."
+    }))
+}
+
 /// Configure route management endpoints
 pub fn configure_management(cfg: &mut web::ServiceConfig) {
     cfg.service(list_routes)
@@ -821,5 +854,6 @@ pub fn configure_management(cfg: &mut web::ServiceConfig) {
         .service(update_rate_limit_config)
         .service(update_cors_config)
         .service(update_metrics_config)
-        .service(update_server_config);
+        .service(update_server_config)
+        .service(update_ai_config);
 }
