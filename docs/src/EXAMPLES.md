@@ -48,14 +48,18 @@ The `config.json` for this example defines a simple HTTP router:
 {
   "routers": [
     {
-      "external_path": "/test/health",
-      "internal_path": "/",
-      "methods": ["GET"],
+      "protocol": "http",
       "backends": [
         {
           "host": "http://app_http",
-          "port": 80
+          "port": 80,
+          "weight": 1
         }
+      ],
+      "external_path": "/test/health",
+      "internal_path": "/",
+      "methods": [
+        "GET"
       ],
       "auth_required": false
     }
@@ -116,14 +120,19 @@ The `config.json` for this example defines a WebSocket router:
   "routers": [
     {
       "protocol": "websocket",
-      "external_path": "/ws/chat",
-      "internal_path": "/ws",
       "backends": [
         {
           "host": "ws://api_websocket",
-          "port": 3000
+          "port": 3000,
+          "weight": 1
         }
-      ]
+      ],
+      "external_path": "/ws/chat",
+      "internal_path": "/ws",
+      "methods": [
+        "GET"
+      ],
+      "auth_required": false
     }
   ]
 }
