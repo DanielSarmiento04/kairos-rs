@@ -7,6 +7,7 @@
 use crate::middleware::auth::{JwtAuth, JwtConfig};
 use crate::models::settings::Settings;
 use crate::models::router::Protocol;
+use crate::models::error::GatewayError;
 use crate::services::http::RouteHandler;
 use crate::services::websocket::WebSocketHandler;
 use actix_web::{web, HttpRequest, HttpResponse, Error as ActixError};
@@ -181,7 +182,11 @@ async fn handle_websocket_route(
     let backends = router.get_backends();
     if backends.is_empty() {
         warn!("No backends configured for WebSocket route: {}", router.external_path);
-        return Ok(HttpResponse::BadGateway().body("No backends configured"));
+        return Err(GatewayError::Config {
+            message: "No backends configured for WebSocket route".to_string(),
+            route: router.external_path.clone(),
+        }
+        .into());
     }
     
     let backend = &backends[0]; // For now, use first backend (TODO: load balancing)

@@ -38,7 +38,11 @@ impl WebSocketHandler {
             Ok(url) => url,
             Err(e) => {
                 error!("Failed to build backend URL: {}", e);
-                return Ok(HttpResponse::BadGateway().body(format!("Invalid backend URL: {}", e)));
+                return Err(GatewayError::Config {
+                    message: format!("Invalid backend URL format: {}", e),
+                    route: req.path().to_string(),
+                }
+                .into());
             }
         };
 
@@ -73,7 +77,12 @@ impl WebSocketHandler {
                     description: Some(format!("Backend connection failed: {}", e)),
                 })).await;
                 metrics.record_close("backend_unreachable");
-                return Ok(HttpResponse::BadGateway().body(format!("Backend connection failed: {}", e)));
+                return Err(GatewayError::Upstream {
+                    message: format!("Backend connection failed: {}", e),
+                    url: backend_url,
+                    status: None,
+                }
+                .into());
             }
         };
 
