@@ -61,6 +61,7 @@ nav:
       - Overview: GUIDES.md
       - Architecture & Design: ARCHITECTURE.md
       - Configuration: CONFIGURATION.md
+      - Error Handling: ERROR_HANDLING.md
       - UI Dashboard: UI_DASHBOARD.md
       - Examples: EXAMPLES.md
       - AI Routing: AI_ROUTING_GUIDE.md
