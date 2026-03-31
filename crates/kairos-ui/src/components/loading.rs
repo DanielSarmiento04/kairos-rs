@@ -3,9 +3,9 @@
 use leptos::prelude::*;
 
 /// Displays a loading spinner with optional message.
-/// 
+///
 /// # Properties
-/// 
+///
 /// * `message` - Optional loading message to display
 #[component]
 pub fn LoadingSpinner(

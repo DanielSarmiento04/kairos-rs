@@ -3,9 +3,9 @@
 use leptos::prelude::*;
 
 /// Displays an error message in a styled container.
-/// 
+///
 /// # Properties
-/// 
+///
 /// * `error` - The error message to display
 /// * `title` - Optional error title
 #[component]
@@ -19,13 +19,13 @@ pub fn ErrorBoundaryView(
     view! {
         <div class="error-container">
             <div class="error-icon">"⚠️"</div>
-            
+
             <h3 class="error-title">{title}</h3>
-            
+
             <p class="error-message">{error}</p>
-            
+
             <div class="error-actions">
-                <button 
+                <button
                     class="btn btn-primary"
                     on:click=move |_| {
                         // Reload the page

@@ -206,8 +206,8 @@ Protect your backends from overload:
 ```json
 {
   "rate_limit": {
-    "requests_per_second": 100,
-    "burst_size": 200
+    "requests_per_window": 100,
+    "burst_allowance": 200
   }
 }
 ```

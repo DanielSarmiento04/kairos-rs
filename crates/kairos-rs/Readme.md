@@ -162,8 +162,8 @@ Create a `config.json` file with advanced features:
   "jwt_secret": "your-secret-key-here",
   "rate_limit": {
     "algorithm": "token_bucket",
-    "requests_per_second": 100,
-    "burst_size": 10
+    "requests_per_window": 100,
+    "burst_allowance": 10
   },
   "routers": [
     {
@@ -328,8 +328,8 @@ kairos-rs/
   "jwt_secret": "your-256-bit-secret-key-here",
   "rate_limit": {
     "algorithm": "token_bucket",
-    "requests_per_second": 100,
-    "burst_size": 50
+    "requests_per_window": 100,
+    "burst_allowance": 50
   },
   "routers": [
     {

@@ -1,4 +1,5 @@
 pub mod chart;
+pub mod config;
 pub mod error_boundary;
 pub mod loading;
 pub mod metric_card;

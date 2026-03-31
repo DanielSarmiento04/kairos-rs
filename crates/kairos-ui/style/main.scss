@@ -2419,3 +2419,34 @@ main {
     }
   }
 }
+
+// Route Form specific styles
+.route-form {
+  .tab-content-wrapper {
+    padding: 15px;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+    margin-bottom: 20px;
+  }
+
+  .tabs-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .backend-item-card {
+    border: 1px solid $border-color;
+    padding: 15px;
+    border-radius: 6px;
+    display: flex;
+    gap: 15px;
+    align-items: flex-end;
+    background-color: $bg-primary;
+  }
+
+  .backend-delete-btn {
+    padding: 10px;
+  }
+}

@@ -1,5 +1,5 @@
-use leptos::prelude::*;
 use crate::models::metrics::SystemMetrics;
+use leptos::prelude::*;
 
 #[component]
 pub fn RealTimeMetrics() -> impl IntoView {
@@ -9,14 +9,18 @@ pub fn RealTimeMetrics() -> impl IntoView {
     Effect::new(move |_| {
         #[cfg(feature = "hydrate")]
         {
-            use web_sys::{WebSocket, MessageEvent};
+            use send_wrapper::SendWrapper;
             use wasm_bindgen::prelude::*;
             use wasm_bindgen::JsCast;
-            use send_wrapper::SendWrapper;
+            use web_sys::{MessageEvent, WebSocket};
 
             let window = web_sys::window().unwrap();
             let location = window.location();
-            let protocol = if location.protocol().unwrap() == "https:" { "wss:" } else { "ws:" };
+            let protocol = if location.protocol().unwrap() == "https:" {
+                "wss:"
+            } else {
+                "ws:"
+            };
             let host = location.host().unwrap();
             let ws_url = format!("{}//{}/ws/admin/metrics", protocol, host);
 
@@ -45,7 +49,7 @@ pub fn RealTimeMetrics() -> impl IntoView {
                 });
                 ws.set_onclose(Some(onclose_callback.as_ref().unchecked_ref()));
                 onclose_callback.forget();
-                
+
                 let ws_wrapper = SendWrapper::new(ws);
                 on_cleanup(move || {
                     let _ = ws_wrapper.take().close();

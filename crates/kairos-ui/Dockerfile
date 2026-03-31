@@ -54,12 +54,6 @@ RUN --mount=type=cache,target=/app/target/ \
 # Now copy full workspace source and rebuild the actual application.
 COPY . .
 
-RUN --mount=type=cache,target=/app/target/ \
-    --mount=type=cache,target=/usr/local/cargo/git/db \
-    --mount=type=cache,target=/usr/local/cargo/registry/ \
-    cargo build --package=kairos-ui --bin=kairos-ui --no-default-features --features=ssr \
-    && cp /app/target/debug/kairos-ui /tmp/kairos-ui
-
 # Install wasm32 target for Leptos frontend compilation
 RUN rustup target add wasm32-unknown-unknown
 
@@ -69,9 +63,13 @@ RUN cargo update -p wasm-bindgen --precise 0.2.105 \
     && rm -rf /app/target/front
 
 # Use cargo-leptos to build the full application with optimized assets
-RUN cargo leptos build --bin-features=ssr --lib-features=hydrate --release \
+RUN --mount=type=cache,target=/app/target/ \
+    --mount=type=cache,target=/usr/local/cargo/git/db \
+    --mount=type=cache,target=/usr/local/cargo/registry/ \
+    cargo leptos build --bin-features=ssr --lib-features=hydrate --release \
     && mkdir -p /tmp/site \
-    && cp -r /app/target/site/* /tmp/site/
+    && cp -r /app/target/site/* /tmp/site/ \
+    && (cp /app/target/release/kairos-ui /tmp/kairos-ui || cp /app/target/server/release/kairos-ui /tmp/kairos-ui)
 
 
 ################################################################################

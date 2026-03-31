@@ -17,7 +17,7 @@ impl HealthResponse {
     pub fn is_healthy(&self) -> bool {
         self.status.to_lowercase() == "healthy" || self.status.to_lowercase() == "ok"
     }
-    
+
     /// Format uptime in human-readable form.
     pub fn format_uptime(&self) -> String {
         let seconds = self.uptime;
@@ -25,7 +25,7 @@ impl HealthResponse {
         let hours = (seconds % 86400) / 3600;
         let minutes = (seconds % 3600) / 60;
         let secs = seconds % 60;
-        
+
         if days > 0 {
             format!("{}d {}h {}m {}s", days, hours, minutes, secs)
         } else if hours > 0 {
