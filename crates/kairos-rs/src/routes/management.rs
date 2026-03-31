@@ -831,15 +831,53 @@ pub async fn update_server_config(
 /// ```
 #[post("/api/config/ai")]
 pub async fn update_ai_config(
-    _manager: web::Data<RouteManager>,
-    _ai_config: web::Json<AiSettings>,
+    manager: web::Data<RouteManager>,
+    ai_config: web::Json<AiSettings>,
 ) -> impl Responder {
-    // Note: AI configuration changes require a server restart
+    let mut config = ai_config.into_inner();
+
+    // Basic validation of required fields. Adjust as needed to match AiSettings definition.
+    if config
+        .provider
+        .trim()
+        .is_empty()
+        || config.model.trim().is_empty()
+    {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "success": false,
+            "message": "AI configuration must include non-empty 'provider' and 'model' fields."
+        }));
+    }
+
+    {
+        // Update in-memory settings
+        let mut settings = manager.settings.write().await;
+
+        // Preserve existing API key if the new configuration doesn't provide one
+        if config.api_key.is_none() {
+            if let Some(existing) = &settings.ai {
+                config.api_key = existing.api_key.clone();
+            }
+        }
+
+        settings.ai = Some(config);
+        // write lock is dropped at end of this scope
+    }
+
+    // Persist updated configuration to disk
+    if let Err(e) = manager.save_to_disk().await {
+        return HttpResponse::InternalServerError().json(serde_json::json!({
+            "success": false,
+            "message": "Failed to persist AI configuration to disk",
+        }));
+    }
+
     HttpResponse::Ok().json(serde_json::json!({
         "success": true,
-        "message": "AI configuration received. Server restart required to apply changes."
+        "message": "AI configuration updated. Server restart required to apply changes."
     }))
 }
+
 
 /// Configure route management endpoints
 pub fn configure_management(cfg: &mut web::ServiceConfig) {
