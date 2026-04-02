@@ -6,26 +6,86 @@ use crate::server_functions::*;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
+#[cfg(feature = "hydrate")]
+use wasm_bindgen::prelude::*;
+#[cfg(feature = "hydrate")]
+use wasm_bindgen::JsCast;
+#[cfg(feature = "hydrate")]
+use web_sys::{MessageEvent, WebSocket};
+
 /// Main dashboard page displaying gateway health and metrics.
 #[component]
 pub fn DashboardPage() -> impl IntoView {
     // Auto-refresh signal (triggers every 30 seconds)
     let refresh_trigger = RwSignal::new(0u32);
-
-    // Set up auto-refresh timer
-    spawn_local(async move {
-        loop {
+    // Live WebSocket Metrics
+    let (live_metrics, set_live_metrics) = signal::<Option<MetricsData>>(None);
+    let (ws_status, set_ws_status) = signal("🟠 Polling API");
+    
+    // Set up auto-refresh timer & WebSocket hooks
+    Effect::new(move |_| {
+        spawn_local(async move {
             #[cfg(feature = "hydrate")]
             {
-                gloo_timers::future::TimeoutFuture::new(30_000).await;
-                refresh_trigger.update(|n| *n += 1);
+                // Connect to real-time Metrics Streaming API
+                if let Ok(host) = web_sys::window().unwrap().location().hostname() {
+                    let port = 5900; // Future enhancement: fetch from config
+                    let ws_url = format!("ws://{}:{}/ws/metrics", host, port);
+                    
+                    if let Ok(ws) = WebSocket::new(&ws_url) {
+                        let onmessage = Closure::<dyn FnMut(_)>::new(move |e: MessageEvent| {
+                            if let Ok(txt) = e.data().dyn_into::<js_sys::JsString>() {
+                                let text: String = txt.into();
+                                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
+                                    if json["type"] == "Snapshot" {
+                                        set_live_metrics.update(|m| {
+                                            let mut mm = m.clone().unwrap_or_default();
+                                            if let Some(n) = json["requests_total"].as_u64() { mm.requests_total = n; }
+                                            if let Some(n) = json["avg_response_time"].as_f64() { mm.response_time_avg = n; }
+                                            if let Some(n) = json["success_rate"].as_f64() { mm.success_rate = n; }
+                                            if let Some(n) = json["active_connections"].as_u64() { 
+                                                mm.active_connections = n as u32; 
+                                                if mm.active_connections > mm.peak_connections { mm.peak_connections = mm.active_connections; }
+                                            }
+                                            if let Some(n) = json["requests_error"].as_u64() { 
+                                                if n > mm.http_5xx_errors { mm.http_5xx_errors = n; }
+                                            }
+                                            *m = Some(mm);
+                                        });
+                                    }
+                                }
+                            }
+                        });
+                        ws.set_onmessage(Some(onmessage.as_ref().unchecked_ref()));
+                        onmessage.forget();
+                        
+                        let onopen = Closure::<dyn FnMut(_)>::new(move |_| {
+                            set_ws_status.set("🟢 Live Streaming");
+                            // Auto-fetch the heavier payloads once WEBSOCKET is active
+                            refresh_trigger.update(|n| *n += 1);
+                        });
+                        ws.set_onopen(Some(onopen.as_ref().unchecked_ref()));
+                        onopen.forget();
+                        
+                        let onclose = Closure::<dyn FnMut(_)>::new(move |_| {
+                            set_ws_status.set("🔴 Disconnected");
+                        });
+                        ws.set_onclose(Some(onclose.as_ref().unchecked_ref()));
+                        onclose.forget();
+                    }
+                }
+
+                // Polling Loop Fallback for detailed analytics
+                loop {
+                    gloo_timers::future::TimeoutFuture::new(30_000).await;
+                    refresh_trigger.update(|n| *n += 1);
+                }
             }
             #[cfg(not(feature = "hydrate"))]
             {
-                // On server, just break to avoid infinite loop
-                break;
+                // On server, just break
             }
-        }
+        });
     });
 
     // Fetch health data
@@ -100,7 +160,19 @@ pub fn DashboardPage() -> impl IntoView {
                 <Suspense fallback=move || view! { <LoadingSpinner message="Loading metrics...".to_string() /> }>
                     {move || {
                         metrics_resource.get().map(|result| match result {
-                            Ok(metrics) => {
+                            Ok(polled_metrics) => {
+                                let metrics = if let Some(live) = live_metrics.get() {
+                                    let mut m = polled_metrics.clone();
+                                    if live.requests_total > m.requests_total { m.requests_total = live.requests_total; }
+                                    m.active_connections = live.active_connections;
+                                    if m.active_connections > m.peak_connections { m.peak_connections = m.active_connections; }
+                                    m.success_rate = live.success_rate;
+                                    m.response_time_avg = live.response_time_avg;
+                                    if live.http_5xx_errors > m.http_5xx_errors { m.http_5xx_errors = live.http_5xx_errors; }
+                                    m
+                                } else {
+                                    polled_metrics.clone()
+                                };
                                 let success_trend = if metrics.success_rate >= 95.0 { "up".to_string() } else if metrics.success_rate >= 80.0 { "neutral".to_string() } else { "down".to_string() };
                                 let response_trend = if metrics.response_time_avg < 100.0 { "up".to_string() } else if metrics.response_time_avg < 500.0 { "neutral".to_string() } else { "down".to_string() };
                                 let peak_subtitle = format!("Peak: {}", metrics.peak_connections);
