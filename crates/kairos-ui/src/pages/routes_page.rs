@@ -169,6 +169,19 @@ enum RouteFormTab {
     AiPolicy,
 }
 
+fn route_ready_for_submit(route: &Router) -> bool {
+    let has_required_paths =
+        !route.external_path.trim().is_empty() && !route.internal_path.trim().is_empty();
+    let has_methods = !route.methods.is_empty();
+    let has_backend = route.backends.as_ref().is_some_and(|backends| {
+        backends
+            .iter()
+            .any(|backend| !backend.host.trim().is_empty() && backend.port > 0)
+    });
+
+    has_required_paths && has_methods && has_backend
+}
+
 /// Form component for creating/editing routes.
 #[component]
 fn RouteForm(
@@ -202,6 +215,14 @@ fn RouteForm(
         set_validation_error.set(None);
 
         let mut final_route = draft.get();
+        if !route_ready_for_submit(&final_route) {
+            set_validation_error.set(Some(
+                "Please fill in both external and internal paths, choose at least one HTTP method, and add a valid backend target before saving."
+                    .to_string(),
+            ));
+            return;
+        }
+
         // Clear legacy host/port since we migrate them to backends internally
         final_route.host = None;
         final_route.port = None;
@@ -590,8 +611,54 @@ fn RouteForm(
                         "❌ Cancel"
                     </button>
                 </div>
+                <small class="form-help">
+                    "To save this route, complete both external and internal paths, select at least one HTTP method, and add at least one backend target."
+                </small>
             </form>
         </div>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::route_ready_for_submit;
+    use crate::models::router::{Backend, Router};
+
+    #[test]
+    fn route_not_ready_when_backend_is_missing() {
+        let route = Router::default();
+        assert!(!route_ready_for_submit(&route));
+    }
+
+    #[test]
+    fn route_not_ready_when_paths_or_methods_are_invalid() {
+        let mut route = Router::default();
+        route.external_path.clear();
+        route.methods.clear();
+        route.backends = Some(vec![Backend {
+            host: "http://localhost".to_string(),
+            port: 8080,
+            weight: 1,
+            health_check_path: None,
+        }]);
+
+        assert!(!route_ready_for_submit(&route));
+    }
+
+    #[test]
+    fn route_is_ready_when_all_required_fields_are_present() {
+        let mut route = Router::default();
+        route.external_path = "/api/users/{id}".to_string();
+        route.internal_path = "/v1/users/{id}".to_string();
+        route.methods = vec!["GET".to_string()];
+        route.backends = Some(vec![Backend {
+            host: "http://localhost".to_string(),
+            port: 8080,
+            weight: 1,
+            health_check_path: None,
+        }]);
+
+        assert!(route_ready_for_submit(&route));
     }
 }
 
