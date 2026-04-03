@@ -908,6 +908,28 @@ main {
   gap: $space-md;
   border-left: 4px solid;
   animation: slideIn 0.3s ease-out;
+
+  .alert-message {
+    flex: 1;
+  }
+
+  .alert-close {
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-bold;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    margin-left: auto;
+    opacity: 0.75;
+    transition: opacity $transition-speed;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
   
   .alert-icon {
     font-size: $font-size-xl;
