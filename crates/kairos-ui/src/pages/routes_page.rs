@@ -209,13 +209,20 @@ fn RouteForm(
     let (draft, set_draft) = signal(initial_route);
     let (active_tab, set_active_tab) = signal(RouteFormTab::Basic);
     let (validation_error, set_validation_error) = signal::<Option<String>>(None);
-    let form_ready = Signal::derive(move || route_ready_for_submit(&draft.get()));
 
     let handle_submit = move |ev: web_sys::SubmitEvent| {
         ev.prevent_default();
         set_validation_error.set(None);
 
         let mut final_route = draft.get();
+        if !route_ready_for_submit(&final_route) {
+            set_validation_error.set(Some(
+                "Please fill in both paths, choose at least one HTTP method, and add a valid backend target before saving."
+                    .to_string(),
+            ));
+            return;
+        }
+
         // Clear legacy host/port since we migrate them to backends internally
         final_route.host = None;
         final_route.port = None;
@@ -597,7 +604,7 @@ fn RouteForm(
                 </div>
 
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-primary" disabled=move || !form_ready.get()>
+                    <button type="submit" class="btn btn-primary">
                         {if is_editing { "💾 Update Route" } else { "💾 Create Route" }}
                     </button>
                     <button type="button" class="btn btn-secondary" on:click=move |_| on_cancel(())>
