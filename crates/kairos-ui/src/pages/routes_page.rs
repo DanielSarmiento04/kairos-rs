@@ -217,7 +217,7 @@ fn RouteForm(
         let mut final_route = draft.get();
         if !route_ready_for_submit(&final_route) {
             set_validation_error.set(Some(
-                "Please fill in both paths, choose at least one HTTP method, and add a valid backend target before saving."
+                "Please fill in both external and internal paths, choose at least one HTTP method, and add a valid backend target before saving."
                     .to_string(),
             ));
             return;
@@ -612,7 +612,7 @@ fn RouteForm(
                     </button>
                 </div>
                 <small class="form-help">
-                    "To save this route, complete both paths, select at least one HTTP method, and add at least one backend target."
+                    "To save this route, complete both external and internal paths, select at least one HTTP method, and add at least one backend target."
                 </small>
             </form>
         </div>
