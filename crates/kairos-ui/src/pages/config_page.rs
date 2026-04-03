@@ -61,6 +61,14 @@ pub fn ConfigPage() -> impl IntoView {
                 <div class="alert alert-error">
                     <span class="alert-icon">"⚠️"</span>
                     <span class="alert-message">{msg}</span>
+                    <button
+                        class="alert-close"
+                        type="button"
+                        aria-label="Dismiss error message"
+                        on:click=move |_| set_error_message.set(None)
+                    >
+                        "✕"
+                    </button>
                 </div>
             })}
 
@@ -68,6 +76,14 @@ pub fn ConfigPage() -> impl IntoView {
                 <div class="alert alert-success">
                     <span class="alert-icon">"✅"</span>
                     <span class="alert-message">{msg}</span>
+                    <button
+                        class="alert-close"
+                        type="button"
+                        aria-label="Dismiss success message"
+                        on:click=move |_| set_success_message.set(None)
+                    >
+                        "✕"
+                    </button>
                 </div>
             })}
 
