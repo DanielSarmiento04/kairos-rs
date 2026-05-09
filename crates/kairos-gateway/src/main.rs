@@ -12,7 +12,7 @@ use kairos_rs::logs::logger::configure_logger;
 use kairos_rs::middleware::rate_limit::AdvancedRateLimit;
 use kairos_rs::middleware::security::security_headers;
 use kairos_rs::models::settings::Settings;
-use kairos_rs::routes::{auth_http, health, management, metrics, websocket, websocket_admin};
+use kairos_rs::routes::{auth_http, config_reload, health, management, metrics, websocket, websocket_admin};
 use kairos_rs::services::http::RouteHandler;
 use kairos_rs::services::metrics_store::MetricsStore;
 use kairos_rs::services::websocket::WebSocketHandler;
@@ -112,7 +112,18 @@ async fn main() -> std::io::Result<()> {
         std::env::var("KAIROS_CONFIG_PATH").unwrap_or_else(|_| "config.json".to_string());
 
     // Initialize route manager for dynamic configuration
+    let config_path_clone = config_path.clone();
     let route_manager = management::RouteManager::new(config.clone(), config_path);
+
+    // Initialize ConfigManager for hot reload
+    use kairos_rs::config::hot_reload::ConfigManager;
+    let config_manager = std::sync::Arc::new(ConfigManager::new(config.clone(), config_path_clone));
+
+    // Spawn watcher
+    let config_manager_watcher = config_manager.clone();
+    tokio::spawn(async move {
+        config_manager_watcher.start().await;
+    });
 
     // Configure basic rate limiting as fallback
     let governor_conf = GovernorConfigBuilder::default()
@@ -143,6 +154,7 @@ async fn main() -> std::io::Result<()> {
                 .app_data(actix_web::web::Data::new(metrics_store.clone()))
                 .app_data(actix_web::web::Data::new(route_manager.clone()))
                 .app_data(actix_web::web::Data::new(route_handler.clone()))
+                .app_data(actix_web::web::Data::from(config_manager.clone()))
                 .wrap(advanced_rate_limit.clone())
                 .wrap(Logger::new(
                     r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,
@@ -153,6 +165,7 @@ async fn main() -> std::io::Result<()> {
                 .configure(metrics::configure_metrics)
                 .configure(websocket_admin::configure_admin_websocket)
                 .configure(management::configure_management)
+                .configure(config_reload::configure_config_reload)
                 .configure(|cfg| websocket::configure_websocket(cfg, websocket_handler.clone()))
                 .configure(|cfg| {
                     auth_http::configure_auth_routes(cfg, route_handler.clone(), &config)
@@ -168,6 +181,7 @@ async fn main() -> std::io::Result<()> {
                 .app_data(actix_web::web::Data::new(metrics_store.clone()))
                 .app_data(actix_web::web::Data::new(route_manager.clone()))
                 .app_data(actix_web::web::Data::new(route_handler.clone()))
+                .app_data(actix_web::web::Data::from(config_manager.clone()))
                 .wrap(Governor::new(&governor_conf))
                 .wrap(Logger::new(
                     r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,
@@ -178,6 +192,7 @@ async fn main() -> std::io::Result<()> {
                 .configure(metrics::configure_metrics)
                 .configure(websocket_admin::configure_admin_websocket)
                 .configure(management::configure_management)
+                .configure(config_reload::configure_config_reload)
                 .configure(|cfg| websocket::configure_websocket(cfg, websocket_handler.clone()))
                 .configure(|cfg| {
                     auth_http::configure_auth_routes(cfg, route_handler.clone(), &config)
