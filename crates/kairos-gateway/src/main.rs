@@ -154,7 +154,7 @@ async fn main() -> std::io::Result<()> {
                 .app_data(actix_web::web::Data::new(metrics_store.clone()))
                 .app_data(actix_web::web::Data::new(route_manager.clone()))
                 .app_data(actix_web::web::Data::new(route_handler.clone()))
-                .app_data(actix_web::web::Data::from(config_manager.clone()))
+                .app_data(actix_web::web::Data::new(config_manager.clone()))
                 .wrap(advanced_rate_limit.clone())
                 .wrap(Logger::new(
                     r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,
