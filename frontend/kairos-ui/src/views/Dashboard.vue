@@ -24,6 +24,7 @@ onMounted(async () => {
 })
 
 const activeProtocols = computed(() => {
+  if (!Array.isArray(routes.value)) return 'None'
   const protocols = new Set(routes.value.map(r => r.protocol || 'http'))
   return Array.from(protocols).join(', ')
 })
@@ -36,16 +37,12 @@ const activeProtocols = computed(() => {
         <h1>System Dashboard</h1>
         <p class="subtitle">Overview and health of Kairos LLM Gateway.</p>
       </div>
-      <div v-if="health" class="health-badge" :class="{ ok: health.status === 'ok' }">
-        <span class="indicator"></span>
-        {{ health.status === 'ok' ? 'System Operational' : 'Degraded' }}
-      </div>
+        <div v-if="health" class="health-badge" :class="{ ok: health.status === 'healthy' || health.status === 'ok' }">
+          <span class="indicator"></span>
+          {{ health.status === 'healthy' || health.status === 'ok' ? 'System Operational' : 'Degraded' }}
+        </div>
     </div>
 
-    <div v-if="loading" class="loading-state">
-      Gathering system metrics...
-    </div>
-    
     <div v-if="error" class="error-banner">
       <strong>Error:</strong> {{ error }}
     </div>
@@ -59,7 +56,7 @@ const activeProtocols = computed(() => {
           <span class="stat-value">{{ routes.length }}</span>
         </div>
       </div>
-      
+
       <!-- Protocols -->
       <div class="stat-card">
         <div class="stat-icon p-icon">🌐</div>
@@ -77,7 +74,7 @@ const activeProtocols = computed(() => {
           <span class="stat-value">~12ms</span>
         </div>
       </div>
-      
+
        <!-- Total Connections (Placeholder) -->
        <div class="stat-card">
         <div class="stat-icon c-icon">🔗</div>
