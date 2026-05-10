@@ -7,7 +7,8 @@ export const apiService = {
   async getRoutes(): Promise<Router[]> {
     const res = await fetch(`${API_BASE}/routes`);
     if (!res.ok) throw new Error('Failed to fetch routes');
-    return res.json();
+    const data = await res.json();
+    return data.routes || [];
   },
 
   async createRoute(route: Router): Promise<void> {
