@@ -20,6 +20,15 @@ export const apiService = {
     if (!res.ok) throw new Error('Failed to create route');
   },
 
+  async updateRoute(path: string, route: Router): Promise<void> {
+    const res = await fetch(`${API_BASE}/routes${path}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(route),
+    });
+    if (!res.ok) throw new Error('Failed to update route');
+  },
+
   async deleteRoute(path: string): Promise<void> {
     const res = await fetch(`${API_BASE}/routes${path}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('Failed to delete route');
