@@ -1,10 +1,33 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { apiService } from '../services/api'
 import type { Settings } from '../types'
+import hljs from 'highlight.js/lib/core'
+import json from 'highlight.js/lib/languages/json'
+import 'highlight.js/styles/vs2015.css'
+
+hljs.registerLanguage('json', json)
 
 const config = ref<Settings | null>(null)
 const loading = ref(true)
+const copied = ref(false)
+
+const highlightedConfig = computed(() => {
+  if (!config.value) return ''
+  const jsonString = JSON.stringify(config.value, null, 2)
+  return hljs.highlight(jsonString, { language: 'json' }).value
+})
+
+const copyRawConfig = async () => {
+  if (!config.value) return;
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(config.value, null, 2))
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  } catch (err) {
+    console.error('Failed to copy text: ', err)
+  }
+}
 
 onMounted(async () => {
   try {
@@ -26,9 +49,9 @@ onMounted(async () => {
       </div>
       <button class="btn-primary" @click="apiService.triggerReload()">Reload Backend Config</button>
     </div>
-    
+
     <div v-if="loading" class="loading-state">Loading configuration...</div>
-    
+
     <div v-else-if="config" class="config-grid">
       <!-- AI Configuration -->
       <div class="config-card" v-if="config.ai">
@@ -95,11 +118,14 @@ onMounted(async () => {
 
       <!-- Raw Fallback -->
       <div class="config-card full-width">
-         <div class="card-header">
+         <div class="card-header raw-header">
           <h3>⚙️ Raw Configuration Object</h3>
+          <button class="btn-copy" @click="copyRawConfig" :class="{ 'copied': copied }">
+            {{ copied ? '✓ Copied' : '📋 Copy JSON' }}
+          </button>
         </div>
-        <div class="card-body">
-           <pre>{{ JSON.stringify(config, null, 2) }}</pre>
+        <div class="card-body raw-body">
+           <pre class="json-display"><code class="hljs" v-html="highlightedConfig"></code></pre>
         </div>
       </div>
 
@@ -207,13 +233,53 @@ onMounted(async () => {
 .tag.enabled { background: #dcfce7; color: #166534; }
 .tag.disabled { background: #fee2e2; color: #991b1b; }
 
-pre {
+.raw-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-copy {
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-copy:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+.btn-copy.copied {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #059669;
+}
+
+.raw-body {
+  padding: 0;
   background: #0f172a;
+}
+
+.json-display {
+  margin: 0;
+  padding: 24px;
+  background: transparent;
   color: #e2e8f0;
-  padding: 20px;
-  border-radius: 8px;
+  border-radius: 0;
   overflow-x: auto;
   font-size: 0.85rem;
-  line-height: 1.5;
+  line-height: 1.6;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+.json-display code {
+  white-space: pre;
 }
 </style>
