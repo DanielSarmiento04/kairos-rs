@@ -1,27 +1,43 @@
 # Configuration Guide
 
-Kairos Gateway uses a JSON configuration file (`config.json`) to define its behavior, routing rules, security policies, and more. This guide covers the structure and available options.
+Kairos Gateway relies heavily on a central JSON configuration file (`config.json`). This file defines everything from your routing rules to AI fallbacks, rate limiting, and security policies.
 
-## Global Settings
+By default, the gateway looks for `./config.json`. You can override this using the `KAIROS_CONFIG_PATH` environment variable.
 
-The root of the configuration file contains global settings for the gateway.
+## Environment Variables
+
+While routing rules and security are defined in `config.json`, the server binding properties are set through environment variables:
+
+- `KAIROS_HOST`: Server bind address (default: `0.0.0.0`).
+- `KAIROS_PORT`: Server port number (default: `5900`).
+- `KAIROS_CONFIG_PATH`: Override path to `config.json`.
+- `JWT_SECRET`: Overrides the default JWT secret if `jwt` block is missing in config.
+
+## Root Configuration Structure
+
+The root of `config.json` encapsulates global security, rate limiting, your AI provider preferences, and your `routers` array.
 
 ```json
 {
   "version": 1,
-  "server": {
-    "host": "0.0.0.0",
-    "port": 5900
+  "jwt": {
+    "secret": "your-super-secure-jwt-secret-key-must-be-at-least-32-characters-long",
+    "issuer": "kairos-gateway",
+    "audience": "api-clients",
+    "required_claims": ["sub", "exp"]
   },
-  "metrics": {
-    "enabled": true,
-    "path": "/metrics"
+  "rate_limit": {
+    "strategy": "PerIP",
+    "requests_per_window": 100,
+    "window_duration": 60,
+    "burst_allowance": 20,
+    "window_type": "SlidingWindow",
+    "enable_redis": false,
+    "redis_key_prefix": "kairos_rl"
   },
-  "cors": {
-    "allowed_origins": ["*"],
-    "allowed_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    "allowed_headers": ["Authorization", "Content-Type"],
-    "max_age": 3600
+  "ai": {
+    "provider": "openai",
+    "model": "gpt-4"
   },
   "routers": [
     // Route definitions...
@@ -29,32 +45,23 @@ The root of the configuration file contains global settings for the gateway.
 }
 ```
 
-### Server Configuration
+### Global Fields
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `host` | string | `"0.0.0.0"` | The IP address to bind the gateway to. |
-| `port` | number | `5900` | The port to listen on. |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `version` | number | Yes | Schema version for compatibility. Should be `1`. |
+| `jwt` | object | No | Global JWT authentication settings. Required if any router sets `auth_required: true`. |
+| `rate_limit` | object | No | Global rate limiting configuration. |
+| `ai` | object | No | Configuration for AI routing/fallback models. |
+| `routers` | array | Yes | Array of route definitions. Processed in order. |
 
-### Metrics Configuration
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enabled` | boolean | `true` | Enable or disable Prometheus metrics. |
-| `path` | string | `"/metrics"` | The endpoint path for metrics scraping. |
-
-### CORS Configuration
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `allowed_origins` | array | `["*"]` | List of allowed origins. |
-| `allowed_methods` | array | `["GET", "POST", "PUT", "DELETE", "OPTIONS"]` | List of allowed HTTP methods. |
-| `allowed_headers` | array | `["Authorization", "Content-Type"]` | List of allowed HTTP headers. |
-| `max_age` | number | `3600` | Preflight request cache duration in seconds. |
+---
 
 ## Route Configuration
 
-The `routers` array contains the routing rules for the gateway. Each route defines how incoming requests are matched and forwarded to backend services.
+The `routers` array maps external client requests to your internal backend services. 
+
+### Basic Example
 
 ```json
 {
@@ -78,15 +85,12 @@ The `routers` array contains the routing rules for the gateway. Each route defin
       ],
       "load_balancing_strategy": "round_robin",
       "auth_required": true,
-      "rate_limit": {
-        "requests_per_second": 100,
-        "burst_size": 20
-      },
       "retry": {
         "max_retries": 3,
-        "base_delay_ms": 100,
-        "max_delay_ms": 2000,
-        "retryable_status_codes": [500, 502, 503, 504]
+        "initial_backoff_ms": 100,
+        "max_backoff_ms": 5000,
+        "backoff_multiplier": 2.0,
+        "retry_on_status_codes": [408, 429, 502, 503, 504]
       }
     }
   ]
@@ -97,86 +101,69 @@ The `routers` array contains the routing rules for the gateway. Each route defin
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `external_path` | string | Yes | The path the client requests (e.g., `/api/users`). Supports `{param}` path placeholders (e.g., `/api/users/{id}`); regular expressions are not supported. |
-| `internal_path` | string | Yes | The path forwarded to the backend (e.g., `/users`). |
-| `methods` | array | Yes | Allowed HTTP methods (e.g., `["GET", "POST"]`). |
-| `protocol` | string | No | The protocol to use (`http`, `websocket`, `ftp`, `dns`). Default is `http`. |
-| `backends` | array | Yes | List of backend servers to route to. |
-| `load_balancing_strategy` | string | No | Strategy for distributing traffic. Default is `round_robin`. |
-| `auth_required` | boolean | No | Whether JWT authentication is required. Default is `false`. |
-| `rate_limit` | object | No | Rate limiting configuration for this route. |
-| `retry` | object | No | Retry logic configuration for this route. |
+| `external_path` | string | Yes | The path the client requests (e.g., `/api/users`). Supports `{param}` placeholders. Must start with `/`. |
+| `internal_path` | string | Yes | The path forwarded to the backend. Parameters from `external_path` translate natively. |
+| `methods` | array | Yes | Allowed HTTP methods (`["GET", "POST", "PUT", "DELETE"]`). |
+| `protocol` | string | No | The protocol to use. Options: `http`, `websocket`, `ftp`, `dns`. Default is `http`. |
+| `backends` | array | Yes | Array of backend targets to route traffic into. |
+| `load_balancing_strategy` | string | No | Traffic distribution pattern. Options: `round_robin`, `least_connections`, `random`, `weighted`, `ip_hash`. |
+| `auth_required` | boolean | No | Whether requests against this route require valid JWT authentication. Default is `false`. |
+| `retry` | object | No | Retry logic configuration specifically tailored for this route's resilience. |
+| `request_transformation` | object | No | Transform incoming request headers, rewrite paths, or query params context. |
+| `response_transformation` | object | No | Append/overwrite outgoing response headers. |
+| `ai_policy` | object | No | Define AI failover cache behaviors for AI integrations. |
 
-### Load Balancing Strategies
+> **Info:** `host` and `port` inside a single Router level properties are considered legacy APIs. Always define destinations exclusively using the `backends` logical array block.
 
-Kairos supports multiple load balancing strategies:
+---
 
-- `round_robin`: Distributes requests sequentially across all backends.
-- `least_connections`: Routes to the backend with the fewest active connections.
-- `random`: Selects a backend at random.
-- `weighted`: Distributes traffic based on the `weight` assigned to each backend.
-- `ip_hash`: Consistently routes the same client IP to the same backend.
+## Load Balancing Strategies
 
-### Retry Logic
+Kairos natively supplies algorithms optimized for distinct traffic topologies:
 
-Configure automatic retries for failed requests:
+- `round_robin` (Default): Distributes requests systematically across all backends.
+- `least_connections`: Routes incoming load to the backend with historically fewest active connections. Highly reliable against varying capacities.
+- `random`: Unweighted stateless dispersal.
+- `weighted`: Distributes proportionally corresponding to the static `weight` parameter bound to each backend element.
+- `ip_hash`: Derives consistent affinity ("Sticky Sessions") locking client IPs deterministically against backends.
 
-- `max_retries`: Maximum number of retry attempts.
-- `base_delay_ms`: Initial delay before the first retry.
-- `max_delay_ms`: Maximum delay between retries (uses exponential backoff).
-- `retryable_status_codes`: List of HTTP status codes that trigger a retry.
+---
 
-## Security Configuration
+## Retry Configuration Payload
 
-### JWT Authentication
+Safely configure exponential backoff against generic gateway fault tolerances.
 
-To secure routes, configure the global `jwt` settings and set `auth_required: true` on specific routes.
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `max_retries` | number | 3 | Maximum execution attempts before returning error |
+| `initial_backoff_ms` | number | 100 | Time allocation preceding the first retry. |
+| `max_backoff_ms` | number | 5000 | The cap for iterative exponential delay mechanisms. |
+| `backoff_multiplier` | number | 2.0 | Factor for exponential delay sizing iterations. |
+| `retry_on_status_codes` | array | `[408,429,502...504]` | Defined HTTP Code triggers warranting an automatic restart logic tree. |
 
-```json
-{
-  "jwt": {
-    "secret": "your-super-secure-jwt-secret-key-must-be-at-least-32-characters-long",
-    "issuer": "kairos-gateway",
-    "audience": "your-app",
-    "required_claims": ["sub", "exp", "role"]
-  }
-}
-```
+---
 
-### Rate Limiting
+## Rate Limiting Security
 
-Protect your backends from overload by configuring rate limits per route.
+Control burst overflows comprehensively. Define `rate_limit` globally mapping across routes or users.
 
-```json
-{
-  "routers": [
-    {
-      "external_path": "/api/users",
-      "internal_path": "/users",
-      "methods": ["GET"],
-      "backends": [
-        {
-          "host": "http://backend1",
-          "port": 8080
-        }
-      ],
-      "rate_limit": {
-        "requests_per_second": 100,
-        "burst_size": 20
-      }
-    }
-  ]
-}
-```
+- `strategy`: Selection constraint logic. `PerIP`, `PerUser`, `PerRoute`, `PerIPAndRoute`, `PerUserAndRoute`.
+- `requests_per_window`: Numerator count of valid requests allowable. 
+- `window_duration`: Numerically expressed period measuring integer seconds logic.
+- `burst_allowance`: Soft-limit extension buffer protecting sudden localized traffic spikes.
+- `window_type`: `FixedWindow`, `SlidingWindow`, or `TokenBucket`.
+- `enable_redis`: Expand rate limits universally via cross-container Redis (future distributed support).
+
+---
 
 ## Hot Reload
 
-Kairos Gateway supports hot reloading of its configuration without dropping active connections.
+Kairos Gateway runs memory-safe hot reloading meaning server downtime is avoided.
 
-To reload the configuration, send a `POST` request to the management endpoint:
+Initiate local re-synchronization sending an empty POST against:
 
 ```bash
 curl -X POST http://localhost:5900/api/config/reload
 ```
 
-This will read the `config.json` file from disk and apply the new routing rules immediately.
+Your system replaces the active configuration schema on-the-fly dynamically.

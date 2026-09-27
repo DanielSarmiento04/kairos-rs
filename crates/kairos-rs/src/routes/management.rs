@@ -834,7 +834,7 @@ pub async fn update_ai_config(
     manager: web::Data<RouteManager>,
     ai_config: web::Json<AiSettings>,
 ) -> impl Responder {
-    let config = ai_config.into_inner();
+    let mut config = ai_config.into_inner();
 
     // Basic validation of required fields. Adjust as needed to match AiSettings definition.
     if config
@@ -852,6 +852,14 @@ pub async fn update_ai_config(
     {
         // Update in-memory settings
         let mut settings = manager.settings.write().await;
+
+        // Preserve existing API key if the new configuration doesn't provide one
+        if config.api_key.is_none() {
+            if let Some(existing) = &settings.ai {
+                config.api_key = existing.api_key.clone();
+            }
+        }
+
         settings.ai = Some(config);
         // write lock is dropped at end of this scope
     }
@@ -860,7 +868,7 @@ pub async fn update_ai_config(
     if let Err(e) = manager.save_to_disk().await {
         return HttpResponse::InternalServerError().json(serde_json::json!({
             "success": false,
-            "message": format!("Failed to persist AI configuration: {}", e),
+            "message": "Failed to persist AI configuration to disk",
         }));
     }
 

@@ -59,11 +59,14 @@ nav:
   - Introduction: index.md
   - Guides:
       - Overview: GUIDES.md
+      - Architecture & Design: ARCHITECTURE.md
       - Configuration: CONFIGURATION.md
+      - Error Handling: ERROR_HANDLING.md
       - UI Dashboard: UI_DASHBOARD.md
       - Examples: EXAMPLES.md
       - AI Routing: AI_ROUTING_GUIDE.md
       - Postman: POSTMAN_GUIDE.md
       - WebSocket: WEBSOCKET_GUIDE.md
       - WebSocket Metrics: WEBSOCKET_METRICS_GUIDE.md
+      - Development & Contributing: DEVELOPMENT.md
   - API Reference: https://danielsarmiento04.github.io/kairos-rs/api/index.html
