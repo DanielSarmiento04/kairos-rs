@@ -868,7 +868,7 @@ pub async fn update_ai_config(
     if let Err(e) = manager.save_to_disk().await {
         return HttpResponse::InternalServerError().json(serde_json::json!({
             "success": false,
-            "message": "Failed to persist AI configuration to disk",
+            "message": format!("Failed to persist AI configuration to disk: {}", e),
         }));
     }
 

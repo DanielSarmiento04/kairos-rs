@@ -1,6 +1,5 @@
 use clap::{Arg, Command};
-use kairos_client::GatewayClient;
-use std::process;
+
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

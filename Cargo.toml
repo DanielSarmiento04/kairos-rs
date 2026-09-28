@@ -4,7 +4,6 @@ members = [
     "crates/kairos-rs",
     "crates/kairos-gateway", 
     "crates/kairos-cli",
-    "crates/kairos-ui",
     "crates/kairos-client"
 ]
 
@@ -23,12 +22,6 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 # Web framework dependencies
 actix-web = "4"
 actix-governor = "0.5"
-
-# Leptos dependencies for UI
-leptos = { version = "0.6", features = ["csr", "ssr"] }
-leptos_meta = { version = "0.6" }
-leptos_router = { version = "0.6" }
-leptos_axum = { version = "0.6" }
 
 # CLI dependencies  
 clap = { version = "4.0", features = ["derive", "color"] }
@@ -51,15 +44,4 @@ tokio-tungstenite = "0.21"
 hickory-proto = "0.24"  # Modern DNS library (formerly trust-dns)
 suppaftp = { version = "5.3", features = ["async", "async-secure"] }
 
-[workspace.metadata.leptos]
-# Leptos configuration for the UI
-bin-features = ["ssr"]
-lib-features = ["csr"]
 
-# Workspace-wide profile configurations
-[profile.wasm-release]
-inherits = "release"
-opt-level = 'z'
-lto = true
-codegen-units = 1
-panic = "abort"
