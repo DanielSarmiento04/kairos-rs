@@ -2,6 +2,7 @@ use crate::models::error::GatewayError;
 use crate::models::router::{AiRoutingStrategy, Router};
 use crate::routes::metrics::MetricsCollector;
 use crate::services::ai::AiService;
+use crate::services::cache::ResponseCache;
 use crate::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
 use crate::services::load_balancer::{LoadBalancer, LoadBalancerFactory};
 use crate::utils::path::format_route;
@@ -96,6 +97,8 @@ pub struct RouteHandler {
     load_balancers: Arc<HashMap<String, Arc<dyn LoadBalancer>>>,
     /// AI Service for intelligent routing
     ai_service: Option<Arc<AiService>>,
+    /// In-memory response cache for idempotent HTTP requests
+    response_cache: Option<Arc<ResponseCache>>,
 }
 
 impl RouteHandler {
@@ -200,8 +203,10 @@ impl RouteHandler {
     /// All internal state is either immutable or thread-safe.
     pub fn new(routes: Vec<Router>, timeout_seconds: u64) -> Self {
         let client = Client::builder()
-            .pool_idle_timeout(Duration::from_secs(30))
-            .pool_max_idle_per_host(32)
+            .tcp_nodelay(true)
+            .tcp_keepalive(Some(Duration::from_secs(60)))
+            .pool_idle_timeout(Duration::from_secs(60))
+            .pool_max_idle_per_host(128)
             .build()
             .expect("Failed to create HTTP client");
 
@@ -247,6 +252,7 @@ impl RouteHandler {
             circuit_breakers: Arc::new(circuit_breakers),
             load_balancers: Arc::new(load_balancers),
             ai_service: None,
+            response_cache: None,
         }
     }
 
@@ -254,6 +260,17 @@ impl RouteHandler {
     pub fn with_ai_service(mut self, ai_service: AiService) -> Self {
         self.ai_service = Some(Arc::new(ai_service));
         self
+    }
+
+    /// Attaches an in-memory response cache to the route handler.
+    pub fn with_cache(mut self, cache: Arc<ResponseCache>) -> Self {
+        self.response_cache = Some(cache);
+        self
+    }
+
+    /// Returns a reference to the response cache if configured.
+    pub fn cache(&self) -> Option<&Arc<ResponseCache>> {
+        self.response_cache.as_ref()
     }
 
     /// Processes an incoming HTTP request and forwards it to the appropriate upstream service.
@@ -430,6 +447,17 @@ impl RouteHandler {
                 path: path.clone(),
             }
             .into());
+        }
+
+        // Fast path: Check response cache for idempotent requests (GET / HEAD)
+        if let Some(ref cache) = self.response_cache {
+            if method == ActixMethod::GET || method == ActixMethod::HEAD {
+                let uri = req.uri().to_string();
+                if let Some(cached_resp) = cache.get(method.as_str(), &uri) {
+                    debug!("Serving cached response for {} {}", method, uri);
+                    return Ok(cached_resp.to_http_response());
+                }
+            }
         }
 
         // Get all backends for this route
@@ -652,7 +680,8 @@ impl RouteHandler {
                     let mut builder =
                         HttpResponse::build(StatusCode::from_u16(status_code).unwrap());
 
-                    // Forward headers with proper conversion
+                    // Forward headers with proper conversion and collect for cache
+                    let mut cached_headers = Vec::with_capacity(response.headers().len());
                     for (key, value) in response.headers() {
                         if !key.as_str().starts_with("connection") {
                             if let Ok(header_value) =
@@ -660,12 +689,39 @@ impl RouteHandler {
                             {
                                 builder.insert_header((key.as_str(), header_value));
                             }
+                            if let Ok(val_str) = value.to_str() {
+                                cached_headers.push((key.as_str().to_string(), val_str.to_string()));
+                            }
                         }
+                    }
+
+                    if self.response_cache.is_some() {
+                        builder.insert_header(("X-Cache", "MISS"));
                     }
 
                     // Handle the response body
                     match response.bytes().await {
-                        Ok(bytes) => return Ok(builder.body(bytes)),
+                        Ok(bytes) => {
+                            if let Some(ref cache) = self.response_cache {
+                                let uri = req.uri().to_string();
+                                if method != ActixMethod::GET && method != ActixMethod::HEAD {
+                                    if status_code < 400 {
+                                        cache.invalidate(&uri);
+                                        cache.invalidate(&path);
+                                    }
+                                } else {
+                                    cache.put(
+                                        method.as_str(),
+                                        &uri,
+                                        status_code,
+                                        &cached_headers,
+                                        bytes.clone(),
+                                        None,
+                                    );
+                                }
+                            }
+                            return Ok(builder.body(bytes));
+                        }
                         Err(e) => {
                             return Err(GatewayError::Upstream {
                                 message: e.to_string(),

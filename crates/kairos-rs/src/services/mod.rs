@@ -79,6 +79,7 @@
 //! ```
 
 pub mod ai;
+pub mod cache;
 pub mod circuit_breaker;
 pub mod dns;
 pub mod ftp;

@@ -396,4 +396,23 @@ mod performance_tests {
         println!("Complex pattern matching: {} iterations in {:?}", iterations, duration);
         assert!(duration.as_millis() < 1000);
     }
+
+    #[test]
+    fn test_dynamic_route_caching() {
+        let matcher = create_route_matcher();
+
+        // First lookup compiles and caches
+        let (route1, internal1) = matcher.find_match("/cats/tabby").expect("Route should match");
+        assert_eq!(internal1, "/tabby");
+
+        // Second lookup retrieves from match_cache
+        let (route2, internal2) = matcher.find_match("/cats/tabby").expect("Route should match");
+        assert_eq!(internal2, "/tabby");
+        assert_eq!(route1.external_path, route2.external_path);
+
+        // Clear cache and verify it can match again cleanly
+        matcher.clear_cache();
+        let (_route3, internal3) = matcher.find_match("/cats/tabby").expect("Route should match");
+        assert_eq!(internal3, "/tabby");
+    }
 }

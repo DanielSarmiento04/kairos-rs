@@ -49,6 +49,13 @@ async fn main() -> std::io::Result<()> {
 
     let mut route_handler = RouteHandler::new(config.routers.clone(), 30); // 30 second timeout
 
+    // Initialize in-memory response cache (5,000 max entries, 60s default TTL)
+    let response_cache = std::sync::Arc::new(kairos_rs::services::cache::ResponseCache::new(
+        5_000,
+        std::time::Duration::from_secs(60),
+    ));
+    route_handler = route_handler.with_cache(response_cache.clone());
+
     // Initialize AI Service if configured
     if let Some(ai_settings) = config.ai.clone() {
         use kairos_rs::services::ai::AiService;
@@ -155,6 +162,7 @@ async fn main() -> std::io::Result<()> {
                 .app_data(actix_web::web::Data::new(route_manager.clone()))
                 .app_data(actix_web::web::Data::new(route_handler.clone()))
                 .app_data(actix_web::web::Data::new(config_manager.clone()))
+                .app_data(actix_web::web::Data::new(response_cache.clone()))
                 .wrap(advanced_rate_limit.clone())
                 .wrap(Logger::new(
                     r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,
@@ -182,6 +190,7 @@ async fn main() -> std::io::Result<()> {
                 .app_data(actix_web::web::Data::new(route_manager.clone()))
                 .app_data(actix_web::web::Data::new(route_handler.clone()))
                 .app_data(actix_web::web::Data::new(config_manager.clone()))
+                .app_data(actix_web::web::Data::new(response_cache.clone()))
                 .wrap(Governor::new(&governor_conf))
                 .wrap(Logger::new(
                     r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,

@@ -878,6 +878,50 @@ pub async fn update_ai_config(
     }))
 }
 
+/// Get response cache statistics
+///
+/// # Endpoint
+///
+/// `GET /api/cache/stats`
+#[get("/api/cache/stats")]
+pub async fn get_cache_stats(
+    cache: Option<web::Data<Arc<crate::services::cache::ResponseCache>>>,
+) -> impl Responder {
+    if let Some(c) = cache {
+        HttpResponse::Ok().json(serde_json::json!({
+            "success": true,
+            "data": c.stats()
+        }))
+    } else {
+        HttpResponse::Ok().json(serde_json::json!({
+            "success": false,
+            "message": "Response cache is not enabled"
+        }))
+    }
+}
+
+/// Invalidate / clear response cache
+///
+/// # Endpoint
+///
+/// `POST /api/cache/clear`
+#[post("/api/cache/clear")]
+pub async fn clear_cache(
+    cache: Option<web::Data<Arc<crate::services::cache::ResponseCache>>>,
+) -> impl Responder {
+    if let Some(c) = cache {
+        c.clear();
+        HttpResponse::Ok().json(serde_json::json!({
+            "success": true,
+            "message": "Response cache cleared successfully"
+        }))
+    } else {
+        HttpResponse::BadRequest().json(serde_json::json!({
+            "success": false,
+            "message": "Response cache is not enabled"
+        }))
+    }
+}
 
 /// Configure route management endpoints
 pub fn configure_management(cfg: &mut web::ServiceConfig) {
@@ -893,5 +937,7 @@ pub fn configure_management(cfg: &mut web::ServiceConfig) {
         .service(update_cors_config)
         .service(update_metrics_config)
         .service(update_server_config)
-        .service(update_ai_config);
+        .service(update_ai_config)
+        .service(get_cache_stats)
+        .service(clear_cache);
 }
