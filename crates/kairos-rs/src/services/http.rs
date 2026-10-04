@@ -281,6 +281,19 @@ impl RouteHandler {
         self
     }
 
+    /// Snapshot of in-memory cache stats. Returns `None` when no cache is
+    /// configured (i.e., no route opted in to caching).
+    pub fn cache_stats(&self) -> Option<crate::services::cache::CacheStatsSnapshot> {
+        self.cache.as_ref().map(|c| c.stats())
+    }
+
+    /// Clear all entries from the in-memory cache. No-op when no cache is
+    /// configured. Use for manual invalidation after upstream data changes.
+    pub async fn cache_clear(&self) {
+        if let Some(cache) = &self.cache {
+            cache.clear().await;
+        }
+    }
     /// Processes an incoming HTTP request and forwards it to the appropriate upstream service.
     ///
     /// This is the core request processing method that handles route matching,
