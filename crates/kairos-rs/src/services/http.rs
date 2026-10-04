@@ -6,6 +6,7 @@ use crate::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, Cir
 use crate::services::cache::{
     compute_cache_key, is_cacheable, CachedResponse, InMemoryCache,
     CacheService,
+    should_cache_route,
 };
 use crate::services::load_balancer::{LoadBalancer, LoadBalancerFactory};
 use crate::utils::path::format_route;
@@ -448,20 +449,27 @@ impl RouteHandler {
             })?;
 
         // Phase 1 cache lookup: only when the matched route opted in.
-        if let Some(cache_cfg) = &route.cache {
-            if cache_cfg.enabled {
-                if let Some(cache) = &self.cache {
-                    let key = compute_cache_key(
-                        req.method().as_str(),
-                        &path,
-                        req.query_string(),
-                    );
-                    if let Some(hit) = cache.get(&key).await {
-                        debug!("Cache HIT for {}", path);
-                        return Ok(hit.to_response());
-                    }
+        // SECURITY: skip cache for auth-required routes. Cache keys only
+        // hash (method, path, query) — they don't include the JWT, so a
+        // cached response for one user could leak to another. Phase 1
+        // trades per-user cache hit rate for a simple, safe default.
+        if should_cache_route(&route) {
+            if let Some(cache) = &self.cache {
+                let key = compute_cache_key(
+                    req.method().as_str(),
+                    &path,
+                    req.query_string(),
+                );
+                if let Some(hit) = cache.get(&key).await {
+                    debug!("Cache HIT for {}", path);
+                    return Ok(hit.to_response());
                 }
             }
+        } else if route.cache.as_ref().map_or(false, |c| c.enabled) {
+            debug!(
+                "Cache SKIP (auth_required) for {} — see CacheConfig docs",
+                path
+            );
         }
 
         // Validate method is allowed
@@ -718,8 +726,11 @@ impl RouteHandler {
                             // and for responses that pass the safety rules in
                             // `is_cacheable` (GET + 2xx + no Set-Cookie /
                             // Cache-Control: no-store).
-                            if let Some(cache_cfg) = &route.cache {
-                                if cache_cfg.enabled {
+                            // SECURITY: also skip auth-required routes to
+                            // avoid leaking per-user responses (see lookup
+                            // guard above for rationale).
+                            if should_cache_route(&route) {
+                                if let Some(cache_cfg) = &route.cache {
                                     if let Some(cache) = &self.cache {
                                         if is_cacheable(
                                             req.method().as_str(),

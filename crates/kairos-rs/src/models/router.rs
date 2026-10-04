@@ -113,6 +113,15 @@ impl Default for LoadBalancingStrategy {
 ///
 /// When present and `enabled = true`, GET responses for this route are
 /// cached in-memory and served on subsequent identical requests.
+///
+/// # Security caveat
+///
+/// Phase 1 deliberately **ignores `cache` for routes with
+/// `auth_required: true`**. Cache keys only hash `(method, path, query)` —
+/// not the `Authorization` header — so a cached response for one user
+/// could otherwise be served to another. If you need per-user caching
+/// for a protected route, implement per-token key derivation (e.g.
+/// include a hash of the validated JWT claims) before re-enabling.
 pub struct CacheConfig {
     /// Whether caching is active for this route. Default: false.
     #[serde(default)]

@@ -9,6 +9,7 @@
 
 use ahash::AHasher;
 use bytes::Bytes;
+use crate::models::router::Router;
 use moka::future::Cache as MokaCache;
 use std::hash::Hasher;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -179,6 +180,24 @@ pub fn is_cacheable(method: &str, status: u16, headers: &[(String, String)]) -> 
     true
 }
 
+/// Decide whether a matched route should use the in-memory response cache.
+///
+/// Returns `true` only when the route has `cache.enabled = true` AND is
+/// **not** auth-required. The auth check is a Phase 1 safety guard: cache
+/// keys only hash `(method, path, query)`, so a cached response for one
+/// authenticated user could otherwise be served to another.
+///
+/// See [`CacheConfig`] docs in `models/router.rs` for the full rationale.
+pub fn should_cache_route(route: &Router) -> bool {
+    if route.auth_required {
+        return false;
+    }
+    match &route.cache {
+        Some(cfg) if cfg.enabled => true,
+        _ => false,
+    }
+}
+
 impl CachedResponse {
     /// Build an `HttpResponse` from a cached entry, preserving status,
     /// headers, and body. Header values that fail to parse are silently
@@ -209,6 +228,107 @@ impl CachedResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn should_cache_route_respects_auth_required() {
+        use crate::models::router::{CacheConfig, Router};
+        // auth_required: true + cache enabled -> must NOT cache
+        let r = Router {
+            host: Some("http://x".into()),
+            port: Some(80),
+            backends: None,
+            protocol: crate::models::router::Protocol::Http,
+            load_balancing_strategy: Default::default(),
+            external_path: "/".into(),
+            internal_path: "/".into(),
+            methods: vec!["GET".into()],
+            auth_required: true,
+            retry: None,
+            request_transformation: None,
+            response_transformation: None,
+            ai_policy: None,
+            cache: Some(CacheConfig {
+                enabled: true,
+                ttl_secs: 60,
+                max_size: 100,
+            }),
+        };
+        assert!(!should_cache_route(&r), "must skip cache for auth_required");
+    }
+
+    #[test]
+    fn should_cache_route_allows_public_cache_enabled() {
+        use crate::models::router::{CacheConfig, Router};
+        let r = Router {
+            host: Some("http://x".into()),
+            port: Some(80),
+            backends: None,
+            protocol: crate::models::router::Protocol::Http,
+            load_balancing_strategy: Default::default(),
+            external_path: "/".into(),
+            internal_path: "/".into(),
+            methods: vec!["GET".into()],
+            auth_required: false,
+            retry: None,
+            request_transformation: None,
+            response_transformation: None,
+            ai_policy: None,
+            cache: Some(CacheConfig {
+                enabled: true,
+                ttl_secs: 60,
+                max_size: 100,
+            }),
+        };
+        assert!(should_cache_route(&r), "should cache public + enabled");
+    }
+
+    #[test]
+    fn should_cache_route_disables_when_explicitly_off() {
+        use crate::models::router::{CacheConfig, Router};
+        let r = Router {
+            host: Some("http://x".into()),
+            port: Some(80),
+            backends: None,
+            protocol: crate::models::router::Protocol::Http,
+            load_balancing_strategy: Default::default(),
+            external_path: "/".into(),
+            internal_path: "/".into(),
+            methods: vec!["GET".into()],
+            auth_required: false,
+            retry: None,
+            request_transformation: None,
+            response_transformation: None,
+            ai_policy: None,
+            cache: Some(CacheConfig {
+                enabled: false,
+                ttl_secs: 60,
+                max_size: 100,
+            }),
+        };
+        assert!(!should_cache_route(&r), "must skip when cache.enabled=false");
+    }
+
+    #[test]
+    fn should_cache_route_disables_when_cache_absent() {
+        use crate::models::router::Router;
+        let r = Router {
+            host: Some("http://x".into()),
+            port: Some(80),
+            backends: None,
+            protocol: crate::models::router::Protocol::Http,
+            load_balancing_strategy: Default::default(),
+            external_path: "/".into(),
+            internal_path: "/".into(),
+            methods: vec!["GET".into()],
+            auth_required: false,
+            retry: None,
+            request_transformation: None,
+            response_transformation: None,
+            ai_policy: None,
+            cache: None,
+        };
+        assert!(!should_cache_route(&r), "must skip when cache field absent");
+    }
 
     #[test]
     fn cache_key_is_deterministic() {
