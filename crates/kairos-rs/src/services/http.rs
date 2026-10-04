@@ -3,6 +3,10 @@ use crate::models::router::{AiRoutingStrategy, Router};
 use crate::routes::metrics::MetricsCollector;
 use crate::services::ai::AiService;
 use crate::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
+use crate::services::cache::{
+    compute_cache_key, is_cacheable, CachedResponse, InMemoryCache,
+    CacheService,
+};
 use crate::services::load_balancer::{LoadBalancer, LoadBalancerFactory};
 use crate::utils::path::format_route;
 use crate::utils::route_matcher::RouteMatcher;
@@ -96,6 +100,10 @@ pub struct RouteHandler {
     load_balancers: Arc<HashMap<String, Arc<dyn LoadBalancer>>>,
     /// AI Service for intelligent routing
     ai_service: Option<Arc<AiService>>,
+
+    /// Optional in-memory response cache (Phase 1 of Response Caching).
+    /// Populated when any route in the config has `cache.enabled = true`.
+    cache: Option<Arc<InMemoryCache>>,
 }
 
 impl RouteHandler {
@@ -247,7 +255,23 @@ impl RouteHandler {
             circuit_breakers: Arc::new(circuit_breakers),
             load_balancers: Arc::new(load_balancers),
             ai_service: None,
+            cache: Self::build_cache_from_routes(&routes),
         }
+    }
+
+    /// Build a single shared in-memory cache for the whole handler if
+    /// any route opts in to caching. Uses the first enabled route's
+    /// `ttl_secs` and `max_size` for cache-wide settings. Returns
+    /// `None` if no route has caching enabled.
+    fn build_cache_from_routes(routes: &[Router]) -> Option<Arc<InMemoryCache>> {
+        let cfg = routes
+            .iter()
+            .filter_map(|r| r.cache.as_ref())
+            .find(|c| c.enabled)?;
+        Some(Arc::new(InMemoryCache::new(
+            cfg.max_size,
+            std::time::Duration::from_secs(cfg.ttl_secs),
+        )))
     }
 
     /// Attaches an AI service to the route handler.
@@ -422,6 +446,23 @@ impl RouteHandler {
                     route: path.clone(),
                 },
             })?;
+
+        // Phase 1 cache lookup: only when the matched route opted in.
+        if let Some(cache_cfg) = &route.cache {
+            if cache_cfg.enabled {
+                if let Some(cache) = &self.cache {
+                    let key = compute_cache_key(
+                        req.method().as_str(),
+                        &path,
+                        req.query_string(),
+                    );
+                    if let Some(hit) = cache.get(&key).await {
+                        debug!("Cache HIT for {}", path);
+                        return Ok(hit.to_response());
+                    }
+                }
+            }
+        }
 
         // Validate method is allowed
         if !route.methods.iter().any(|m| m == method.as_str()) {
@@ -663,9 +704,54 @@ impl RouteHandler {
                         }
                     }
 
+                    // Snapshot headers for cache BEFORE consuming the body.
+                    let cache_hdrs: Vec<(String, String)> = response
+                        .headers()
+                        .iter()
+                        .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
+                        .collect();
+
                     // Handle the response body
                     match response.bytes().await {
-                        Ok(bytes) => return Ok(builder.body(bytes)),
+                        Ok(bytes) => {
+                            // Phase 1 cache store: only for routes that opted in
+                            // and for responses that pass the safety rules in
+                            // `is_cacheable` (GET + 2xx + no Set-Cookie /
+                            // Cache-Control: no-store).
+                            if let Some(cache_cfg) = &route.cache {
+                                if cache_cfg.enabled {
+                                    if let Some(cache) = &self.cache {
+                                        if is_cacheable(
+                                            req.method().as_str(),
+                                            status_code,
+                                            &cache_hdrs,
+                                        ) {
+                                            let key = compute_cache_key(
+                                                req.method().as_str(),
+                                                &path,
+                                                req.query_string(),
+                                            );
+                                            let cached = CachedResponse::from_response_parts(
+                                                status_code,
+                                                &cache_hdrs,
+                                                bytes.clone(),
+                                            );
+                                            cache
+                                                .put(
+                                                    key,
+                                                    cached,
+                                                    std::time::Duration::from_secs(
+                                                        cache_cfg.ttl_secs,
+                                                    ),
+                                                )
+                                                .await;
+                                            debug!("Cache STORE for {}", path);
+                                        }
+                                    }
+                                }
+                            }
+                            return Ok(builder.body(bytes));
+                        }
                         Err(e) => {
                             return Err(GatewayError::Upstream {
                                 message: e.to_string(),

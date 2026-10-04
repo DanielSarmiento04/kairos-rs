@@ -15,6 +15,12 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+// Re-export actix types for the helper methods below. Importing actix
+// directly in this module keeps `CachedResponse` self-contained.
+use actix_web::http::header::{HeaderName, HeaderValue};
+use actix_web::http::StatusCode;
+use actix_web::HttpResponse;
+
 /// Cache key derived from request components (method + path + sorted query).
 pub type CacheKey = String;
 
@@ -171,6 +177,33 @@ pub fn is_cacheable(method: &str, status: u16, headers: &[(String, String)]) -> 
         }
     }
     true
+}
+
+impl CachedResponse {
+    /// Build an `HttpResponse` from a cached entry, preserving status,
+    /// headers, and body. Header values that fail to parse are silently
+    /// dropped to keep cache hydration robust.
+    pub fn to_response(&self) -> HttpResponse {
+        let status = StatusCode::from_u16(self.status).unwrap_or(StatusCode::OK);
+        let mut builder = HttpResponse::build(status);
+        for (name, value) in &self.headers {
+            if let (Ok(n), Ok(v)) = (HeaderName::try_from(name.as_str()), HeaderValue::from_str(value)) {
+                builder.insert_header((n, v));
+            }
+        }
+        builder.body(self.body.clone())
+    }
+
+    /// Build a `CachedResponse` from an `HttpResponse` (status + headers)
+    /// and a pre-materialized body. The caller must already have read the
+    /// response body into bytes (actix bodies are one-shot streams).
+    pub fn from_response_parts(status: u16, headers: &[(String, String)], body: Bytes) -> Self {
+        Self {
+            status,
+            headers: headers.to_vec(),
+            body,
+        }
+    }
 }
 
 #[cfg(test)]

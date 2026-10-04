@@ -109,6 +109,41 @@ impl Default for LoadBalancingStrategy {
 /// }
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Response caching configuration for a route.
+///
+/// When present and `enabled = true`, GET responses for this route are
+/// cached in-memory and served on subsequent identical requests.
+pub struct CacheConfig {
+    /// Whether caching is active for this route. Default: false.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Time-to-live for cached responses, in seconds. Default: 60.
+    #[serde(default = "default_cache_ttl_secs")]
+    pub ttl_secs: u64,
+    /// Maximum number of cached entries for this route. Default: 1024.
+    #[serde(default = "default_cache_max_size")]
+    pub max_size: u64,
+}
+
+fn default_cache_ttl_secs() -> u64 {
+    60
+}
+
+fn default_cache_max_size() -> u64 {
+    1024
+}
+
+impl Default for CacheConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            ttl_secs: default_cache_ttl_secs(),
+            max_size: default_cache_max_size(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Backend {
     /// Target host URL including protocol (http:// or https://).
     pub host: String,
@@ -513,6 +548,12 @@ pub struct Router {
     /// Configures intelligent routing decisions based on content analysis or prediction.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ai_policy: Option<AiPolicy>,
+
+    /// Response caching configuration. When set and `enabled = true`, GET
+    /// responses for this route are cached in-memory and served on
+    /// subsequent identical requests. See [`CacheConfig`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache: Option<CacheConfig>,
 }
 
 impl Router {
