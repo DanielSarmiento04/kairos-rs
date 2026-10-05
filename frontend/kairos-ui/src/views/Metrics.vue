@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
+import TimeSeriesChart from '../components/TimeSeriesChart.vue';
 import { apiService } from '../services/api';
 import type { HistoricalMetricPoint, AggregatedMetricPoint, AggregationInterval } from '../types';
 
@@ -87,33 +88,6 @@ onMounted(async () => {
 });
 
 watch([selectedMetric, timeRange, aggregation], fetchHistoricalData);
-
-// SVG Chart Calculations
-const chartWidth = 780;
-const chartHeight = 260;
-
-const chartPoints = () => {
-  if (historyData.value.length === 0) return '';
-  const values = historyData.value.map(d => ('value' in d ? d.value : d.avg));
-  const min = Math.min(...values, 0);
-  const max = Math.max(...values, 1);
-  const range = max - min || 1;
-
-  const step = chartWidth / (historyData.value.length - 1 || 1);
-  return values
-    .map((val, idx) => {
-      const x = (idx * step).toFixed(1);
-      const y = (chartHeight - ((val - min) / range) * (chartHeight - 40) - 20).toFixed(1);
-      return `${x},${y}`;
-    })
-    .join(' ');
-};
-
-const chartArea = () => {
-  const pts = chartPoints();
-  if (!pts) return '';
-  return `0,${chartHeight} ${pts} ${chartWidth},${chartHeight}`;
-};
 
 const statsSummary = () => {
   if (historyData.value.length === 0) return { min: 0, max: 0, avg: 0, count: 0 };
@@ -231,30 +205,13 @@ const filteredPrometheusLines = () => {
 
         <div class="chart-canvas-wrapper">
           <div v-if="loading" class="chart-loading">Loading metric data points...</div>
-          <svg v-else :viewBox="`0 0 ${chartWidth} ${chartHeight}`" class="chart-svg" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#2563eb" stop-opacity="0.3" />
-                <stop offset="100%" stop-color="#2563eb" stop-opacity="0.0" />
-              </linearGradient>
-            </defs>
-
-            <!-- Gridlines -->
-            <line x1="0" y1="65" :x2="chartWidth" y2="65" stroke="#f1f5f9" stroke-dasharray="4" />
-            <line x1="0" y1="130" :x2="chartWidth" y2="130" stroke="#f1f5f9" stroke-dasharray="4" />
-            <line x1="0" y1="195" :x2="chartWidth" y2="195" stroke="#f1f5f9" stroke-dasharray="4" />
-
-            <!-- Area & Line -->
-            <polygon :points="chartArea()" fill="url(#chartGradient)" />
-            <polyline
-              :points="chartPoints()"
-              fill="none"
-              stroke="#2563eb"
-              stroke-width="3"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
+          <TimeSeriesChart
+            v-else
+            :data="historyData"
+            :metric-name="selectedMetric"
+            :width="780"
+            :height="260"
+          />
         </div>
       </div>
     </div>

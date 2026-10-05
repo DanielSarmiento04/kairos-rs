@@ -13,6 +13,7 @@ import type {
   HistoricalMetricsQuery,
   HistoricalMetricPoint,
   AggregatedMetricPoint,
+  RawHistoricalMetricPoint,
   PlaygroundRequest,
   PlaygroundResponse,
 } from '../types';
@@ -199,7 +200,7 @@ export const apiService = {
 
   async getHistoricalMetrics(
     query: HistoricalMetricsQuery,
-  ): Promise<HistoricalMetricPoint[] | AggregatedMetricPoint[]> {
+  ): Promise<(HistoricalMetricPoint | AggregatedMetricPoint)[]> {
     const params = new URLSearchParams({
       name: query.name,
       start: query.start,
@@ -210,7 +211,20 @@ export const apiService = {
     }
     const res = await fetch(`${API_BASE}/metrics/history?${params.toString()}`);
     if (!res.ok) throw new Error('Failed to fetch historical metrics');
-    return res.json();
+    // Backend wraps scalar values in `MetricValue` (serde tagged enum).
+    // Normalize to a plain `number` so chart components can render
+    // directly without branching on the wire format.
+    const raw: Array<RawHistoricalMetricPoint | AggregatedMetricPoint> = await res.json();
+    return raw.map((p): HistoricalMetricPoint | AggregatedMetricPoint => {
+      if ('avg' in p) {
+        return p;
+      }
+      const v = p.value;
+      if (typeof v === 'object' && v !== null) {
+        return { timestamp: p.timestamp, value: v.value };
+      }
+      return { timestamp: p.timestamp, value: v };
+    });
   },
 
   async getRawPrometheus(): Promise<string> {

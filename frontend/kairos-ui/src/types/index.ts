@@ -173,6 +173,22 @@ export interface HistoricalMetricPoint {
   value: number;
 }
 
+/** Raw metric value wrapper returned by the backend's serde tagged enum.
+ *  Mirrors `MetricValue` in `crates/kairos-rs/src/services/metrics_store.rs`. */
+export interface MetricValueRaw {
+  type: 'Counter' | 'Gauge' | 'Histogram';
+  value: number;
+}
+
+/** Raw point as returned by `/api/metrics/history` in raw (non-aggregated) mode.
+ *  `value` may be a plain number (older configs) or a `MetricValueRaw`
+ *  wrapper. Normalize via `apiService.getHistoricalMetrics` before passing
+ *  to chart components. */
+export interface RawHistoricalMetricPoint {
+  timestamp: string;
+  value: number | MetricValueRaw;
+}
+
 export interface AggregatedMetricPoint {
   timestamp: string;
   min: number;
