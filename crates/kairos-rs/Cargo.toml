@@ -34,6 +34,10 @@ futures.workspace = true
 env_logger.workspace = true
 rand.workspace = true
 
+# Caching
+moka.workspace = true
+bytes.workspace = true
+
 # Protocol-specific dependencies
 tokio-tungstenite = { version = "0.21" }
 actix-ws = { version = "0.2" }

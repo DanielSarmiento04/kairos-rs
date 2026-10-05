@@ -11,6 +11,7 @@ use tokio::sync::RwLock;
 
 use crate::models::router::Router;
 use crate::models::settings::{AiSettings, Settings};
+use crate::services::http::RouteHandler;
 
 /// Shared state for route management operations.
 ///
@@ -878,6 +879,57 @@ pub async fn update_ai_config(
     }))
 }
 
+/// Snapshot of in-memory cache stats, or 503 if the gateway has no cache
+/// configured (no route opted in to caching).
+#[get("/api/cache")]
+pub async fn get_cache_stats(
+    route_handler: Option<web::Data<RouteHandler>>,
+) -> impl Responder {
+    match route_handler {
+        Some(rh) => match rh.cache_stats() {
+            Some(stats) => HttpResponse::Ok().json(serde_json::json!({
+                "success": true,
+                "stats": {
+                    "hits": stats.hits,
+                    "misses": stats.misses,
+                    "entries": stats.entries,
+                    "hit_rate": stats.hit_rate,
+                }
+            })),
+            None => HttpResponse::Ok().json(serde_json::json!({
+                "success": true,
+                "stats": null,
+                "message": "No cache configured (no route opted in)"
+            })),
+        },
+        None => HttpResponse::ServiceUnavailable().json(serde_json::json!({
+            "success": false,
+            "error": "RouteHandler not available"
+        })),
+    }
+}
+
+/// Manually clear all entries from the in-memory cache. Useful for
+/// invalidation after upstream data changes.
+#[delete("/api/cache")]
+pub async fn clear_cache(
+    route_handler: Option<web::Data<RouteHandler>>,
+) -> impl Responder {
+    match route_handler {
+        Some(rh) => {
+            rh.cache_clear().await;
+            HttpResponse::Ok().json(serde_json::json!({
+                "success": true,
+                "message": "Cache cleared"
+            }))
+        }
+        None => HttpResponse::ServiceUnavailable().json(serde_json::json!({
+            "success": false,
+            "error": "RouteHandler not available"
+        })),
+    }
+}
+
 
 /// Configure route management endpoints
 pub fn configure_management(cfg: &mut web::ServiceConfig) {
@@ -893,5 +945,7 @@ pub fn configure_management(cfg: &mut web::ServiceConfig) {
         .service(update_cors_config)
         .service(update_metrics_config)
         .service(update_server_config)
-        .service(update_ai_config);
+        .service(update_ai_config)
+        .service(get_cache_stats)
+        .service(clear_cache);
 }

@@ -353,6 +353,10 @@ mod performance_tests {
     use std::time::Instant;
 
     #[test]
+    // Ignored by default: thresholds are tuned for `--release` builds.
+    // In debug builds these run ~2-3x slower. Run with:
+    //   cargo test --release -p kairos-rs --test route_matcher_tests -- --ignored
+    #[ignore]
     fn test_static_route_performance() {
         let matcher = create_route_matcher();
         let iterations = 10_000;
@@ -368,6 +372,8 @@ mod performance_tests {
     }
 
     #[test]
+    // See note on `test_static_route_performance` above.
+    #[ignore]
     fn test_dynamic_route_performance() {
         let matcher = create_route_matcher();
         let iterations = 10_000;
@@ -383,6 +389,8 @@ mod performance_tests {
     }
 
     #[test]
+    // See note on `test_static_route_performance` above.
+    #[ignore]
     fn test_complex_pattern_performance() {
         let matcher = create_route_matcher();
         let iterations = 10_000;

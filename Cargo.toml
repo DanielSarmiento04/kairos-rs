@@ -39,9 +39,11 @@ futures = "0.3"
 env_logger = { version = "0.11", features = ["color"] }
 rand = "0.8"
 
+# Caching
+moka = { version = "0.12", features = ["future"] }
+bytes = "1.7"
+
 # Protocol-specific dependencies
 tokio-tungstenite = "0.21"
 hickory-proto = "0.24"  # Modern DNS library (formerly trust-dns)
 suppaftp = { version = "5.3", features = ["async", "async-secure"] }
-
-
