@@ -441,6 +441,10 @@ impl RouteHandler {
         req: HttpRequest,
         body: web::Bytes,
     ) -> Result<HttpResponse, ActixError> {
+        // PR4b: per-route request metrics. Captured here so both the
+        // success and error paths can record timing against the matched
+        // route.
+        let route_start = Instant::now();
         let path = req.path().to_string();
         let method = req.method().clone();
 
@@ -784,6 +788,19 @@ impl RouteHandler {
                                         }
                                     }
                                 }
+                            }
+                            // PR4b: per-route request metrics on the
+                            // success path. Cache hits/misses are
+                            // recorded earlier in this function.
+                            if let Some(metrics) =
+                                req.app_data::<web::Data<crate::routes::metrics::MetricsCollector>>()
+                            {
+                                metrics.record_route_request(
+                                    &route.external_path,
+                                    true,
+                                    route_start.elapsed(),
+                                    200,
+                                );
                             }
                             return Ok(builder.body(bytes));
                         }

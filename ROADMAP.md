@@ -213,9 +213,7 @@
 - [ ] **Performance monitoring** - Latency histograms, throughput metrics
 - [x] **Historical metrics storage** - COMPLETED (v0.2.12) - Time-series data with retention and aggregation
 - [x] **Historical metrics API** - REST endpoints for querying time-series data (v0.3.2)
-- [x] **Time-series charts** - Interactive visualization in UI (v0.5.0)
-- [ ] **Per-route analytics** - Detailed breakdown by route
-- [ ] **Distributed tracing** - OpenTelemetry integration
+
 - [ ] **Custom dashboards** - User-configurable metric views in UI
 
 ### Phase 4: AI-Powered Gateway Features (Months 4-6) 🤖 **IN PROGRESS**
