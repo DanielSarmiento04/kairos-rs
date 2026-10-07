@@ -83,4 +83,36 @@ describe('apiService', () => {
     expect(health.status).toBe('healthy');
     expect(health.version).toBe('0.3.2');
   });
+
+  it('fetches cache stats successfully', async () => {
+    const mockStats = {
+      hits: 42,
+      misses: 8,
+      hit_ratio: 84.0,
+      evictions: 0,
+      current_entries: 12,
+      max_entries: 5000,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: mockStats }),
+    });
+
+    const res = await apiService.getCacheStats();
+    expect(res.success).toBe(true);
+    expect(res.data?.hit_ratio).toBe(84.0);
+    expect(global.fetch).toHaveBeenCalledWith('/api/cache/stats');
+  });
+
+  it('clears response cache successfully', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, message: 'Response cache cleared successfully' }),
+    });
+
+    const res = await apiService.clearCache();
+    expect(res.success).toBe(true);
+    expect(global.fetch).toHaveBeenCalledWith('/api/cache/clear', { method: 'POST' });
+  });
 });
