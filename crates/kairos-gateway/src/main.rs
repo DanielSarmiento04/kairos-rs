@@ -31,7 +31,7 @@ async fn main() -> std::io::Result<()> {
     // Parse configuration
     let config: Settings = load_settings().expect("Failed to load settings");
 
-    info!("Starting Kairos-rs API Gateway v{}", config.version);
+    info!("Starting Kairos-rs API Gateway v{}", env!("CARGO_PKG_VERSION"));
 
     // Comprehensive configuration validation
     let validation_result = ConfigValidator::validate_comprehensive(&config);
