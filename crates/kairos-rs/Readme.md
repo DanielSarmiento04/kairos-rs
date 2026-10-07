@@ -786,7 +786,7 @@ Built with these excellent Rust crates:
 ---
 
 **Status**: Production ready with multi-protocol support (HTTP, WebSocket, FTP, DNS), comprehensive security, reliability, load balancing features, modern web admin interface with configuration management, and advanced metrics visualization  
-**Version**: 0.2.11 (November 2025)  
+**Version**: 0.4.0 (October 2026)  
 **Maintainer**: [@DanielSarmiento04](https://github.com/DanielSarmiento04)  
 **Community**: Issues and PRs welcome!
 
