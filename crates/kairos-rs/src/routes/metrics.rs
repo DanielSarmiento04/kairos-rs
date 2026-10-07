@@ -128,6 +128,10 @@ pub struct MetricsCollector {
     pub timeout_errors: Arc<AtomicU64>,
     /// Number of connection errors
     pub connection_errors: Arc<AtomicU64>,
+    /// Number of cache lookups that returned a stored response (counter)
+    pub cache_hits_total: Arc<AtomicU64>,
+    /// Number of cache lookups that fell through to the upstream (counter)
+    pub cache_misses_total: Arc<AtomicU64>,
     /// Application start time for uptime calculations
     pub start_time: Instant,
 }
@@ -152,12 +156,32 @@ impl Default for MetricsCollector {
             http_5xx_errors: Arc::new(AtomicU64::new(0)),
             timeout_errors: Arc::new(AtomicU64::new(0)),
             connection_errors: Arc::new(AtomicU64::new(0)),
+            cache_hits_total: Arc::new(AtomicU64::new(0)),
+            cache_misses_total: Arc::new(AtomicU64::new(0)),
             start_time: Instant::now(),
         }
     }
 }
 
 impl MetricsCollector {
+    /// Read current cache counters.
+    ///
+    /// Returns `(hits, misses, hit_rate)` where `hit_rate = hits / (hits + misses)`,
+    /// or `0.0` if no traffic has been served yet. All values are read with
+    /// `Ordering::Relaxed` since exact ordering between hit/miss counters is
+    /// not required for the snapshot.
+    pub fn cache_snapshot(&self) -> (u64, u64, f64) {
+        let hits = self.cache_hits_total.load(Ordering::Relaxed);
+        let misses = self.cache_misses_total.load(Ordering::Relaxed);
+        let total = hits + misses;
+        let hit_rate = if total > 0 {
+            hits as f64 / total as f64
+        } else {
+            0.0
+        };
+        (hits, misses, hit_rate)
+    }
+
     /// Records the completion of an HTTP request with detailed timing and status information.
     /// 
     /// This method atomically updates multiple metrics to track request patterns,
@@ -383,6 +407,8 @@ pub async fn metrics_endpoint(
     let http_5xx_errors = metrics.http_5xx_errors.load(Ordering::Relaxed);
     let timeout_errors = metrics.timeout_errors.load(Ordering::Relaxed);
     let connection_errors = metrics.connection_errors.load(Ordering::Relaxed);
+    let cache_hits_total = metrics.cache_hits_total.load(Ordering::Relaxed);
+    let cache_misses_total = metrics.cache_misses_total.load(Ordering::Relaxed);
     let uptime = metrics.start_time.elapsed().as_secs();
     
     let avg_response_time = if total_requests > 0 {
@@ -496,6 +522,14 @@ kairos_active_connections {}
 # TYPE kairos_peak_connections gauge
 kairos_peak_connections {}
 
+# HELP kairos_cache_hits_total Total cache lookups that returned a stored response.
+# TYPE kairos_cache_hits_total counter
+kairos_cache_hits_total {}
+
+# HELP kairos_cache_misses_total Total cache lookups that fell through to the upstream.
+# TYPE kairos_cache_misses_total counter
+kairos_cache_misses_total {}
+
 # HELP kairos_uptime_seconds Service uptime in seconds
 # TYPE kairos_uptime_seconds counter
 kairos_uptime_seconds {}{}
@@ -518,6 +552,8 @@ kairos_uptime_seconds {}{}
         success_rate,
         active_connections,
         peak_connections,
+        cache_hits_total,
+        cache_misses_total,
         uptime,
         circuit_breaker_metrics
     );

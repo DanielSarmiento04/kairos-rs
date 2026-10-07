@@ -433,8 +433,18 @@ impl MetricsStore {
     /// assert_eq!(names.len(), 2);
     /// ```
     pub fn list_metrics(&self) -> Vec<String> {
-        let series = self.series.read().unwrap();
-        series.keys().cloned().collect()
+        let mut names: std::collections::BTreeSet<String> = self
+            .series
+            .read()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect();
+        // PR4a: always include cache counter names even before any
+        // time-series data is recorded for them.
+        names.insert("cache_hits_total".to_string());
+        names.insert("cache_misses_total".to_string());
+        names.into_iter().collect()
     }
     
     /// Clears all historical data.

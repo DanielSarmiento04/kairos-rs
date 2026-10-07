@@ -1,6 +1,7 @@
 use crate::models::error::GatewayError;
 use crate::models::router::{AiRoutingStrategy, Router};
 use crate::routes::metrics::MetricsCollector;
+use std::sync::atomic::Ordering;
 use crate::services::ai::AiService;
 use crate::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
 use crate::services::cache::{
@@ -475,7 +476,17 @@ impl RouteHandler {
                 );
                 if let Some(hit) = cache.get(&key).await {
                     debug!("Cache HIT for {}", path);
+                    if let Some(metrics) =
+                        req.app_data::<web::Data<crate::routes::metrics::MetricsCollector>>()
+                    {
+                        metrics.cache_hits_total.fetch_add(1, Ordering::Relaxed);
+                    }
                     return Ok(hit.to_response());
+                }
+                if let Some(metrics) =
+                    req.app_data::<web::Data<crate::routes::metrics::MetricsCollector>>()
+                {
+                    metrics.cache_misses_total.fetch_add(1, Ordering::Relaxed);
                 }
             }
         } else if route.cache.as_ref().map_or(false, |c| c.enabled) {
