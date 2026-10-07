@@ -12,18 +12,6 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}🚀 Starting Kairos-rs Development Environment${NC}"
 echo ""
 
-# Check if cargo-leptos is installed
-if ! command -v cargo-leptos &> /dev/null; then
-    echo -e "${YELLOW}⚠️  cargo-leptos not found. Installing...${NC}"
-    cargo install cargo-leptos
-fi
-
-# Check if wasm32 target is installed
-if ! rustup target list | grep -q "wasm32-unknown-unknown (installed)"; then
-    echo -e "${YELLOW}⚠️  WebAssembly target not found. Installing...${NC}"
-    rustup target add wasm32-unknown-unknown
-fi
-
 # Function to run gateway
 start_gateway() {
     echo -e "${GREEN}📡 Starting Kairos Gateway on port 5900...${NC}"
@@ -33,41 +21,30 @@ start_gateway() {
 
 # Function to run UI
 start_ui() {
-    echo -e "${GREEN}🎨 Starting Kairos UI on port 3000...${NC}"
-    cd "$(dirname "$0")/crates/kairos-ui"
-    
-    # First, try to build the WASM version
-    echo -e "${BLUE}📦 Building WASM components...${NC}"
-    if cargo build --lib --target wasm32-unknown-unknown; then
-        echo -e "${GREEN}✅ WASM build successful!${NC}"
-        
-        # Try cargo leptos serve
-        echo -e "${BLUE}🚀 Attempting to start Leptos server...${NC}"
-        if timeout 10s cargo leptos serve 2>/dev/null; then
-            echo -e "${GREEN}✅ Leptos server started successfully!${NC}"
-        else
-            echo -e "${YELLOW}⚠️  Leptos server failed, using fallback Python server...${NC}"
-            
-            # Build the site directory if needed
-            if [ ! -d "target/site" ]; then
-                echo -e "${BLUE}📦 Building site directory...${NC}"
-                cargo leptos build 2>/dev/null || true
-            fi
-            
-            # Use Python fallback server
-            if [ -f "serve.py" ]; then
-                echo -e "${BLUE}🐍 Starting Python server...${NC}"
-                python3 serve.py
-            else
-                echo -e "${BLUE}🌐 Starting simple HTTP server...${NC}"
-                cd target/site 2>/dev/null || mkdir -p target/site
-                python3 -m http.server 3000
-            fi
-        fi
-    else
-        echo -e "${RED}❌ WASM build failed. Please check your code.${NC}"
+    echo -e "${GREEN}🎨 Starting Kairos Vite UI (http://localhost:5173)...${NC}"
+    cd "$(dirname "$0")/frontend/kairos-ui"
+    npm run dev
+}
+
+# Function to test project
+run_tests() {
+    echo -e "${BLUE}🧪 Running Rust Workspace Tests (cargo test --workspace)...${NC}"
+    cd "$(dirname "$0")"
+    cargo test --workspace
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Rust tests failed.${NC}"
         return 1
     fi
+    echo -e "${GREEN}✅ Rust tests passed!${NC}"
+    echo ""
+    echo -e "${BLUE}🧪 Running Frontend Tests (Vitest + Vue-TSC)...${NC}"
+    cd "$(dirname "$0")/frontend/kairos-ui"
+    npm run test:unit -- --run && npm run type-check
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Frontend tests failed.${NC}"
+        return 1
+    fi
+    echo -e "${GREEN}✅ All frontend tests passed!${NC}"
 }
 
 # Function to show help
@@ -79,20 +56,23 @@ show_help() {
     echo ""
     echo "Commands:"
     echo "  gateway     Start only the API gateway (port 5900)"
-    echo "  ui          Start only the UI server (port 3000)"  
+    echo "  ui          Start only the Vite UI server (port 5173)"
     echo "  both        Start both gateway and UI (default)"
+    echo "  test        Run full test suite (Rust workspace + Vite UI)"
     echo "  help        Show this help message"
     echo ""
     echo "Examples:"
     echo "  $0              # Start both services"
     echo "  $0 gateway      # Start only gateway"
     echo "  $0 ui           # Start only UI"
+    echo "  $0 test         # Run all tests"
     echo ""
     echo "URLs:"
-    echo "  Gateway:  http://localhost:5900"
-    echo "  UI:       http://localhost:3000"
-    echo "  Health:   http://localhost:5900/health"
-    echo "  Metrics:  http://localhost:5900/metrics"
+    echo "  Gateway:    http://localhost:5900"
+    echo "  UI:         http://localhost:5173"
+    echo "  Health:     http://localhost:5900/health"
+    echo "  Metrics:    http://localhost:5900/metrics"
+    echo "  Playground: http://localhost:5173/playground"
     echo ""
 }
 
@@ -120,6 +100,9 @@ case "${1:-both}" in
     "ui")
         start_ui
         ;;
+    "test")
+        run_tests
+        ;;
     "both")
         echo -e "${BLUE}🔄 Starting both Gateway and UI...${NC}"
         echo -e "${YELLOW}💡 Use Ctrl+C to stop both services${NC}"
@@ -131,7 +114,7 @@ case "${1:-both}" in
         
         # Wait a moment for gateway to start
         echo -e "${BLUE}⏳ Waiting for gateway to start...${NC}"
-        sleep 3
+        sleep 2
         
         # Start UI in background
         start_ui &
@@ -140,7 +123,7 @@ case "${1:-both}" in
         echo ""
         echo -e "${GREEN}✅ Both services started!${NC}"
         echo -e "${BLUE}📡 Gateway: http://localhost:5900${NC}"
-        echo -e "${BLUE}🎨 UI:      http://localhost:3000${NC}"
+        echo -e "${BLUE}🎨 UI:      http://localhost:5173${NC}"
         echo ""
         echo -e "${YELLOW}💡 Press Ctrl+C to stop both services${NC}"
         

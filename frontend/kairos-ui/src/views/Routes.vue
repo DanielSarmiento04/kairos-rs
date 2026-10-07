@@ -10,7 +10,7 @@ const error = ref<string | null>(null);
 
 const showModal = ref(false);
 const isEditing = ref(false);
-const activeTab = ref<'general' | 'backends' | 'retry' | 'ai'>('general');
+const activeTab = ref<'general' | 'backends' | 'retry' | 'ai' | 'transformations'>('general');
 
 const validationError = ref<string | null>(null);
 const validationWarnings = ref<string[]>([]);
@@ -154,6 +154,121 @@ const validateCurrentRoute = async (): Promise<boolean> => {
   }
 };
 
+// Transformation Helper States & Actions
+const newReqHeaderKey = ref('');
+const newReqHeaderVal = ref('');
+const newRemoveReqHeader = ref('');
+
+const newResHeaderKey = ref('');
+const newResHeaderVal = ref('');
+
+const newStatusMappingFrom = ref<number | null>(null);
+const newStatusMappingTo = ref<number | null>(null);
+
+const enableRequestTransform = () => {
+  if (!currentRoute.value.request_transformation) {
+    currentRoute.value.request_transformation = {
+      headers: { add: {}, remove: [], set: {} },
+      path: null,
+      query: { add: {}, remove: [], set: {} },
+    };
+  }
+};
+
+const disableRequestTransform = () => {
+  currentRoute.value.request_transformation = null;
+};
+
+const enableResponseTransform = () => {
+  if (!currentRoute.value.response_transformation) {
+    currentRoute.value.response_transformation = {
+      headers: { add: {}, remove: [], set: {} },
+      status_code_mapping: [],
+    };
+  }
+};
+
+const disableResponseTransform = () => {
+  currentRoute.value.response_transformation = null;
+};
+
+const addReqHeader = () => {
+  if (!newReqHeaderKey.value.trim()) return;
+  if (!currentRoute.value.request_transformation) enableRequestTransform();
+  const rt = currentRoute.value.request_transformation!;
+  if (!rt.headers) rt.headers = { add: {}, remove: [], set: {} };
+  if (!rt.headers.add) rt.headers.add = {};
+  rt.headers.add[newReqHeaderKey.value.trim()] = newReqHeaderVal.value.trim();
+  newReqHeaderKey.value = '';
+  newReqHeaderVal.value = '';
+};
+
+const removeReqHeaderAdd = (key: string) => {
+  if (currentRoute.value.request_transformation?.headers?.add) {
+    delete currentRoute.value.request_transformation.headers.add[key];
+  }
+};
+
+const addRemoveReqHeader = () => {
+  if (!newRemoveReqHeader.value.trim()) return;
+  if (!currentRoute.value.request_transformation) enableRequestTransform();
+  const rt = currentRoute.value.request_transformation!;
+  if (!rt.headers) rt.headers = { add: {}, remove: [], set: {} };
+  if (!rt.headers.remove) rt.headers.remove = [];
+  if (!rt.headers.remove.includes(newRemoveReqHeader.value.trim())) {
+    rt.headers.remove.push(newRemoveReqHeader.value.trim());
+  }
+  newRemoveReqHeader.value = '';
+};
+
+const deleteRemoveReqHeader = (idx: number) => {
+  currentRoute.value.request_transformation?.headers?.remove?.splice(idx, 1);
+};
+
+const togglePathRewriting = () => {
+  if (!currentRoute.value.request_transformation) enableRequestTransform();
+  const rt = currentRoute.value.request_transformation!;
+  if (rt.path) {
+    rt.path = null;
+  } else {
+    rt.path = { pattern: '', replacement: '' };
+  }
+};
+
+const addResHeader = () => {
+  if (!newResHeaderKey.value.trim()) return;
+  if (!currentRoute.value.response_transformation) enableResponseTransform();
+  const rt = currentRoute.value.response_transformation!;
+  if (!rt.headers) rt.headers = { add: {}, remove: [], set: {} };
+  if (!rt.headers.add) rt.headers.add = {};
+  rt.headers.add[newResHeaderKey.value.trim()] = newResHeaderVal.value.trim();
+  newResHeaderKey.value = '';
+  newResHeaderVal.value = '';
+};
+
+const removeResHeaderAdd = (key: string) => {
+  if (currentRoute.value.response_transformation?.headers?.add) {
+    delete currentRoute.value.response_transformation.headers.add[key];
+  }
+};
+
+const addStatusCodeMapping = () => {
+  if (!newStatusMappingFrom.value || !newStatusMappingTo.value) return;
+  if (!currentRoute.value.response_transformation) enableResponseTransform();
+  const rt = currentRoute.value.response_transformation!;
+  if (!rt.status_code_mapping) rt.status_code_mapping = [];
+  rt.status_code_mapping.push({
+    from: newStatusMappingFrom.value,
+    to: newStatusMappingTo.value,
+  });
+  newStatusMappingFrom.value = null;
+  newStatusMappingTo.value = null;
+};
+
+const removeStatusCodeMapping = (index: number) => {
+  currentRoute.value.response_transformation?.status_code_mapping?.splice(index, 1);
+};
+
 const saveRoute = async () => {
   if (!currentRoute.value.external_path.startsWith('/')) {
     currentRoute.value.external_path = '/' + currentRoute.value.external_path;
@@ -220,7 +335,7 @@ const confirmDelete = async (route: Router) => {
               <th>Load Balancing</th>
               <th>Methods</th>
               <th>Security</th>
-              <th>AI Policy</th>
+              <th>Features</th>
               <th class="text-right">Actions</th>
             </tr>
           </thead>
@@ -259,10 +374,17 @@ const confirmDelete = async (route: Router) => {
                 <StatusBadge type="auth" :value="route.auth_required" />
               </td>
               <td>
-                <span v-if="route.ai_policy && route.ai_policy.enabled" class="ai-pill">
-                  🤖 {{ typeof route.ai_policy.strategy === 'string' ? route.ai_policy.strategy : 'AI' }}
-                </span>
-                <span v-else class="text-muted">Disabled</span>
+                <div class="feature-badges">
+                  <span v-if="route.ai_policy && route.ai_policy.enabled" class="ai-pill">
+                    🤖 AI
+                  </span>
+                  <span v-if="route.request_transformation || route.response_transformation" class="transform-pill">
+                    🔄 Transform
+                  </span>
+                  <span v-if="(!route.ai_policy || !route.ai_policy.enabled) && !route.request_transformation && !route.response_transformation" class="text-muted">
+                    Standard
+                  </span>
+                </div>
               </td>
               <td class="text-right">
                 <button class="btn-action btn-edit" @click="openEditModal(route)">Edit</button>
@@ -311,6 +433,13 @@ const confirmDelete = async (route: Router) => {
             @click="activeTab = 'ai'"
           >
             AI Routing Policy
+          </button>
+          <button
+            class="tab-btn"
+            :class="{ active: activeTab === 'transformations' }"
+            @click="activeTab = 'transformations'"
+          >
+            Transformations
           </button>
         </div>
 
@@ -541,6 +670,131 @@ const confirmDelete = async (route: Router) => {
                     min="0"
                     class="form-control"
                   />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 5: Request & Response Transformations -->
+          <div v-if="activeTab === 'transformations'" class="tab-pane">
+            <!-- Request Transformation Section -->
+            <div class="transform-section">
+              <div class="section-title-row">
+                <h4>📥 Request Transformation</h4>
+                <button
+                  type="button"
+                  class="btn-sub-toggle"
+                  :class="{ active: !!currentRoute.request_transformation }"
+                  @click="currentRoute.request_transformation ? disableRequestTransform() : enableRequestTransform()"
+                >
+                  {{ currentRoute.request_transformation ? 'Enabled' : '+ Enable' }}
+                </button>
+              </div>
+
+              <div v-if="currentRoute.request_transformation" class="transform-details">
+                <!-- Header Additions -->
+                <div class="sub-group">
+                  <label>Add Headers (Upstream Injection)</label>
+                  <div class="kv-input-row">
+                    <input v-model="newReqHeaderKey" type="text" placeholder="Header Name (e.g. X-Gateway)" class="form-control" />
+                    <input v-model="newReqHeaderVal" type="text" placeholder="Header Value" class="form-control" />
+                    <button type="button" class="btn-sub-action" @click="addReqHeader">+ Add</button>
+                  </div>
+                  <div v-if="currentRoute.request_transformation.headers?.add && Object.keys(currentRoute.request_transformation.headers.add).length > 0" class="kv-tags">
+                    <span v-for="(v, k) in currentRoute.request_transformation.headers.add" :key="k" class="kv-tag">
+                      <strong>{{ k }}:</strong> {{ v }}
+                      <button type="button" @click="removeReqHeaderAdd(k as string)">✕</button>
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Header Removals -->
+                <div class="sub-group">
+                  <label>Strip Headers (Exclude from Upstream)</label>
+                  <div class="kv-input-row">
+                    <input v-model="newRemoveReqHeader" type="text" placeholder="Header Name (e.g. Cookie)" class="form-control" />
+                    <button type="button" class="btn-sub-action" @click="addRemoveReqHeader">+ Strip</button>
+                  </div>
+                  <div v-if="currentRoute.request_transformation.headers?.remove && currentRoute.request_transformation.headers.remove.length > 0" class="kv-tags">
+                    <span v-for="(h, idx) in currentRoute.request_transformation.headers.remove" :key="idx" class="kv-tag strip">
+                      {{ h }}
+                      <button type="button" @click="deleteRemoveReqHeader(idx)">✕</button>
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Path Rewriting -->
+                <div class="sub-group">
+                  <label>Path Rewriting (Regex)</label>
+                  <div class="form-row">
+                    <div class="form-group half">
+                      <input
+                        v-if="currentRoute.request_transformation.path"
+                        v-model="currentRoute.request_transformation.path.pattern"
+                        type="text"
+                        placeholder="Regex Pattern (e.g. ^/v1/(.*))"
+                        class="form-control"
+                      />
+                      <button v-else type="button" class="btn-sub-action" @click="togglePathRewriting">+ Add Path Rewrite</button>
+                    </div>
+                    <div v-if="currentRoute.request_transformation.path" class="form-group half">
+                      <input
+                        v-model="currentRoute.request_transformation.path.replacement"
+                        type="text"
+                        placeholder="Replacement (e.g. /v2/$1)"
+                        class="form-control"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Response Transformation Section -->
+            <div class="transform-section mt-4">
+              <div class="section-title-row">
+                <h4>📤 Response Transformation</h4>
+                <button
+                  type="button"
+                  class="btn-sub-toggle"
+                  :class="{ active: !!currentRoute.response_transformation }"
+                  @click="currentRoute.response_transformation ? disableResponseTransform() : enableResponseTransform()"
+                >
+                  {{ currentRoute.response_transformation ? 'Enabled' : '+ Enable' }}
+                </button>
+              </div>
+
+              <div v-if="currentRoute.response_transformation" class="transform-details">
+                <!-- Response Header Injection -->
+                <div class="sub-group">
+                  <label>Inject Response Headers</label>
+                  <div class="kv-input-row">
+                    <input v-model="newResHeaderKey" type="text" placeholder="Header Name (e.g. X-Frame-Options)" class="form-control" />
+                    <input v-model="newResHeaderVal" type="text" placeholder="Header Value" class="form-control" />
+                    <button type="button" class="btn-sub-action" @click="addResHeader">+ Add</button>
+                  </div>
+                  <div v-if="currentRoute.response_transformation.headers?.add && Object.keys(currentRoute.response_transformation.headers.add).length > 0" class="kv-tags">
+                    <span v-for="(v, k) in currentRoute.response_transformation.headers.add" :key="k" class="kv-tag">
+                      <strong>{{ k }}:</strong> {{ v }}
+                      <button type="button" @click="removeResHeaderAdd(k as string)">✕</button>
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Status Code Mapping -->
+                <div class="sub-group">
+                  <label>Status Code Mapping (Error Masking / Translation)</label>
+                  <div class="kv-input-row">
+                    <input v-model.number="newStatusMappingFrom" type="number" placeholder="From Status (e.g. 500)" class="form-control" />
+                    <input v-model.number="newStatusMappingTo" type="number" placeholder="To Status (e.g. 503)" class="form-control" />
+                    <button type="button" class="btn-sub-action" @click="addStatusCodeMapping">+ Map Status</button>
+                  </div>
+                  <div v-if="currentRoute.response_transformation.status_code_mapping && currentRoute.response_transformation.status_code_mapping.length > 0" class="kv-tags">
+                    <span v-for="(m, idx) in currentRoute.response_transformation.status_code_mapping" :key="idx" class="kv-tag status-map">
+                      {{ m.from }} ➡ {{ m.to }}
+                      <button type="button" @click="removeStatusCodeMapping(idx)">✕</button>
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -959,4 +1213,132 @@ const confirmDelete = async (route: Router) => {
 
 .text-muted { color: #94a3b8; }
 .text-right { text-align: right; }
+
+/* Transformations Tab Styles */
+.transform-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.section-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.section-title-row h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.btn-sub-toggle {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-sub-toggle.active {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.transform-details {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sub-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sub-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.kv-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.kv-input-row .form-control {
+  flex: 1;
+}
+
+.kv-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.kv-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+}
+
+.kv-tag.strip {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.kv-tag.status-map {
+  background: #fdf4ff;
+  color: #86198f;
+  border-color: #f5d0fe;
+}
+
+.kv-tag button {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.transform-pill {
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #f3e8ff;
+  color: #7e22ce;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+}
+
+.feature-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.mt-4 { margin-top: 16px; }
 </style>

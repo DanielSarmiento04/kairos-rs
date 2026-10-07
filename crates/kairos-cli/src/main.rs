@@ -4,7 +4,7 @@ use clap::{Arg, Command};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = Command::new("kairos")
-        .version("0.2.6")
+        .version(env!("CARGO_PKG_VERSION"))
         .author("Daniel Sarmiento")
         .about("Command-line interface for Kairos API Gateway management")
         .subcommand_required(true)

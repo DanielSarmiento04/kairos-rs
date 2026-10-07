@@ -2,7 +2,7 @@
 import { ref, shallowRef, computed, onMounted, onUnmounted } from 'vue';
 import { useGatewayStore } from '../stores/gateway';
 import { apiService } from '../services/api';
-import type { Router, TelemetryLog } from '../types';
+import type { Router, TelemetryLog, CacheStats } from '../types';
 import SparklineChart from '../components/SparklineChart.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 
@@ -11,6 +11,7 @@ const gatewayStore = useGatewayStore();
 const routes = ref<Router[]>([]);
 const routesLoading = ref(true);
 const routesError = ref<string | null>(null);
+const cacheStats = ref<CacheStats | null>(null);
 
 // Local shallowRef for telemetry data to satisfy agent performance constraint:
 // "Use shallowRef instead of ref for arrays of telemetry data to ensure rendering performance for large log datasets"
@@ -20,9 +21,21 @@ const filterMethod = ref('ALL');
 const filterStatus = ref('ALL');
 const searchQuery = ref('');
 
+const loadCacheStats = async () => {
+  try {
+    const res = await apiService.getCacheStats();
+    if (res.success && res.data) {
+      cacheStats.value = res.data;
+    }
+  } catch (e) {
+    console.debug('Cache stats unavailable:', e);
+  }
+};
+
 onMounted(async () => {
   gatewayStore.connectWebSocket();
   gatewayStore.fetchHealth();
+  await loadCacheStats();
 
   try {
     routes.value = await apiService.getRoutes();
@@ -220,7 +233,7 @@ const clearLogs = () => {
         <div class="stat-body">
           <div class="stat-value uptime-text">{{ formatUptime(gatewayStore.metrics.uptime) }}</div>
         </div>
-        <div class="stat-footer">Gateway v0.3.2 (Production)</div>
+        <div class="stat-footer">Gateway v0.4.0 (Production)</div>
       </div>
     </div>
 
@@ -267,6 +280,29 @@ const clearLogs = () => {
             <div class="ai-stat-item">
               <span class="ai-label">Circuit Breakers</span>
               <span class="ai-val text-success">All Closed (Healthy)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="insight-card">
+        <div class="insight-header">
+          <h3>⚡ In-Memory Response Cache</h3>
+          <span class="badge badge-cache">{{ cacheStats ? `${cacheStats.hit_ratio.toFixed(1)}% Hit Ratio` : 'Active' }}</span>
+        </div>
+        <div class="insight-body">
+          <div class="ai-stat-row">
+            <div class="ai-stat-item">
+              <span class="ai-label">Hits / Misses</span>
+              <span class="ai-val font-mono">{{ cacheStats ? `${cacheStats.hits} / ${cacheStats.misses}` : '0 / 0' }}</span>
+            </div>
+            <div class="ai-stat-item">
+              <span class="ai-label">Cached Entries</span>
+              <span class="ai-val font-mono">{{ cacheStats ? `${cacheStats.current_entries} / ${cacheStats.max_entries}` : '0 / 5,000' }}</span>
+            </div>
+            <div class="ai-stat-item">
+              <span class="ai-label">Target Latency</span>
+              <span class="ai-val text-success">&lt;0.5 ms</span>
             </div>
           </div>
         </div>
@@ -584,6 +620,11 @@ const clearLogs = () => {
 .badge-ai {
   background: #e0e7ff;
   color: #4338ca;
+}
+
+.badge-cache {
+  background: #ecfdf5;
+  color: #047857;
 }
 
 .ai-stat-row {

@@ -53,6 +53,25 @@ The goal is to eliminate WASM-related UI maintenance complexity, improve fronten
 - [x] Cleaned up obsolete template files and fixed all type-check and Vitest issues.
 - [x] Validated 100% test pass rate across unit tests and production builds.
 
+### Phase 5: Backend Optimization & Response Caching Layer
+- [x] **In-Memory HTTP Response Cache (`ResponseCache`)**:
+    - Built thread-safe, lock-optimized in-memory caching in `crates/kairos-rs/src/services/cache.rs` with TTL expiration, `AHashMap`, capacity management, and automatic evictions.
+    - Integrated with `RouteHandler` (`crates/kairos-rs/src/services/http.rs`) for sub-millisecond responses on idempotent requests (`GET`/`HEAD`).
+    - Added `X-Cache: HIT` and `X-Cache: MISS` telemetry headers, as well as `X-Cache-TTL`.
+    - Added smart cache invalidation on successful mutating requests (`POST`, `PUT`, `DELETE`, `PATCH`).
+    - Added administrative cache observability & purge endpoints (`GET /api/cache/stats`, `POST /api/cache/clear`) in `crates/kairos-rs/src/routes/management.rs`.
+    - Initialized in `kairos-gateway` `main.rs` (5,000 entries, 60s default TTL).
+- [x] **Route Matcher Optimization**:
+    - Added `match_cache` (`Arc<RwLock<AHashMap<String, (Router, String)>>>`) to `RouteMatcher` (`crates/kairos-rs/src/utils/route_matcher.rs`).
+    - Accelerated dynamic route matching with O(1) cached lookup prior to regex capture loops, plus `clear_cache` support.
+- [x] **Upstream Client Connection Pool Tuning**:
+    - Enabled `.tcp_nodelay(true)` and `.tcp_keepalive(Some(Duration::from_secs(60)))` to minimize packet latency.
+    - Expanded pool size: `.pool_max_idle_per_host(128)` and `.pool_idle_timeout(Duration::from_secs(60))`.
+- [x] **Complete Test Verification**:
+    - 101/101 Rust workspace tests and doctests passing.
+    - 12/12 Vitest frontend tests passing.
+    - 0 TypeScript errors and clean production build.
+
 ## 4. Technical Constraints & Rules for the Agent
 1.  **Strict Typing:** Strictly 0 `any` in TypeScript. All API responses have corresponding TypeScript interfaces mapped to the Rust backend structs.
 2.  **Composition API:** Strictly used Vue 3 `<script setup>` syntax across all components and views.

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { apiService } from '../services/api';
-import type { Settings, AiSettings, JwtSettings, RateLimitConfig, CorsConfig, ServerConfig, MetricsConfig } from '../types';
+import type { Settings, AiSettings, JwtSettings, RateLimitConfig, CorsConfig, ServerConfig, MetricsConfig, CacheStats } from '../types';
 import hljs from 'highlight.js/lib/core';
 import json from 'highlight.js/lib/languages/json';
 import 'highlight.js/styles/vs2015.css';
@@ -9,6 +9,8 @@ import 'highlight.js/styles/vs2015.css';
 hljs.registerLanguage('json', json);
 
 const config = ref<Settings | null>(null);
+const cacheStats = ref<CacheStats | null>(null);
+const cacheLoading = ref(false);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
@@ -29,12 +31,38 @@ const corsOriginsInput = ref('');
 const corsMethodsInput = ref('');
 const corsHeadersInput = ref('');
 
+const loadCacheStats = async () => {
+  try {
+    const res = await apiService.getCacheStats();
+    if (res.success && res.data) {
+      cacheStats.value = res.data;
+    }
+  } catch (e) {
+    console.debug('Cache stats unavailable:', e);
+  }
+};
+
+const handleFlushCache = async () => {
+  try {
+    cacheLoading.value = true;
+    const res = await apiService.clearCache();
+    successMessage.value = res.message || 'Cache cleared successfully!';
+    await loadCacheStats();
+    setTimeout(() => { successMessage.value = null; }, 4000);
+  } catch (err: unknown) {
+    error.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    cacheLoading.value = false;
+  }
+};
+
 const loadConfig = async () => {
   loading.value = true;
   error.value = null;
   try {
     const data = await apiService.getConfig();
     config.value = data;
+    await loadCacheStats();
   } catch (err: unknown) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -349,6 +377,34 @@ const saveMetricsConfig = async () => {
           <div class="config-row">
             <span class="label">Per-Route Metrics</span>
             <span class="value">{{ config.metrics?.enable_per_route_metrics ? 'Enabled' : 'Disabled' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- In-Memory Response Cache Card -->
+      <div class="config-card">
+        <div class="card-header">
+          <h3>⚡ In-Memory Response Cache</h3>
+          <button class="btn-card-edit" :disabled="cacheLoading" @click="handleFlushCache">
+            {{ cacheLoading ? 'Flushing...' : 'Flush Cache' }}
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="config-row">
+            <span class="label">Hit Ratio</span>
+            <span class="value font-bold text-primary">{{ cacheStats ? `${cacheStats.hit_ratio.toFixed(1)}%` : 'Active' }}</span>
+          </div>
+          <div class="config-row">
+            <span class="label">Hits / Misses</span>
+            <span class="value font-mono">{{ cacheStats ? `${cacheStats.hits} / ${cacheStats.misses}` : '0 / 0' }}</span>
+          </div>
+          <div class="config-row">
+            <span class="label">Stored Entries</span>
+            <span class="value font-mono">{{ cacheStats ? `${cacheStats.current_entries} / ${cacheStats.max_entries}` : '0 / 5,000' }}</span>
+          </div>
+          <div class="config-row">
+            <span class="label">Evictions</span>
+            <span class="value font-mono">{{ cacheStats?.evictions ?? 0 }}</span>
           </div>
         </div>
       </div>

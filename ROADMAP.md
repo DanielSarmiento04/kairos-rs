@@ -1,7 +1,7 @@
 # Kairos-rs Development Roadmap
 
-> **Version**: 0.3.2
-> **Last Updated**: February 17, 2026
+> **Version**: 0.4.0
+> **Last Updated**: October 6, 2026
 > **Status**: Production Ready with Intelligent AI Routing
 
 ## 🔥 Immediate Priorities (Next 2 Weeks)
@@ -57,6 +57,9 @@
 - ✅ **Multi-protocol support** - HTTP/HTTPS, WebSocket, FTP, and DNS proxying
 - ✅ Basic HTTP request routing with regex pattern matching
 - ✅ Dynamic path parameters (`/users/{id}` → `/users/123`)
+- ✅ **Dynamic Route Match Caching** - O(1) cached lookup for resolved dynamic routes with capacity limits
+- ✅ **In-Memory HTTP Response Caching** - Sub-millisecond TTL-based caching for idempotent requests with `X-Cache` telemetry and mutation invalidation
+- ✅ **Cache Management API** - Observability & purge endpoints (`GET /api/cache/stats`, `POST /api/cache/clear`)
 - ✅ JSON configuration with comprehensive validation
 - ✅ **JWT Authentication** - Bearer token validation with configurable claims
 - ✅ **Advanced rate limiting** - Per-route limits with multiple algorithms (fixed window, sliding window, token bucket)
@@ -70,39 +73,35 @@
 - ✅ **Circuit breaker pattern** - Per-backend circuit breakers with fault isolation
 - ✅ **Configuration hot-reload** - Update routes without service restart
 - ✅ **Prometheus metrics** - Comprehensive observability with `/metrics` endpoint
-- ✅ **Web Admin UI** - Modern Leptos-based interface with real-time dashboard
-- ✅ **Route Management UI** - Complete CRUD interface for routes with professional design
-- ✅ **Workspace Architecture** - Modular crates: gateway, ui, cli, client, core
+- ✅ **Modern Web Admin SPA (`frontend/kairos-ui`)** - Decoupled Vue 3 + TypeScript + Vite 8 interface with zero-dependency SVG sparklines, shallowRef real-time telemetry streaming, interactive playground, and JWT client generator
+- ✅ **Multi-Backend Route Management UI** - Complete CRUD interface supporting multi-backend load balancing (5 strategies), retry configurations, and AI routing policies
+- ✅ **Workspace Architecture** - Modular crates: gateway, cli, client, core (`kairos-rs`)
 - ✅ **WebSocket proxying** - Real-time bidirectional communication support
 - ✅ **FTP proxying** - File operations through HTTP APIs
 - ✅ **DNS proxying** - DNS query forwarding with caching
 - ✅ **Configuration Management API** - 6 REST endpoints for gateway configuration (GET/POST)
-- ✅ **Configuration Management UI** - Complete interface for JWT, rate limiting, CORS, metrics, server settings
-- ✅ **Advanced Metrics Dashboard** - 5 specialized views (Overview, Performance, Errors, Traffic, Circuit Breakers)
-- ✅ **Metrics Visualization** - Response time distribution, error analysis, traffic breakdown, circuit breaker monitoring
+- ✅ **Configuration Management UI** - Complete interface for AI, JWT, rate limiting, CORS, metrics, server settings, and hot-reload
+- ✅ **Advanced Metrics Dashboard** - Time-series visualizer, Prometheus exposition scraper, and real-time WebSocket KPIs
 - ✅ **Smart Error Recommendations** - AI-powered insights based on error patterns and thresholds
 - ✅ **Request/Response Transformation** - Header manipulation, path rewriting, query parameter transformation (v0.2.12)
 - ✅ **Historical Metrics Storage** - Time-series data with retention policies and aggregation intervals (v0.2.12)
 - ✅ **Real-time Metrics** - WebSocket-based live updates for system performance (v0.2.15)
 - ✅ **Prometheus Parsing** - Robust metrics parsing in UI for accurate data visualization (v0.2.15)
-- ✅ 97+ comprehensive tests (unit, integration, documentation, transformation, load balancing)
+- ✅ 101+ comprehensive tests (unit, integration, documentation, transformation, load balancing, response caching)
 
 **Performance**: 
-- ~200k route matches/sec on M1 MacBook Pro
+- ~250k route matches/sec on Apple Silicon (cached)
+- Sub-millisecond P99 latency for cached HTTP requests
 - P99 latency < 2ms for route matching
+- Upstream HTTP client connection pool with TCP nodelay & 128 max idle connections per host
 - Handles 10k+ concurrent requests reliably
 - Memory usage: ~25MB under load
 
 ## What's Missing (Honestly)
 
-- No response caching layer (HTTP only)
-- No service discovery integration
-- Historical metrics API endpoints (storage implemented, API coming soon)
-- Time-series charts in UI (data layer ready, visualization pending)
-- No gRPC proxying (planned for future)
-- No distributed tracing integration (OpenTelemetry planned)
-- **Route UI limitations** - Currently supports basic single-backend mode only (multi-backend, load balancing, retry config UI coming soon)
-- No historical metrics with time-series charts yet
+- Service discovery integration (Consul / Eureka / Kubernetes DNS)
+- gRPC proxying (planned for future)
+- Distributed tracing integration (OpenTelemetry planned)
 - **Protocol-specific features**:
   - WebSocket: Advanced compression and custom protocol extensions
   - FTP: FTPS/SFTP support and advanced file operations

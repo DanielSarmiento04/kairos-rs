@@ -1766,7 +1766,7 @@ dependencies = [
 
 [[package]]
 name = "kairos-cli"
-version = "0.2.11"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "clap",
@@ -1787,7 +1787,7 @@ dependencies = [
 
 [[package]]
 name = "kairos-client"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "futures-util",
@@ -1812,7 +1812,7 @@ dependencies = [
 
 [[package]]
 name = "kairos-gateway"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "actix-governor",
  "actix-web",
@@ -1826,7 +1826,7 @@ dependencies = [
 
 [[package]]
 name = "kairos-rs"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "actix-governor",
  "actix-web",

@@ -226,3 +226,18 @@ export interface PlaygroundResponse {
   headers: Record<string, string>;
   body: string;
 }
+
+export interface CacheStats {
+  hits: number;
+  misses: number;
+  hit_ratio: number;
+  evictions: number;
+  current_entries: number;
+  max_entries: number;
+}
+
+export interface CacheStatsResponse {
+  success: boolean;
+  data?: CacheStats;
+  message?: string;
+}

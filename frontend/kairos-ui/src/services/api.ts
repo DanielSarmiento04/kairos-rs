@@ -15,6 +15,7 @@ import type {
   AggregatedMetricPoint,
   PlaygroundRequest,
   PlaygroundResponse,
+  CacheStatsResponse,
 } from '../types';
 
 const API_BASE = '/api';
@@ -187,6 +188,23 @@ export const apiService = {
       message: res.ok ? 'Reloaded' : 'Failed to reload',
     }));
     if (!res.ok) throw new Error(data.message || 'Failed to reload config');
+    return data;
+  },
+
+  // Response Cache Management
+  async getCacheStats(): Promise<CacheStatsResponse> {
+    const res = await fetch(`${API_BASE}/cache/stats`);
+    if (!res.ok) throw new Error('Failed to fetch cache stats');
+    return res.json();
+  },
+
+  async clearCache(): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/cache/clear`, { method: 'POST' });
+    const data = await res.json().catch(() => ({
+      success: res.ok,
+      message: res.ok ? 'Cache cleared' : 'Failed to clear cache',
+    }));
+    if (!res.ok) throw new Error(data.message || 'Failed to clear cache');
     return data;
   },
 

@@ -149,6 +149,8 @@ pub struct RouteMatcher {
     static_routes: AHashMap<String, Router>,
     /// Vector of compiled dynamic routes sorted by specificity (most specific first)
     dynamic_routes: Vec<CompiledRoute>,
+    /// High-performance cache for resolved dynamic routes
+    match_cache: Arc<std::sync::RwLock<AHashMap<String, (Router, String)>>>,
 }
 
 impl RouteMatcher {
@@ -266,6 +268,7 @@ impl RouteMatcher {
         Ok(Self {
             static_routes,
             dynamic_routes,
+            match_cache: Arc::new(std::sync::RwLock::new(AHashMap::default())),
         })
     }
 
@@ -377,6 +380,13 @@ impl RouteMatcher {
             return Ok((route.clone(), route.internal_path.clone()));
         }
 
+        // Second, try dynamic route cache (O(1) lookup)
+        if let Ok(cache) = self.match_cache.read() {
+            if let Some((route, internal_path)) = cache.get(request_path) {
+                return Ok((route.clone(), internal_path.clone()));
+            }
+        }
+
         // Then, try dynamic routes
         for compiled_route in &self.dynamic_routes {
             if let Some(captures) = compiled_route.regex.captures(request_path) {
@@ -385,6 +395,17 @@ impl RouteMatcher {
                     &compiled_route.param_names,
                     &captures,
                 );
+
+                // Cache the resolved dynamic route (cap cache size to prevent unbounded memory growth)
+                if let Ok(mut cache) = self.match_cache.write() {
+                    if cache.len() < 5000 {
+                        cache.insert(
+                            request_path.to_string(),
+                            (compiled_route.router.clone(), transformed_path.clone()),
+                        );
+                    }
+                }
+
                 return Ok((compiled_route.router.clone(), transformed_path));
             }
         }
@@ -392,6 +413,13 @@ impl RouteMatcher {
         Err(RouteMatchError::NoMatch {
             path: request_path.to_string(),
         })
+    }
+
+    /// Clears the dynamic route match cache.
+    pub fn clear_cache(&self) {
+        if let Ok(mut cache) = self.match_cache.write() {
+            cache.clear();
+        }
     }
 
     /// Compiles a route pattern into a regex and extracts parameter names

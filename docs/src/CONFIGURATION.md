@@ -156,6 +156,130 @@ Control burst overflows comprehensively. Define `rate_limit` globally mapping ac
 
 ---
 
+---
+
+## Request & Response Transformations
+
+Kairos Gateway allows inline manipulation of headers, paths, query parameters, and status codes.
+
+```json
+{
+  "request_transformation": {
+    "headers": {
+      "add": {
+        "X-Gateway-Name": "Kairos",
+        "X-Forwarded-Client": "internal"
+      },
+      "remove": ["Cookie", "X-Unwanted-Header"],
+      "set": {
+        "User-Agent": "Kairos-Gateway/0.4.0"
+      }
+    },
+    "path": {
+      "pattern": "^/api/v1/(.*)",
+      "replacement": "/v2/$1"
+    },
+    "query": {
+      "add": {
+        "source": "gateway"
+      },
+      "remove": ["debug"],
+      "set": {
+        "format": "json"
+      }
+    }
+  },
+  "response_transformation": {
+    "headers": {
+      "add": {
+        "X-Served-By": "Kairos-Gateway",
+        "X-Frame-Options": "DENY"
+      },
+      "remove": ["Server", "X-Powered-By"]
+    },
+    "status_code_mapping": [
+      {
+        "from": 500,
+        "to": 503
+      }
+    ]
+  }
+}
+```
+
+### Transformation Fields
+
+- **`headers.add`**: Appends headers if not already present.
+- **`headers.remove`**: Strips headers before forwarding upstream or returning to the client.
+- **`headers.set`**: Overwrites existing header values unconditionally.
+- **`path.pattern` / `path.replacement`**: Standard regex matching and capture group replacement (e.g. `$1`, `$2`).
+- **`status_code_mapping`**: Translates upstream error codes (e.g., masking 500 internal server errors into 503 service unavailable).
+
+---
+
+## Response Cache Management
+
+The gateway features a sub-millisecond, in-memory response cache for idempotent HTTP requests (`GET`/`HEAD`).
+
+### Telemetry Headers
+- **`X-Cache: HIT`**: The response was served directly from memory in <0.5ms.
+- **`X-Cache: MISS`**: The request was forwarded to the upstream backend and cached.
+- **`X-Cache-TTL`**: Remaining lifetime of the cached response in seconds.
+
+### Administrative Endpoints
+- **Query Cache Stats (`GET /api/cache/stats`)**:
+  ```bash
+  curl http://localhost:5900/api/cache/stats
+  ```
+  Returns:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "hits": 1420,
+      "misses": 85,
+      "hit_ratio": 94.35,
+      "evictions": 0,
+      "current_entries": 42,
+      "max_entries": 5000
+    }
+  }
+  ```
+- **Purge Response Cache (`POST /api/cache/clear`)**:
+  ```bash
+  curl -X POST http://localhost:5900/api/cache/clear
+  ```
+
+---
+
+## Route Pre-Validation
+
+Before persisting new routes, validate their syntax, backend URLs, and regex patterns:
+
+```bash
+curl -X POST http://localhost:5900/api/routes/validate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "route": {
+      "external_path": "/api/v1/test",
+      "internal_path": "/test",
+      "methods": ["GET"],
+      "backends": [{ "host": "http://localhost", "port": 8080, "weight": 1 }]
+    }
+  }'
+```
+
+Returns:
+```json
+{
+  "valid": true,
+  "error": null,
+  "warnings": null
+}
+```
+
+---
+
 ## Hot Reload
 
 Kairos Gateway runs memory-safe hot reloading meaning server downtime is avoided.
