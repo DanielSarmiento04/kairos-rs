@@ -7,9 +7,9 @@
 ## 🔥 Immediate Priorities (Next 2 Weeks)
 
 1. **Historical Metrics API** - REST endpoints for time-series data queries
-2. **Metrics Charts UI** - Time-series visualization with interactive charts
+2. **[x] Metrics Charts UI** - Time-series visualization with interactive charts
 3. **Advanced Route Configuration UI** - Multi-backend, load balancing, and retry config forms
-4. **Transformation UI** - Visual editor for request/response transformations
+4. **[x] Transformation UI** - Visual editor for request/response transformations
 5. **Plugin System** - Explore WASM-based plugins for custom logic
 
 ## 🤖 AI/LLM Gateway Vision (Partially Delivered in v0.3.0)
@@ -102,7 +102,7 @@
 - No gRPC proxying (planned for future)
 - No distributed tracing integration (OpenTelemetry planned)
 - **Route UI limitations** - Currently supports basic single-backend mode only (multi-backend, load balancing, retry config UI coming soon)
-- No historical metrics with time-series charts yet
+- [x] No historical metrics with time-series charts yet
 - **Protocol-specific features**:
   - WebSocket: Advanced compression and custom protocol extensions
   - FTP: FTPS/SFTP support and advanced file operations
@@ -213,7 +213,7 @@
 - [ ] **Performance monitoring** - Latency histograms, throughput metrics
 - [x] **Historical metrics storage** - COMPLETED (v0.2.12) - Time-series data with retention and aggregation
 - [x] **Historical metrics API** - REST endpoints for querying time-series data (v0.3.2)
-- [ ] **Time-series charts** - Interactive visualization in UI (PLANNED)
+- [x] **Time-series charts** - Interactive visualization in UI (v0.5.0)
 - [ ] **Per-route analytics** - Detailed breakdown by route
 - [ ] **Distributed tracing** - OpenTelemetry integration
 - [ ] **Custom dashboards** - User-configurable metric views in UI
@@ -250,9 +250,9 @@
 
 1. **Historical metrics API endpoints** - REST API for querying time-series data
 2. **WebSocket real-time updates** - Replace polling with WebSocket connections  
-3. **Time-series charts UI** - Interactive visualization with zoom and custom time ranges
+3. **[x] Time-series charts UI** - Interactive visualization with zoom and custom time ranges
 4. **Advanced route configuration UI** - Multi-backend, load balancing, and retry config forms
-5. **Transformation UI** - Visual editor for request/response transformation rules
+5. **[x] Transformation UI** - Visual editor for request/response transformation rules
 
 ## Feature Requests We've Received
 
@@ -280,10 +280,10 @@ Based on feedback from users and contributors:
 
 1. **Try it out** - Use the gateway and admin UI, report issues
 2. **Historical metrics API** - Add REST endpoints for time-series data queries
-3. **Time-series charts** - Build interactive charts with zoom and time range selection
+3. **[x] Time-series charts** - Build interactive charts with zoom and time range selection
 4. **WebSocket real-time updates** - Replace polling with live connections
 5. **Advanced route UI** - Add multi-backend and load balancing configuration forms
-6. **Transformation UI** - Build visual editor for transformation rules
+6. **[x] Transformation UI** - Build visual editor for transformation rules
 7. **Improve documentation** - Add examples, fix typos, write tutorials
 8. **Write tests** - Expand test coverage for UI and gateway
 9. **Performance testing** - Load test and find bottlenecks

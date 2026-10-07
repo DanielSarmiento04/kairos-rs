@@ -1,3 +1,15 @@
 /target
 
 /pre
+
+# Node / Frontend
+node_modules/
+**/node_modules/
+
+# Build artifacts
+dist/
+**/dist/
+
+# Vite cache
+.vite/
+**/.vite/

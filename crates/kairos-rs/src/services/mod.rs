@@ -86,5 +86,6 @@ pub mod ftp;
 pub mod http;
 pub mod load_balancer;
 pub mod metrics_store;
+pub mod percentile;
 pub mod websocket;
 pub mod websocket_metrics;

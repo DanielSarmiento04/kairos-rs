@@ -20,9 +20,18 @@ const filterMethod = ref('ALL');
 const filterStatus = ref('ALL');
 const searchQuery = ref('');
 
+// Periodic health refresh (lightweight, in addition to WS metrics stream)
+let healthTimer: ReturnType<typeof setInterval> | null = null;
+
 onMounted(async () => {
   gatewayStore.connectWebSocket();
   gatewayStore.fetchHealth();
+
+  // Refresh health every 30s so status indicator reflects gateway restarts.
+  // Metrics stream via WS still drives the primary live updates.
+  healthTimer = setInterval(() => {
+    gatewayStore.fetchHealth();
+  }, 30_000);
 
   try {
     routes.value = await apiService.getRoutes();
@@ -67,7 +76,14 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  // Keep socket alive across views or gracefully disconnect if desired
+  // Clean up periodic health refresh
+  if (healthTimer) {
+    clearInterval(healthTimer);
+    healthTimer = null;
+  }
+  // Disconnect WS so we don't leak the socket across views; the store
+  // exposes connectWebSocket() for the next mount to re-establish.
+  gatewayStore.disconnectWebSocket();
 });
 
 const activeProtocols = computed(() => {

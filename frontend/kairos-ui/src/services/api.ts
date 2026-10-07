@@ -16,6 +16,8 @@ import type {
   RawHistoricalMetricPoint,
   PlaygroundRequest,
   PlaygroundResponse,
+  LatencyPercentileQuery,
+  PercentilePoint,
 } from '../types';
 
 const API_BASE = '/api';
@@ -233,6 +235,27 @@ export const apiService = {
     return res.text();
   },
 
+  // Latency Percentiles
+  //
+  // Fetches p50/p95/p99 (or any custom subset) derived from histogram
+  // observations. See `crates/kairos-rs/src/services/percentile.rs`.
+  async getLatencyPercentiles(
+    query: LatencyPercentileQuery,
+  ): Promise<PercentilePoint[]> {
+    const params = new URLSearchParams();
+    params.set('name', query.name);
+    params.set('start', query.start);
+    params.set('end', query.end);
+    params.set('interval', query.interval);
+    if (query.percentiles && query.percentiles.length > 0) {
+      params.set('percentiles', query.percentiles.join(','));
+    }
+    const res = await fetch(
+      `${API_BASE}/metrics/latency/percentiles?${params.toString()}`,
+    );
+    if (!res.ok) throw new Error('Failed to fetch latency percentiles');
+    return res.json();
+  },
   // Health Checks
   async getHealth(): Promise<HealthStatus> {
     const res = await fetch('/health');

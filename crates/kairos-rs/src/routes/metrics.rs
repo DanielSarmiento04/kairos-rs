@@ -4,6 +4,42 @@
 //! Kairos-rs gateway, including request counts, response times, error rates,
 //! histograms, memory usage, per-route statistics, and system health indicators.
 
+/// Retrieves latency percentile time-series from histogram buckets.
+///
+/// For each `interval`-sized window in `[start, end]`, computes the
+/// requested percentiles (p50/p95/p99 by default) by interpolating the
+/// cumulative distribution of `Histogram` buckets.
+///
+/// # Query Parameters
+///
+/// * `name` - Metric name (must contain histogram observations)
+/// * `start` - Start timestamp (ISO 8601)
+/// * `end` - End timestamp (ISO 8601)
+/// * `interval` - Aggregation interval (`one_minute`, `five_minutes`, ...)
+/// * `percentiles` - Optional comma-separated list, e.g. `50,95,99.9`.
+///   Defaults to `50,95,99`.
+///
+/// # Returns
+///
+/// JSON array of [`crate::services::percentile::PercentilePoint`] in
+/// chronological order. Empty array when the metric has no histogram data.
+pub async fn get_latency_percentiles(
+    store: web::Data<MetricsStore>,
+    query: web::Query<LatencyPercentileQuery>,
+) -> Result<HttpResponse> {
+    let pcts = query
+        .percentiles
+        .clone()
+        .unwrap_or_else(|| vec![50.0, 95.0, 99.0]);
+    let data = store.query_latency_percentiles(
+        &query.name,
+        query.start,
+        query.end,
+        &pcts,
+        query.interval,
+    );
+    Ok(HttpResponse::Ok().json(data))
+}
 use actix_web::{web, HttpResponse, Result};
 use crate::services::http::RouteHandler;
 use crate::services::metrics_store::{MetricsStore, AggregationInterval};
@@ -539,6 +575,25 @@ pub async fn get_historical_metrics(
     }
 }
 
+/// Query parameters for latency percentile retrieval.
+///
+/// Used by the `/api/metrics/latency/percentiles` endpoint to derive
+/// p50/p95/p99 (or any custom subset) from histogram observations stored
+/// in the metrics store.
+#[derive(Debug, Deserialize)]
+pub struct LatencyPercentileQuery {
+    /// Metric name. Must contain `MetricValue::Histogram` observations.
+    pub name: String,
+    /// Start of the time range (inclusive, ISO 8601).
+    pub start: DateTime<Utc>,
+    /// End of the time range (inclusive, ISO 8601).
+    pub end: DateTime<Utc>,
+    /// Window size used to bucket observations before computing the per-window CDF.
+    pub interval: AggregationInterval,
+    /// Percentile values to compute, e.g. `[50.0, 95.0, 99.0]`.
+    /// Defaults to `[50.0, 95.0, 99.0]` when omitted.
+    pub percentiles: Option<Vec<f64>>,
+}
 /// Configures the metrics endpoint route for Actix Web application.
 /// 
 /// This function registers the `/metrics` endpoint that exposes Prometheus-compatible
@@ -577,5 +632,6 @@ pub async fn get_historical_metrics(
 pub fn configure_metrics(cfg: &mut web::ServiceConfig) {
     cfg.route("/metrics", web::get().to(metrics_endpoint))
        .route("/api/metrics/list", web::get().to(list_metrics))
-       .route("/api/metrics/history", web::get().to(get_historical_metrics));
+       .route("/api/metrics/history", web::get().to(get_historical_metrics))
+       .route("/api/metrics/latency/percentiles", web::get().to(get_latency_percentiles));
 }

@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { apiService } from '../services/api';
 import type { Router, RouteBackend, Protocol, LoadBalancingStrategy, RetryConfig, AiPolicy } from '../types';
 import StatusBadge from '../components/StatusBadge.vue';
+import { TransformationEditor } from '../components/transformation';
 
 const routes = ref<Router[]>([]);
 const loading = ref(true);
@@ -10,7 +11,7 @@ const error = ref<string | null>(null);
 
 const showModal = ref(false);
 const isEditing = ref(false);
-const activeTab = ref<'general' | 'backends' | 'retry' | 'ai'>('general');
+const activeTab = ref<'general' | 'backends' | 'retry' | 'ai' | 'transform'>('general');
 
 const validationError = ref<string | null>(null);
 const validationWarnings = ref<string[]>([]);
@@ -312,6 +313,13 @@ const confirmDelete = async (route: Router) => {
           >
             AI Routing Policy
           </button>
+          <button
+            class="tab-btn"
+            :class="{ active: activeTab === 'transform' }"
+            @click="activeTab = 'transform'"
+          >
+            🔄 Transformations
+          </button>
         </div>
 
         <div class="modal-body">
@@ -544,6 +552,15 @@ const confirmDelete = async (route: Router) => {
                 </div>
               </div>
             </div>
+          </div>
+          <!-- Tab 5: Transformations -->
+          <div v-if="activeTab === 'transform'" class="tab-pane">
+            <TransformationEditor
+              :request-transformation="currentRoute.request_transformation ?? null"
+              :response-transformation="currentRoute.response_transformation ?? null"
+              @update:request-transformation="(v) => (currentRoute.request_transformation = v)"
+              @update:response-transformation="(v) => (currentRoute.response_transformation = v)"
+            />
           </div>
         </div>
 

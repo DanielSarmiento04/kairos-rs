@@ -454,6 +454,40 @@ impl MetricsStore {
         let mut series = self.series.write().unwrap();
         series.clear();
     }
-}
 
+    /// Queries latency percentiles (e.g. p50/p95/p99) from histogram
+    /// observations within `[start, end]`.
+    ///
+    /// Algorithm: group observations into `interval`-sized windows, build a
+    /// CDF from `MetricValue::Histogram` buckets, then linearly interpolate
+    /// the requested percentiles. See [`crate::services::percentile`] for the
+    /// implementation details.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Metric name (must contain `Histogram` observations)
+    /// * `start` - Start of the time range (inclusive)
+    /// * `end` - End of the time range (inclusive)
+    /// * `percentiles` - Slice of percentile values in `[0.0, 100.0]`,
+    ///   e.g. `&[50.0, 95.0, 99.0]`
+    /// * `interval` - Window size used to bucket observations before
+    ///   computing the per-window CDF
+    ///
+    /// # Returns
+    ///
+    /// Vector of [`crate::services::percentile::PercentilePoint`] in
+    /// chronological order. Empty when the metric is unknown, has no histogram
+    /// observations, or every bucket reports a zero count.
+    pub fn query_latency_percentiles(
+        &self,
+        name: &str,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        percentiles: &[f64],
+        interval: AggregationInterval,
+    ) -> Vec<crate::services::percentile::PercentilePoint> {
+        let points = self.query(name, start, end);
+        crate::services::percentile::compute_percentiles(&points, interval, percentiles)
+    }
+}
 

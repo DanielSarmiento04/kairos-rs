@@ -36,37 +36,50 @@ export interface AiPolicy {
   fallback_backend_index?: number | null;
 }
 
-export interface HeaderManipulation {
-  add?: Record<string, string>;
-  remove?: string[];
-  set?: Record<string, string>;
+// ─── Transformation (mirrors crates/kairos-rs/src/middleware/transform.rs) ───
+
+export type TransformAction = 'add' | 'set' | 'remove' | 'replace';
+
+export interface HeaderTransformation {
+  action: TransformAction;
+  name: string;
+  /** Required for action=add / set */
+  value?: string | null;
+  /** Only used for action=replace */
+  pattern?: string | null;
+  /** Only used for action=replace */
+  replacement?: string | null;
 }
 
-export interface PathRewriting {
+export interface PathTransformation {
+  /** Regex pattern, e.g. ^/api/v1/(.+)$ */
   pattern: string;
+  /** Replacement template with capture groups, e.g. /$1 */
   replacement: string;
 }
 
 export interface QueryTransformation {
-  add?: Record<string, string>;
-  remove?: string[];
-  set?: Record<string, string>;
+  action: TransformAction; // 'add' | 'set' | 'remove'
+  name: string;
+  value?: string | null;
 }
 
 export interface RequestTransformation {
-  headers?: HeaderManipulation | null;
-  path?: PathRewriting | null;
-  query?: QueryTransformation | null;
+  headers?: HeaderTransformation[] | null;
+  path?: PathTransformation | null;
+  query_params?: QueryTransformation[] | null;
 }
 
 export interface StatusCodeMapping {
-  from: number;
+  from: number; // HTTP status code (u16 in Rust, JSON number)
   to: number;
+  /** Optional condition expression (future); backend currently ignores */
+  condition?: string | null;
 }
 
 export interface ResponseTransformation {
-  headers?: HeaderManipulation | null;
-  status_code_mapping?: StatusCodeMapping[] | null;
+  headers?: HeaderTransformation[] | null;
+  status_code_mappings?: StatusCodeMapping[] | null;
 }
 
 export interface Router {
@@ -241,4 +254,81 @@ export interface PlaygroundResponse {
   latency_ms: number;
   headers: Record<string, string>;
   body: string;
+}
+
+// ─── Dashboards & Time-series Charts ──────────────────────────────────────────
+// Mirrors `crates/kairos-rs/src/services/percentile.rs` and the new
+// `/api/metrics/latency/percentiles` endpoint.
+
+/** One time-windowed percentile sample. `percentiles` is keyed by the
+ *  percentile value as a string with trailing zeros stripped
+ *  (e.g. `"50"`, `"95"`, `"99.9"`). */
+export interface PercentilePoint {
+  timestamp: string;
+  percentiles: Record<string, number>;
+}
+
+export interface LatencyPercentileQuery {
+  name: string;
+  start: string;
+  end: string;
+  interval: AggregationInterval;
+  percentiles?: number[];
+}
+
+export type TimeRangePreset =
+  | '5m'
+  | '15m'
+  | '1h'
+  | '6h'
+  | '24h'
+  | '7d'
+  | 'custom';
+
+export interface CustomTimeRange {
+  /** ISO 8601 timestamp. */
+  start: string;
+  /** ISO 8601 timestamp. */
+  end: string;
+}
+
+export type ChartType =
+  | 'requests'
+  | 'error_rate'
+  | 'latency_percentiles'
+  | 'active_connections'
+  | 'custom';
+
+export interface ChartConfig {
+  id: string;
+  type: ChartType;
+  /** Metric name for `requests` / `active_connections` / `custom`. */
+  metricName?: string;
+  /** Required when `type === 'latency_percentiles'`. */
+  percentiles?: number[];
+  timeRange: TimeRangePreset;
+  /** Use `'raw'` for raw points or any `AggregationInterval` for grouped. */
+  aggregation: AggregationInterval | 'raw';
+  /** 12-column CSS grid: 0-11 horizontal position. */
+  gridX: number;
+  /** Row index (auto-stacks by default). */
+  gridY: number;
+  /** Width in grid columns (1-12). */
+  gridW: number;
+  /** Height in grid rows. */
+  gridH: number;
+  /** Optional human-readable title; falls back to metricName / type. */
+  title?: string;
+  /** Optional route filter for per-route breakdown charts. */
+  routeFilter?: string[];
+}
+
+export interface DashboardLayout {
+  id: string;
+  name: string;
+  charts: ChartConfig[];
+  /** ISO 8601. */
+  createdAt: string;
+  /** ISO 8601. */
+  updatedAt: string;
 }
