@@ -732,6 +732,51 @@ pub async fn update_metrics_config(
     }))
 }
 
+/// Update response compression configuration (PR5 — Compression).
+///
+/// # Endpoint
+///
+/// `POST /api/config/compression`
+///
+/// # Request Body
+///
+/// JSON object with `enabled`, `level`, `min_size`, `content_types`, and
+/// `algorithms` fields. See
+/// `kairos_rs::middleware::compression::CompressionConfig` for the full
+/// schema.
+///
+/// # Response
+///
+/// ```json
+/// {
+///   "success": true,
+///   "message": "Compression configuration received. Server restart required to apply compression settings.",
+///   "config": { ... }
+/// }
+/// ```
+#[post("/api/config/compression")]
+pub async fn update_compression_config(
+    _manager: web::Data<RouteManager>,
+    compression_config: web::Json<crate::middleware::compression::CompressionConfig>,
+) -> impl Responder {
+    // Note: Compression configuration changes require a server restart
+    // to swap the actix-web `Compress` middleware with the configured
+    // one. Hot-reload will be added once the settings layer supports
+    // runtime replacement of middleware stacks.
+    let cfg = compression_config.into_inner();
+    if let Err(e) = cfg.validate() {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "success": false,
+            "error": e,
+        }));
+    }
+    HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "Compression configuration received. Server restart required to apply compression settings.",
+        "config": cfg,
+    }))
+}
+
 /// Update server configuration
 ///
 /// # Endpoint
@@ -944,6 +989,7 @@ pub fn configure_management(cfg: &mut web::ServiceConfig) {
         .service(update_rate_limit_config)
         .service(update_cors_config)
         .service(update_metrics_config)
+        .service(update_compression_config)
         .service(update_server_config)
         .service(update_ai_config)
         .service(get_cache_stats)

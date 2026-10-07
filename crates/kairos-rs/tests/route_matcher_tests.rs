@@ -19,6 +19,7 @@ fn create_test_routes() -> Vec<Router> {
             request_transformation: None,
             response_transformation: None,
             ai_policy: None,
+            cache: None,
         },
         Router {
             host: Some("https://google.com".to_string()),
@@ -34,6 +35,7 @@ fn create_test_routes() -> Vec<Router> {
             request_transformation: None,
             response_transformation: None,
             ai_policy: None,
+            cache: None,
         },
         Router {
             host: Some("https://http.cat".to_string()),
@@ -49,6 +51,7 @@ fn create_test_routes() -> Vec<Router> {
             request_transformation: None,
             response_transformation: None,
             ai_policy: None,
+            cache: None,
         },
         Router {
             host: Some("http://api.example.com".to_string()),
@@ -64,6 +67,7 @@ fn create_test_routes() -> Vec<Router> {
             request_transformation: None,
             response_transformation: None,
             ai_policy: None,
+            cache: None,
         },
         Router {
             host: Some("http://api.example.com".to_string()),
@@ -79,6 +83,7 @@ fn create_test_routes() -> Vec<Router> {
             request_transformation: None,
             response_transformation: None,
             ai_policy: None,
+            cache: None,
         },
         Router {
             host: Some("http://api.example.com".to_string()),
@@ -94,6 +99,7 @@ fn create_test_routes() -> Vec<Router> {
             request_transformation: None,
             response_transformation: None,
             ai_policy: None,
+            cache: None,
         },
         Router {
             host: Some("http://static.example.com".to_string()),
@@ -109,6 +115,7 @@ fn create_test_routes() -> Vec<Router> {
             request_transformation: None,
             response_transformation: None,
             ai_policy: None,
+            cache: None,
         },
         Router {
             host: Some("http://static.example.com".to_string()),
@@ -124,6 +131,7 @@ fn create_test_routes() -> Vec<Router> {
             request_transformation: None,
             response_transformation: None,
             ai_policy: None,
+            cache: None,
         },
     ]
 }
@@ -291,6 +299,7 @@ mod route_matcher_tests {
                 request_transformation: None,
                 response_transformation: None,
                 ai_policy: None,
+                cache: None,
             },
             Router {
                 host: Some("http://localhost".to_string()),
@@ -306,6 +315,7 @@ mod route_matcher_tests {
                 request_transformation: None,
                 response_transformation: None,
                 ai_policy: None,
+                cache: None,
             },
             Router {
                 host: Some("http://localhost".to_string()),
@@ -321,6 +331,7 @@ mod route_matcher_tests {
                 request_transformation: None,
                 response_transformation: None,
                 ai_policy: None,
+                cache: None,
             },
         ];
 

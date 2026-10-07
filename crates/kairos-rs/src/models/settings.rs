@@ -1,3 +1,4 @@
+use crate::middleware::compression::CompressionConfig;
 use crate::middleware::rate_limit::RateLimitConfig;
 use crate::models::router::Router;
 use serde::{Deserialize, Serialize};
@@ -135,6 +136,14 @@ pub struct Settings {
     /// AI capabilities configuration.
     #[serde(default)]
     pub ai: Option<AiSettings>,
+
+    /// Response compression configuration.
+    ///
+    /// When present and `enabled = true`, the gateway wraps every
+    /// response with the gzip/brotli/deflate middleware. When absent
+    /// or `enabled = false`, the gateway serves uncompressed responses.
+    #[serde(default)]
+    pub compression: Option<CompressionConfig>,
 
     /// Collection of route configurations defining how requests are forwarded.
     ///
