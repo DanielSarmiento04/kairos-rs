@@ -12,7 +12,7 @@ use serde_json::json;
 /// ```json
 /// {
 ///   "status": "healthy",
-///   "version": "0.2.1",
+///   "version": "0.4.0",
 ///   "timestamp": "2024-03-15T10:30:00Z",
 ///   "uptime": 3600
 /// }
