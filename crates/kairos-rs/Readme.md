@@ -26,7 +26,7 @@ Kairos-rs is a production-ready multi-protocol gateway with modern web UI that:
 - ✅ **Security features** - CORS policies, request size limits, security headers
 - ✅ **Observability** - Prometheus metrics, structured logging, health checks
 - ✅ **Configuration hot-reload** - Update routes without service restart
-- ✅ **Web Admin UI** - Modern Leptos-based interface with real-time dashboard and metrics
+- ✅ **Web Admin UI** - Modern Vue 3 + TypeScript SPA with real-time dashboard, response cache management, and route transformations
 - ✅ **Real-time Metrics** - WebSocket-based live updates for system performance and traffic
 - ✅ **Configuration Management** - Complete UI for JWT, rate limiting, CORS, metrics, and server settings
 - ✅ **Advanced Metrics Dashboard** - 5 specialized views with performance insights and error analysis
@@ -143,15 +143,12 @@ Gateway starts on `http://localhost:5900`
 
 ### 2. Start Web Admin UI (Optional)
 ```bash
-# Install cargo-leptos (one-time)
-cargo install cargo-leptos
-
-# Start UI in development mode
-cd crates/kairos-ui
-cargo leptos serve
+cd frontend/kairos-ui
+npm install
+npm run dev
 ```
 
-Admin UI available at `http://localhost:3000`
+Admin UI available at `http://localhost:5173` (proxies to gateway at `http://localhost:5900`)
 
 ### 3. Configure Routes
 Create a `config.json` file with advanced features:
@@ -276,10 +273,10 @@ The route matcher:
 ```
                            ┌─────────────────┐
                            │   Web Admin UI  │
-                           │  (Leptos 0.8)   │
-                           │  Port: 3000     │
+                           │(Vue 3+TS+Vite 8)│
+                           │  Port: 5173     │
                            └────────┬────────┘
-                                    │ HTTP
+                                    │ HTTP / WS
 ┌─────────────┐    HTTP    ┌───────▼─────────┐    HTTP    ┌─────────────┐
 │   Client    │ ────────▶  │  Kairos Gateway │ ────────▶  │  Backend    │
 │             │            │   Port: 5900    │            │  Service    │
@@ -290,6 +287,7 @@ The route matcher:
                               │   Routes     │ 
                               │     JWT      │
                               │ Rate Limits  │
+                              │ Cache/Xforms │
                               └──────────────┘
 ```
 
@@ -299,11 +297,12 @@ The route matcher:
 ```
 kairos-rs/
 ├── crates/
-│   ├── kairos-rs/        # Core library (models, routing logic)
+│   ├── kairos-rs/        # Core library (models, routing logic, caching)
 │   ├── kairos-gateway/   # Gateway binary (HTTP server)
-│   ├── kairos-ui/        # Web admin interface (Leptos SSR)
 │   ├── kairos-cli/       # Command-line interface
 │   └── kairos-client/    # Rust client library
+├── frontend/
+│   └── kairos-ui/        # Web admin interface (Vue 3 + TS + Vite 8 SPA)
 ```
 
 ### Core Features:
@@ -561,7 +560,7 @@ cargo test --workspace
 cargo test --package kairos-rs
 
 # Run UI tests only
-cd crates/kairos-ui && cargo test
+cd frontend/kairos-ui && npm run test:unit -- --run
 
 # Performance tests
 cargo test performance_tests -- --nocapture
@@ -685,7 +684,6 @@ cd kairos-rs
 
 # Install dev tools
 rustup component add rustfmt clippy
-cargo install cargo-leptos  # For UI development
 
 # Run checks
 cargo fmt --check --all
@@ -696,8 +694,8 @@ cargo test --workspace
 cargo run --bin kairos-gateway
 
 # Start UI (separate terminal)
-cd crates/kairos-ui
-cargo leptos serve
+cd frontend/kairos-ui
+npm install && npm run dev
 ```
 
 **Current code style:** Uses default rustfmt with workspace configuration. The codebase follows Rust best practices.
@@ -780,9 +778,10 @@ Built with these excellent Rust crates:
 - [prometheus](https://docs.rs/prometheus/) - Metrics collection
 
 **Admin UI:**
-- [Leptos](https://leptos.dev/) - Reactive web framework
-- [cargo-leptos](https://github.com/leptos-rs/cargo-leptos) - Development tooling
-- [WASM-bindgen](https://rustwasm.github.io/wasm-bindgen/) - WASM/JS interop
+- [Vue 3](https://vuejs.org/) - Progressive TypeScript Frontend Framework
+- [Vite 8](https://vite.dev/) - Next-generation frontend tooling
+- [Pinia](https://pinia.vuejs.org/) - State management
+- [Lucide Icons](https://lucide.dev/) - Modern UI iconography
 
 ---
 
