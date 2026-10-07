@@ -13,12 +13,14 @@ Kairos is designed to be a modern, production-ready gateway that handles not jus
 ### Key Features
 
 - 🚀 **High Performance**: Built with Rust and Actix-Web for maximum throughput and minimal latency.
+- ⚡ **In-Memory Caching**: High-throughput response caching with configurable TTL, auto-invalidation, and $O(1)$ dynamic route match caching.
+- 🔀 **Transformations**: Fine-grained request/response headers, path rewrites, query param modification, and status code mapping.
 - 🧠 **AI-Powered Routing**: Route requests dynamically based on content complexity using LLMs.
 - 🔄 **Multi-Protocol Support**: Seamlessly proxy HTTP/HTTPS, WebSockets, FTP, and DNS.
 - ⚖️ **Advanced Load Balancing**: Round-robin, least connections, random, weighted, and IP hash strategies.
 - 🛡️ **Robust Security**: Built-in JWT authentication, rate limiting, and request validation.
 - 🏥 **Resilience**: Circuit breakers, automatic health checks, and configurable retry logic with exponential backoff.
-- 📊 **Observability**: Prometheus metrics, real-time WebSocket metrics streaming, and a modern Web UI dashboard.
+- 📊 **Observability**: Prometheus metrics, real-time WebSocket metrics streaming, and a modern Vue 3 web UI dashboard.
 - 🔧 **Hot Reload**: Update your routing configuration without dropping a single connection.
 
 ## Quick Start
@@ -104,7 +106,9 @@ curl http://localhost:5900/health
 
 Explore the guides to unlock the full potential of Kairos Gateway:
 
-- [Configuration Guide](CONFIGURATION.md): Learn how to configure load balancing, rate limiting, and circuit breakers.
+- [Architecture & Design](ARCHITECTURE.md): Deep dive into internal modules, request lifecycle, and caching layers.
+- [Configuration Guide](CONFIGURATION.md): Learn how to configure load balancing, rate limiting, circuit breakers, and transformations.
+- [SSL Offloading & TLS Termination](SSL_OFFLOADING_GUIDE.md): Deploy behind reverse proxies (Nginx, Caddy, Cloud ALBs) with HTTPS and WebSocket offloading.
 - [AI Routing Guide](AI_ROUTING_GUIDE.md): Discover how to use LLMs for smart request routing.
-- [UI Dashboard](UI_DASHBOARD.md): Set up and use the real-time web administration interface.
+- [UI Dashboard](UI_DASHBOARD.md): Set up and use the real-time Vue 3 web administration interface.
 - [Examples](EXAMPLES.md): Try out ready-to-run Docker Compose examples.

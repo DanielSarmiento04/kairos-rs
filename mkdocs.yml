@@ -63,6 +63,7 @@ nav:
       - Configuration: CONFIGURATION.md
       - Error Handling: ERROR_HANDLING.md
       - UI Dashboard: UI_DASHBOARD.md
+      - SSL Offloading & TLS: SSL_OFFLOADING_GUIDE.md
       - Examples: EXAMPLES.md
       - AI Routing: AI_ROUTING_GUIDE.md
       - Postman: POSTMAN_GUIDE.md
