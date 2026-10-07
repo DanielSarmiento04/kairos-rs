@@ -5,7 +5,7 @@ use std::sync::atomic::Ordering;
 use crate::services::ai::AiService;
 use crate::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
 use crate::services::cache::{
-    compute_cache_key, is_cacheable, CachedResponse, InMemoryCache,
+    compute_cache_key, etag_matches, is_cacheable, CachedResponse, InMemoryCache,
     CacheService,
     should_cache_route,
 };
@@ -484,6 +484,28 @@ impl RouteHandler {
                         req.app_data::<web::Data<crate::routes::metrics::MetricsCollector>>()
                     {
                         metrics.cache_hits_total.fetch_add(1, Ordering::Relaxed);
+                    }
+                    // PR6: ETag/304 conditional handling. If the client
+                    // sent `If-None-Match` matching our cached ETag,
+                    // return 304 Not Modified with empty body — saves
+                    // bandwidth while still being cache-valid.
+                    if !hit.etag.is_empty() {
+                        if let Some(inm) = req
+                            .headers()
+                            .get(actix_web::http::header::IF_NONE_MATCH)
+                        {
+                            if let Ok(inm_str) = inm.to_str() {
+                                if etag_matches(inm_str, &hit.etag) {
+                                    debug!("Cache ETag 304 for {}", path);
+                                    return Ok(HttpResponse::NotModified()
+                                        .insert_header((
+                                            actix_web::http::header::ETAG,
+                                            hit.etag.as_str(),
+                                        ))
+                                        .finish());
+                                }
+                            }
+                        }
                     }
                     return Ok(hit.to_response());
                 }

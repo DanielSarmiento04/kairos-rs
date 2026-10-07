@@ -11,6 +11,7 @@ use tokio::sync::RwLock;
 
 use crate::models::router::Router;
 use crate::models::settings::{AiSettings, Settings};
+use crate::routes::metrics::MetricsCollector;
 use crate::services::http::RouteHandler;
 
 /// Shared state for route management operations.
@@ -929,18 +930,29 @@ pub async fn update_ai_config(
 #[get("/api/cache")]
 pub async fn get_cache_stats(
     route_handler: Option<web::Data<RouteHandler>>,
+    metrics_collector: Option<web::Data<MetricsCollector>>,
 ) -> impl Responder {
     match route_handler {
         Some(rh) => match rh.cache_stats() {
-            Some(stats) => HttpResponse::Ok().json(serde_json::json!({
-                "success": true,
-                "stats": {
-                    "hits": stats.hits,
-                    "misses": stats.misses,
-                    "entries": stats.entries,
-                    "hit_rate": stats.hit_rate,
+            Some(stats) => {
+                // Sync cache-evictions/size gauges into the Prometheus-style
+                // MetricsCollector so /metrics scrapes see up-to-date values.
+                // Evictions fire async from moka's listener, so we can't
+                // inline-update them on the request path.
+                if let Some(mc) = &metrics_collector {
+                    mc.sync_cache_stats(&stats);
                 }
-            })),
+                HttpResponse::Ok().json(serde_json::json!({
+                    "success": true,
+                    "stats": {
+                        "hits": stats.hits,
+                        "misses": stats.misses,
+                        "entries": stats.entries,
+                        "evictions": stats.evictions,
+                        "hit_rate": stats.hit_rate,
+                    }
+                }))
+            },
             None => HttpResponse::Ok().json(serde_json::json!({
                 "success": true,
                 "stats": null,

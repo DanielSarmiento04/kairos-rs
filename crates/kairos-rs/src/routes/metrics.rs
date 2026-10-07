@@ -41,6 +41,7 @@ pub async fn get_latency_percentiles(
     Ok(HttpResponse::Ok().json(data))
 }
 use actix_web::{web, HttpResponse, Result};
+use crate::services::cache::CacheStatsSnapshot;
 use crate::services::http::RouteHandler;
 use crate::services::metrics_store::{MetricsStore, AggregationInterval};
 use chrono::{DateTime, Utc};
@@ -133,6 +134,14 @@ pub struct MetricsCollector {
     pub cache_hits_total: Arc<AtomicU64>,
     /// Number of cache lookups that fell through to the upstream (counter)
     pub cache_misses_total: Arc<AtomicU64>,
+    /// Number of cache entries evicted (LRU/TTL/explicit) (counter).
+    /// Synced from [`crate::services::cache::InMemoryCache::stats`] via
+    /// `sync_cache_stats`. Evictions fire async from moka's eviction
+    /// listener, so we can't inline-update this on the request path.
+    pub cache_evictions_total: Arc<AtomicU64>,
+    /// Current number of entries in the cache (gauge). Synced from
+    /// `InMemoryCache::stats` via `sync_cache_stats`.
+    pub cache_size: Arc<AtomicU64>,
     /// Application start time for uptime calculations
     pub start_time: Instant,
     /// Per-route metrics, keyed by route external path (e.g. "/users/{id}").
@@ -165,6 +174,8 @@ impl Default for MetricsCollector {
             connection_errors: Arc::new(AtomicU64::new(0)),
             cache_hits_total: Arc::new(AtomicU64::new(0)),
             cache_misses_total: Arc::new(AtomicU64::new(0)),
+            cache_evictions_total: Arc::new(AtomicU64::new(0)),
+            cache_size: Arc::new(AtomicU64::new(0)),
             start_time: Instant::now(),
             routes: Arc::new(RwLock::new(HashMap::new())),
         }
@@ -323,6 +334,20 @@ impl MetricsCollector {
     pub fn record_route_cache_miss(&self, route_id: &str) {
         let rm = self.get_or_create_route(route_id);
         rm.cache_misses_total.fetch_add(1, Ordering::Relaxed);
+    }
+    /// Sync the cache-eviction and cache-size metrics from a fresh
+    /// snapshot. Called by the `/api/cache` handler and the cache
+    /// flush path so Prometheus scrapes see up-to-date values.
+    ///
+    /// `cache_hits_total` and `cache_misses_total` are still updated
+    /// inline on the request path (lower latency than a snapshot sync)
+    /// — only the gauge-style `cache_size` and the async-emitted
+    /// `cache_evictions_total` come through here.
+    pub fn sync_cache_stats(&self, snapshot: &CacheStatsSnapshot) {
+        self.cache_evictions_total
+            .store(snapshot.evictions, Ordering::Relaxed);
+        self.cache_size
+            .store(snapshot.entries, Ordering::Relaxed);
     }
 
     pub fn route_metrics_snapshot(&self) -> Vec<RouteMetricsSnapshot> {

@@ -31,6 +31,11 @@ pub struct CachedResponse {
     pub status: u16,
     pub headers: Vec<(String, String)>,
     pub body: Bytes,
+    /// Opaque ETag value (e.g. `"abcdef0123456789"`). Preserved from the
+    /// upstream `ETag` header when present, otherwise derived from the
+    /// response body via [`compute_etag`]. Empty string means
+    /// "no ETag available" — callers should skip 304 logic in that case.
+    pub etag: String,
 }
 
 /// Read-only snapshot of cache statistics.
@@ -39,6 +44,8 @@ pub struct CacheStatsSnapshot {
     pub hits: u64,
     pub misses: u64,
     pub entries: u64,
+    /// Total entries evicted (LRU + TTL + explicit invalidate). Counter.
+    pub evictions: u64,
     /// `hits / (hits + misses)`, or 0.0 if no requests yet.
     pub hit_rate: f64,
 }
@@ -55,11 +62,56 @@ pub trait CacheService: Send + Sync {
     async fn clear(&self);
 }
 
+/// Compute a strong ETag for a response body.
+///
+/// Uses `ahash` (non-cryptographic, fast, high-quality). The returned
+/// value is a strong ETag per RFC 7232 §2.3 — wrapped in double quotes,
+/// suitable for direct insertion into an `ETag` or `If-None-Match`
+/// header.
+///
+/// Note: this is NOT a cryptographic hash. A determined attacker could
+/// craft a body with the same hash, but for cache validation on a
+/// trusted gateway this is fine. If cryptographic guarantees are needed
+/// later, swap in `sha2` or `blake3`.
+pub fn compute_etag(body: &[u8]) -> String {
+    let mut hasher = AHasher::default();
+    hasher.write(body);
+    format!("\"{:016x}\"", hasher.finish())
+}
+
+/// Check whether an `If-None-Match` header value matches a stored ETag.
+///
+/// Per RFC 7232 §3.2, the comparison is byte-equivalent (the `W/` weak
+/// prefix is stripped before comparison). The wildcard `*` matches any
+/// current representation. Multiple ETags can be supplied as a
+/// comma-separated string — a match against any one of them counts.
+pub fn etag_matches(if_none_match: &str, etag: &str) -> bool {
+    let inm = if_none_match.trim();
+    if inm == "*" {
+        return true;
+    }
+    for tag in inm.split(',') {
+        let t = tag.trim();
+        // RFC 7232 §2.2: weak prefix is case-insensitive (W/ and w/ both
+        // valid). Strip it before comparison so weak-equality holds.
+        let stripped = if t.len() >= 2 && t[..2].eq_ignore_ascii_case("W/") {
+            &t[2..]
+        } else {
+            t
+        };
+        if stripped == etag {
+            return true;
+        }
+    }
+    false
+}
+
 /// In-memory LRU + TTL cache backed by [`moka`].
 pub struct InMemoryCache {
     cache: MokaCache<CacheKey, CachedResponse>,
     hits: Arc<AtomicU64>,
     misses: Arc<AtomicU64>,
+    evictions: Arc<AtomicU64>,
     default_ttl: Duration,
 }
 
@@ -69,14 +121,23 @@ impl InMemoryCache {
     /// * `max_capacity` - max number of entries before LRU eviction
     /// * `default_ttl` - default TTL applied to entries that don't override it
     pub fn new(max_capacity: u64, default_ttl: Duration) -> Self {
+        let evictions = Arc::new(AtomicU64::new(0));
+        let evictions_for_listener = Arc::clone(&evictions);
         let cache = MokaCache::builder()
             .max_capacity(max_capacity)
             .time_to_live(default_ttl)
+            .eviction_listener(move |_key, _value, _cause| {
+                // moka fires this on every eviction (LRU, TTL expiry,
+                // manual invalidate). We don't care about the cause,
+                // just count them — operators want to see eviction rate.
+                evictions_for_listener.fetch_add(1, Ordering::Relaxed);
+            })
             .build();
         Self {
             cache,
             hits: Arc::new(AtomicU64::new(0)),
             misses: Arc::new(AtomicU64::new(0)),
+            evictions,
             default_ttl,
         }
     }
@@ -121,6 +182,7 @@ impl CacheService for InMemoryCache {
     fn stats(&self) -> CacheStatsSnapshot {
         let hits = self.hits.load(Ordering::Relaxed);
         let misses = self.misses.load(Ordering::Relaxed);
+        let evictions = self.evictions.load(Ordering::Relaxed);
         let total = hits + misses;
         let hit_rate = if total == 0 {
             0.0
@@ -131,6 +193,7 @@ impl CacheService for InMemoryCache {
             hits,
             misses,
             entries: self.cache.entry_count(),
+            evictions,
             hit_rate,
         }
     }
@@ -205,9 +268,21 @@ impl CachedResponse {
     pub fn to_response(&self) -> HttpResponse {
         let status = StatusCode::from_u16(self.status).unwrap_or(StatusCode::OK);
         let mut builder = HttpResponse::build(status);
+        let mut etag_already_set = false;
         for (name, value) in &self.headers {
             if let (Ok(n), Ok(v)) = (HeaderName::try_from(name.as_str()), HeaderValue::from_str(value)) {
+                if n.as_str().eq_ignore_ascii_case("etag") {
+                    etag_already_set = true;
+                }
                 builder.insert_header((n, v));
+            }
+        }
+        // Inject our computed ETag only if the upstream didn't include one.
+        // This makes `If-None-Match` round-trips work for clients that
+        // ask us to cache even when the origin doesn't emit its own ETag.
+        if !etag_already_set && !self.etag.is_empty() {
+            if let Ok(v) = HeaderValue::from_str(&self.etag) {
+                builder.insert_header((actix_web::http::header::ETAG, v));
             }
         }
         builder.body(self.body.clone())
@@ -217,10 +292,20 @@ impl CachedResponse {
     /// and a pre-materialized body. The caller must already have read the
     /// response body into bytes (actix bodies are one-shot streams).
     pub fn from_response_parts(status: u16, headers: &[(String, String)], body: Bytes) -> Self {
+        // Preserve the upstream ETag if present, otherwise derive one
+        // from the body. This lets clients use `If-None-Match` for
+        // conditional GETs even when the origin didn't set its own
+        // ETag header.
+        let etag = headers
+            .iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case("etag"))
+            .map(|(_, v)| v.clone())
+            .unwrap_or_else(|| compute_etag(&body));
         Self {
             status,
             headers: headers.to_vec(),
             body,
+            etag,
         }
     }
 }
@@ -402,6 +487,7 @@ mod tests {
             status: 200,
             headers: vec![("content-type".to_string(), "application/json".to_string())],
             body: Bytes::from_static(b"{\"ok\":true}"),
+            etag: compute_etag(b"{\"ok\":true}"),
         };
         // miss first
         assert!(cache.get(&key).await.is_none());
@@ -430,6 +516,7 @@ mod tests {
                     status: 200,
                     headers: vec![],
                     body: Bytes::from_static(b"x"),
+                    etag: compute_etag(b"x"),
                 },
                 Duration::from_secs(60),
             )
@@ -450,6 +537,7 @@ mod tests {
                     status: 200,
                     headers: vec![],
                     body: Bytes::from_static(b"x"),
+                    etag: compute_etag(b"x"),
                 },
                 Duration::from_millis(100),
             )
