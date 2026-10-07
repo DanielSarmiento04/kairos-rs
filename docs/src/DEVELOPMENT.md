@@ -48,20 +48,29 @@ cargo run --bin kairos-gateway
 ```
 The server will start at `http://localhost:5900` by default.
 
-### 2. Kairos UI (Leptos)
+### 2. Kairos UI (Vue 3 + TypeScript)
 
-Working on the UI requires `cargo-leptos` and the WASM toolchain.
+The admin dashboard is a modern decoupled Single Page Application located in `frontend/kairos-ui`, built with **Vue 3**, **TypeScript**, and **Vite 8**.
+
+Prerequisites: Node.js 18+ and npm.
 
 ```bash
-# Install toolchain and cargo-leptos
-rustup target add wasm32-unknown-unknown
-cargo install cargo-leptos
+cd frontend/kairos-ui
 
-# Run the UI in development mode with HMR
-cd crates/kairos-ui
-cargo leptos serve
+# Install dependencies
+npm install
+
+# Run the dev server with hot module replacement (HMR)
+npm run dev
+
+# Run unit tests
+npm run test:unit -- --run
+
+# Run type checks and production build
+npm run build
 ```
-The UI dashboard will be available at `http://localhost:3000`. Keep the gateway running in a separate terminal so the UI can draw metrics (`http://localhost:5900/metrics/*`).
+
+The Vite dev server runs at `http://localhost:5173` and automatically proxies `/api`, `/health`, `/metrics`, and `/ws` to the backend gateway at `http://127.0.0.1:5900`.
 
 ### 3. Kairos CLI
 
