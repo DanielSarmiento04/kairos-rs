@@ -1,7 +1,7 @@
 # Kairos-rs Development Roadmap
 
-> **Version**: 0.3.2
-> **Last Updated**: February 17, 2026
+> **Version**: 0.4.0
+> **Last Updated**: October 6, 2026
 > **Status**: Production Ready with Intelligent AI Routing
 
 ## 🔥 Immediate Priorities (Next 2 Weeks)
