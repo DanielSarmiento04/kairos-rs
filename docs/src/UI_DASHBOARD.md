@@ -1,86 +1,106 @@
-# Web UI Dashboard
+# Web UI Dashboard (`frontend/kairos-ui`)
 
-Kairos Gateway includes a modern, production-ready web-based administration interface built with **Leptos 0.8**. The UI provides real-time monitoring, metrics visualization, and system health insights.
+Kairos Gateway includes a decoupled, high-performance web administration interface built with **Vue 3**, **TypeScript**, and **Vite 8**. The SPA connects directly to the gateway's REST API and real-time WebSocket metrics streams (`/ws/admin/metrics`).
+
+---
 
 ## Features
 
-- 📊 **Real-time Dashboard**: Live metrics with auto-refresh every 30 seconds.
-- 📈 **Metrics Visualization**: Comprehensive performance analytics and charts.
-- 🏥 **Health Monitoring**: Detailed health checks and system status.
-- ⚡ **High Performance**: Server-side rendering (SSR) with client-side hydration.
-- 🛡️ **Type-safe**: Full type safety from backend to frontend using shared Rust models.
+- 📊 **Real-Time Telemetry Dashboard**: Live WebSocket streaming with zero deep-reactivity overhead (`shallowRef` log streams), pause/resume, and custom zero-dependency SVG sparklines.
+- ⚡ **In-Memory Cache Monitoring**: Live observability for the response cache (`ResponseCache`) showing hits, misses, hit ratio %, stored entries, and instant cache purging.
+- 🗺️ **Comprehensive Route Management**: Full CRUD operations for routes with multi-backend load balancing (5 strategies: Round Robin, Least Connections, Random, Weighted, IP Hash), retry policies, AI routing policies, and pre-validation.
+- 🔄 **Visual Transformation Editor**: Visual editor for request and response transformations (header injection/stripping, regex path rewriting, query parameter modification, status code mapping).
+- ⚙️ **Interactive Configuration Management**: Forms for AI providers (OpenAI, Anthropic, Cohere, etc.), JWT authentication, rate limiting, CORS, server settings, Prometheus metrics, and one-click hot-reload (`/api/config/reload`).
+- 🧪 **Interactive Playground**: Send test prompts and HTTP queries with customized headers, body, and Bearer token injection while inspecting latency, headers, and response payloads.
+- 🔑 **Client & Token Manager**: Generate signed JWT tokens with customizable claims (`sub`, `iss`, `aud`), and decode existing tokens.
+- 📈 **Time-Series Observability**: Query historical metrics (`/api/metrics/history`) with configurable aggregation intervals and inspect raw Prometheus metrics (`/metrics`).
+
+---
 
 ## Quick Start
 
 ### Prerequisites
 
-1. **Kairos Gateway must be running** on port 5900.
-2. **Rust and Cargo** must be installed.
-3. **cargo-leptos** must be installed (one-time setup):
+1. **Kairos Gateway running** on `http://localhost:5900`.
+2. **Node.js** (v20+ recommended) and **npm**.
+
+### Development Mode
+
+Start the Vite development server with instant HMR and proxying to the gateway:
 
 ```bash
-cargo install cargo-leptos
+# Using the root helper script:
+./dev.sh ui
+
+# Or directly from the frontend directory:
+cd frontend/kairos-ui
+npm install
+npm run dev
 ```
 
-### Running the UI
+The UI will be available at: **http://localhost:5173**
 
-Start the UI development server with hot reload:
+Vite's development server automatically proxies `/api`, `/health`, `/metrics`, and `/ws` to the Rust gateway running on port `5900`.
+
+---
+
+## Building for Production
+
+To create an optimized, production-ready static bundle:
 
 ```bash
-cd crates/kairos-ui
-cargo leptos serve
+cd frontend/kairos-ui
+npm run build
 ```
 
-The UI will be available at: **http://localhost:3000**
+This compiles optimized assets to `frontend/kairos-ui/dist` in ~250ms with minified JavaScript and CSS chunks.
 
-### Building for Production
-
-To build optimized production artifacts:
+### Type-Checking & Unit Testing
 
 ```bash
-cd crates/kairos-ui
-cargo leptos build --release
-./target/release/kairos-ui
+cd frontend/kairos-ui
+
+# Run Vue TypeScript type checker
+npm run type-check
+
+# Run Vitest unit tests
+npm run test:unit -- --run
 ```
 
-## Dashboard Overview
+---
 
-The main dashboard (`/`) provides a comprehensive view of your gateway's performance:
+## Architecture & Views
 
-- **Real-time Metrics**: Total request counts, success rates, and average response times.
-- **Error Breakdown**: Visual breakdown of 4xx/5xx errors, timeouts, and connection failures.
-- **Response Time Distribution**: Histogram showing performance buckets (e.g., <50ms, 50-200ms, >200ms).
-- **Circuit Breakers**: Live status of all circuit breakers across your backends.
-- **Data Transfer**: Total bytes sent and received.
+### 1. Dashboard (`/`)
+- **Live KPIs**: Total requests, active connections, success rate, and uptime.
+- **Sparklines**: Rolling time-series SVG charts for request rate and concurrency.
+- **In-Memory Response Cache**: Displays current hit ratio, hits, misses, stored entries, and target latency.
+- **High-Throughput Telemetry Log Stream**: Powered by `shallowRef` to prevent Vue deep-proxy overhead when ingesting hundreds of logs per second.
 
-## Health Monitoring
+### 2. Routes (`/routes`)
+- **Route Matrix**: Visual table displaying external paths, protocols (`http`, `websocket`, `ftp`, `dns`), upstream backends, and active features (AI policies, transformations).
+- **Interactive Route Editor**:
+  - **General**: External path (with `{param}` support), internal destination, protocol, allowed methods, and JWT requirement.
+  - **Backends & Load Balancer**: Multi-target weighted endpoints and load-balancing strategy selection.
+  - **Retry Policy**: Exponential backoff multiplier, initial/max backoff, and retryable status codes.
+  - **AI Routing Policy**: Content analysis, dynamic model selection, and fallback targets.
+  - **Transformations**: Request header manipulation, regex path rewriting, and response status code translations.
+  - **Live Pre-Validation**: Tests route configuration against `/api/routes/validate` before saving.
 
-The Health page (`/health`) provides detailed diagnostics:
+### 3. Configuration (`/config`)
+- Modular cards for editing gateway subsystems: AI models, JWT secrets, Rate Limiting algorithms, Server threads, CORS rules, and Response Cache.
+- **Live Hot Reload**: Triggers `POST /api/config/reload` to apply updates without service downtime.
+- **Raw JSON Display**: Syntax-highlighted view of `config.json` with one-click copy.
 
-- **General Status**: Overall gateway health, version, and uptime.
-- **Readiness Probe**: Kubernetes-compatible readiness status.
-- **Liveness Probe**: Kubernetes-compatible liveness status.
-- **Backend Connectivity**: Status of individual backend services.
+### 4. Interactive Playground (`/playground`)
+- Real-time route and prompt tester.
+- Custom HTTP method, path, request headers, Bearer authentication token, and JSON payload.
+- Detailed response inspection: Status code, duration in milliseconds, response headers, and formatted body.
 
-## Configuration
+### 5. Client Token Manager (`/clients`)
+- Issue new JWT tokens with configurable secret, expiry, issuer, and audience.
+- Paste and inspect existing JWT tokens to view decoded header, claims, and validity status.
 
-The UI connects to the Kairos Gateway API. You can configure the connection using environment variables:
-
-```bash
-# Gateway base URL (default: http://localhost:5900)
-KAIROS_GATEWAY_URL=http://localhost:5900
-
-# Leptos server address (default: 127.0.0.1:3000)
-LEPTOS_SITE_ADDR=127.0.0.1:3000
-```
-
-## Architecture
-
-The Kairos UI is built using Leptos 0.8's Server-Side Rendering (SSR) capabilities. This provides:
-
-- Fast initial page loads.
-- SEO-friendly content.
-- Progressive enhancement.
-- Client-side hydration for rich interactivity.
-
-API communication is handled seamlessly through Leptos server functions, ensuring type safety and efficient data fetching from the gateway's Prometheus metrics and management endpoints.
+### 6. Metrics & Observability (`/metrics`)
+- Historical time-series query interface for `requests_total`, `requests_error`, `active_connections`, and `response_time_avg`.
+- Raw Prometheus exposition viewer for `/metrics`.
