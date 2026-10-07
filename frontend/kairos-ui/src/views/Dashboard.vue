@@ -233,7 +233,7 @@ const clearLogs = () => {
         <div class="stat-body">
           <div class="stat-value uptime-text">{{ formatUptime(gatewayStore.metrics.uptime) }}</div>
         </div>
-        <div class="stat-footer">Gateway v0.3.2 (Production)</div>
+        <div class="stat-footer">Gateway v0.4.0 (Production)</div>
       </div>
     </div>
 

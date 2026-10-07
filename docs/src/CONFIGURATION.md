@@ -172,7 +172,7 @@ Kairos Gateway allows inline manipulation of headers, paths, query parameters, a
       },
       "remove": ["Cookie", "X-Unwanted-Header"],
       "set": {
-        "User-Agent": "Kairos-Gateway/0.3.2"
+        "User-Agent": "Kairos-Gateway/0.4.0"
       }
     },
     "path": {

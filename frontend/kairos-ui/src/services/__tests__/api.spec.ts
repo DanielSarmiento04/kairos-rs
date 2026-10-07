@@ -76,12 +76,12 @@ describe('apiService', () => {
   it('fetches health check endpoint', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ status: 'healthy', version: '0.3.2', uptime: 100 }),
+      json: async () => ({ status: 'healthy', version: '0.4.0', uptime: 100 }),
     });
 
     const health = await apiService.getHealth();
     expect(health.status).toBe('healthy');
-    expect(health.version).toBe('0.3.2');
+    expect(health.version).toBe('0.4.0');
   });
 
   it('fetches cache stats successfully', async () => {
