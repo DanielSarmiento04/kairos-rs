@@ -179,6 +179,22 @@ const disableRequestTransform = () => {
   currentRoute.value.request_transformation = null;
 };
 
+const addRouteAiFallback = () => {
+  if (!currentRoute.value.ai_policy) return;
+  if (!currentRoute.value.ai_policy.fallback_providers) {
+    currentRoute.value.ai_policy.fallback_providers = [];
+  }
+  currentRoute.value.ai_policy.fallback_providers.push({
+    provider: 'anthropic',
+    model: 'claude-3-5-sonnet',
+    api_key: '',
+  });
+};
+
+const removeRouteAiFallback = (index: number) => {
+  currentRoute.value.ai_policy?.fallback_providers?.splice(index, 1);
+};
+
 const enableResponseTransform = () => {
   if (!currentRoute.value.response_transformation) {
     currentRoute.value.response_transformation = {
@@ -641,6 +657,14 @@ const confirmDelete = async (route: Router) => {
               </div>
 
               <div class="form-group">
+                <label class="checkbox-label">
+                  <input v-model="currentRoute.ai_policy.streaming" type="checkbox" />
+                  <span>⚡ Stream Responses (SSE / Chunked Passthrough)</span>
+                </label>
+                <span class="help-text">Directly forwards upstream LLM tokens without cache buffering.</span>
+              </div>
+
+              <div class="form-group">
                 <label>AI Strategy</label>
                 <select v-model="currentRoute.ai_policy.strategy" class="form-control">
                   <option value="content_analysis">Content Analysis (Context & Intent Routing)</option>
@@ -651,7 +675,7 @@ const confirmDelete = async (route: Router) => {
 
               <div class="form-row">
                 <div class="form-group half">
-                  <label>AI Provider</label>
+                  <label>Primary AI Provider</label>
                   <select v-model="currentRoute.ai_policy.provider" class="form-control">
                     <option value="openai">OpenAI</option>
                     <option value="anthropic">Anthropic</option>
@@ -659,6 +683,7 @@ const confirmDelete = async (route: Router) => {
                     <option value="groq">Groq</option>
                     <option value="mistral">Mistral</option>
                     <option value="perplexity">Perplexity</option>
+                    <option value="xai">xAI (Grok)</option>
                   </select>
                 </div>
 
@@ -670,6 +695,34 @@ const confirmDelete = async (route: Router) => {
                     min="0"
                     class="form-control"
                   />
+                </div>
+              </div>
+
+              <!-- Policy Fallback Providers -->
+              <div class="policy-fallback-section">
+                <div class="policy-fallback-header">
+                  <label class="section-subtitle">Multi-Provider Failover Chain</label>
+                  <button type="button" class="btn-sub-action" @click="addRouteAiFallback">+ Add Fallback</button>
+                </div>
+                <div v-if="!currentRoute.ai_policy.fallback_providers || currentRoute.ai_policy.fallback_providers.length === 0" class="empty-fallback-hint">
+                  <span>No route-specific fallback providers configured (will use global AI settings if primary fails).</span>
+                </div>
+                <div v-else class="policy-fallback-list">
+                  <div v-for="(fp, idx) in currentRoute.ai_policy.fallback_providers" :key="idx" class="policy-fallback-row">
+                    <span class="fallback-num">#{{ idx + 1 }}</span>
+                    <select v-model="fp.provider" class="form-control form-control-sm">
+                      <option value="openai">OpenAI</option>
+                      <option value="anthropic">Anthropic</option>
+                      <option value="cohere">Cohere</option>
+                      <option value="groq">Groq</option>
+                      <option value="mistral">Mistral</option>
+                      <option value="perplexity">Perplexity</option>
+                      <option value="xai">xAI</option>
+                    </select>
+                    <input v-model="fp.model" type="text" placeholder="model name" class="form-control form-control-sm" />
+                    <input v-model="fp.api_key" type="password" placeholder="api key (opt)" class="form-control form-control-sm" />
+                    <button type="button" class="btn-remove-sub" @click="removeRouteAiFallback(idx)">✕</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1341,4 +1394,62 @@ const confirmDelete = async (route: Router) => {
 }
 
 .mt-4 { margin-top: 16px; }
+
+/* Policy Fallback Providers */
+.policy-fallback-section {
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 12px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.policy-fallback-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-subtitle {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.empty-fallback-hint {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.policy-fallback-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.policy-fallback-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fallback-num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  min-width: 20px;
+}
+
+.btn-remove-sub {
+  background: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
 </style>

@@ -1,27 +1,28 @@
-# AI-Powered Request Routing Guide
+# AI-Powered Request Routing & Streaming Guide
 
-Kairos-rs (v0.3.0+) introduces pioneering AI-driven routing capabilities, allowing the gateway to make intelligent decisions about where to forward requests based on their content, intent, and complexity.
+Kairos-rs (v0.4.1+) features an AI-driven routing and orchestration layer powered by `rig-core` 0.44.0. It provides intelligent request classification, multi-provider automated failover chains, and low-latency Server-Sent Events (SSE) streaming proxying.
 
 This guide explains how to configure and use the AI orchestration layer.
 
 ## Overview
 
-The AI Routing feature uses Large Language Models (LLMs) to analyze incoming HTTP requests (method, path, headers, and body preview) and select the most appropriate backend service from a list of available candidates.
+The AI Routing feature leverages Large Language Models (LLMs) to analyze incoming HTTP requests (method, path, headers, and body preview) and select the most appropriate backend service from a list of available candidates.
 
-**Key Use Cases:**
-- **Content-Based Routing**: Route complex queries to GPT-4 and simple ones to faster/cheaper models.
+**Key Capabilities:**
+- **Content-Based Routing**: Route complex queries to frontier models and simpler ones to faster, cheaper endpoints.
 - **Intent Analysis**: Classify user intent and route to specialized microservices.
-- **Smart Load Distribution**: Intelligently distribute load based on request difficulty rather than just connection count.
+- **Multi-Provider Failover Chains**: Automatically fail over from primary to secondary providers (e.g. OpenAI → Anthropic → Groq) upon rate limits, 5xx errors, or timeouts.
+- **Real-Time Token Streaming**: Forward chunked/SSE responses without memory buffering, setting anti-buffering headers and bypassing response caches.
 
 ## Configuration
 
-To enable AI routing, you need to configure two parts:
-1. Global AI Settings (Provider & Model)
-2. Per-Route AI Policies
+To enable AI routing and orchestration, configure:
+1. Global AI Settings (Primary Provider, Default Model, and Global Fallbacks)
+2. Per-Route AI Policies (Enabled, Strategy, Provider overrides, Fallback providers, and Streaming toggle)
 
 ### 1. Global AI Settings
 
-Add the `ai` section to your `config.json`. You can support various providers via `rig-core`.
+Add the `ai` section to your `config.json` with primary and optional fallback providers:
 
 ```json
 {
@@ -29,7 +30,18 @@ Add the `ai` section to your `config.json`. You can support various providers vi
   "ai": {
     "provider": "openai",
     "model": "gpt-4o",
-    "api_key": "sk-..." // Optional: prefer using env vars
+    "api_key": "sk-...",
+    "fallback_providers": [
+      {
+        "provider": "anthropic",
+        "model": "claude-3-5-sonnet",
+        "api_key": "sk-ant-..."
+      },
+      {
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile"
+      }
+    ]
   },
   "routers": [...]
 }
@@ -70,7 +82,14 @@ Enable AI routing for a specific route by adding an `ai_policy`.
       }
     },
     "provider": "openai",
-    "fallback_backend_index": 0
+    "fallback_backend_index": 0,
+    "streaming": true,
+    "fallback_providers": [
+      {
+        "provider": "anthropic",
+        "model": "claude-3-5-sonnet"
+      }
+    ]
   },
   "backends": [
     {
@@ -94,6 +113,17 @@ Enable AI routing for a specific route by adding an `ai_policy`.
 4. The AI analyzes the request and returns an index (e.g., `1` for "smart-service").
 5. The gateway forwards the request to the selected backend.
 6. If the AI fails or is too slow, it falls back to `fallback_backend_index` (index 0).
+
+## SSE Streaming & Token Passthrough
+
+When streaming LLM completions or chat interactions (`text/event-stream`, `application/x-ndjson`, or route policy `streaming: true`):
+1. **Zero-Buffering**: Upstream chunks are yielded directly via `futures_util::TryStream` without buffering the entire payload into RAM.
+2. **Cache Bypass**: Streaming responses bypass the `ResponseCache` entirely to ensure real-time delivery and prevent stale or corrupted partial cached entries.
+3. **Anti-Buffering Headers**: Kairos automatically injects downstream proxy headers:
+   - `X-Accel-Buffering: no` (disables buffering in Nginx reverse proxies)
+   - `Cache-Control: no-cache, no-transform`
+   - `X-Streaming: true`
+4. **Time To First Token (TTFT)**: Minimized to network RTT without intermediate serialization bottlenecks.
 
 ## Performance Considerations
 

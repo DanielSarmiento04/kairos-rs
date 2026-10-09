@@ -14,6 +14,9 @@ const requestBody = ref<string>('{\n  "prompt": "Hello Kairos Gateway AI, how do
 const loading = ref(false);
 const responseData = ref<PlaygroundResponse | null>(null);
 const rawJwtToken = ref<string>('');
+const isStreaming = ref<boolean>(false);
+const streamTtftMs = ref<number | null>(null);
+const streamChunkCount = ref<number>(0);
 
 onMounted(async () => {
   try {
@@ -23,6 +26,9 @@ onMounted(async () => {
       selectedRoute.value = firstRoute.external_path;
       path.value = firstRoute.external_path;
       method.value = firstRoute.methods[0] || 'GET';
+      if (firstRoute.ai_policy?.streaming) {
+        isStreaming.value = true;
+      }
     }
   } catch (err: unknown) {
     console.error('Failed to load routes in playground:', err);
@@ -35,6 +41,9 @@ const onRouteSelect = () => {
     const found = routes.value.find(r => r.external_path === selectedRoute.value);
     if (found && found.methods.length > 0 && found.methods[0]) {
       method.value = found.methods[0];
+    }
+    if (found?.ai_policy?.streaming) {
+      isStreaming.value = true;
     }
   }
 };
@@ -52,6 +61,8 @@ const addBearerAuth = () => {
 const sendRequest = async () => {
   loading.value = true;
   responseData.value = null;
+  streamTtftMs.value = null;
+  streamChunkCount.value = 0;
 
   let parsedHeaders: Record<string, string> = {};
   try {
@@ -59,6 +70,74 @@ const sendRequest = async () => {
   } catch {
     alert('Headers must be valid JSON');
     loading.value = false;
+    return;
+  }
+
+  if (isStreaming.value) {
+    responseData.value = {
+      status: 200,
+      statusText: 'Streaming...',
+      latency_ms: 0,
+      headers: {},
+      body: '',
+    };
+    const startTime = performance.now();
+
+    try {
+      if (!parsedHeaders['Accept']) {
+        parsedHeaders['Accept'] = 'text/event-stream';
+      }
+      const response = await fetch(path.value, {
+        method: method.value,
+        headers: parsedHeaders,
+        body: method.value !== 'GET' && method.value !== 'HEAD' ? requestBody.value : undefined,
+      });
+
+      const responseHeaders: Record<string, string> = {};
+      response.headers.forEach((val, key) => {
+        responseHeaders[key] = val;
+      });
+
+      responseData.value.status = response.status;
+      responseData.value.statusText = response.statusText;
+      responseData.value.headers = responseHeaders;
+
+      if (!response.body) {
+        responseData.value.body = 'No response body stream received from server.';
+        loading.value = false;
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+
+      while (!done) {
+        const { value, done: streamDone } = await reader.read();
+        done = streamDone;
+        if (value) {
+          if (streamTtftMs.value === null) {
+            streamTtftMs.value = Math.round(performance.now() - startTime);
+          }
+          streamChunkCount.value++;
+          const textChunk = decoder.decode(value, { stream: !done });
+          responseData.value.body += textChunk;
+          responseData.value.latency_ms = Math.round(performance.now() - startTime);
+        }
+      }
+    } catch (err: unknown) {
+      const errStr = err instanceof Error ? err.message : String(err);
+      if (responseData.value) {
+        responseData.value.status = 0;
+        responseData.value.statusText = 'Streaming Error';
+        responseData.value.body = errStr;
+      }
+    } finally {
+      loading.value = false;
+      if (responseData.value) {
+        responseData.value.latency_ms = Math.round(performance.now() - startTime);
+      }
+    }
     return;
   }
 
@@ -126,6 +205,15 @@ const sendRequest = async () => {
             <button class="btn-auth-add" @click="addBearerAuth">+ Insert Bearer Token</button>
           </div>
 
+          <!-- Streaming & Mode Options -->
+          <div class="stream-option-row">
+            <label class="stream-checkbox-label">
+              <input v-model="isStreaming" type="checkbox" />
+              <span class="stream-label-text">⚡ Enable Server-Sent Events (SSE) Streaming</span>
+            </label>
+            <span v-if="isStreaming" class="stream-hint">Bypasses response cache & yields tokens in real time</span>
+          </div>
+
           <!-- Headers Editor -->
           <div class="editor-section">
             <label>Request Headers (JSON)</label>
@@ -146,6 +234,12 @@ const sendRequest = async () => {
           <h3>Gateway Response</h3>
           <div v-if="responseData" class="response-meta">
             <StatusBadge type="status" :value="responseData.status" />
+            <span v-if="streamTtftMs !== null" class="ttft-badge">
+              ⏱️ TTFT: {{ streamTtftMs }} ms
+            </span>
+            <span v-if="streamChunkCount > 0" class="chunks-badge">
+              📦 {{ streamChunkCount }} chunks
+            </span>
             <span class="latency-badge" :class="{ fast: responseData.latency_ms < 50 }">
               ⚡ {{ responseData.latency_ms }} ms
             </span>
@@ -381,6 +475,56 @@ const sendRequest = async () => {
 .latency-badge.fast {
   background: #ecfdf5;
   color: #059669;
+}
+
+.ttft-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+
+.chunks-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+/* Streaming Controls */
+.stream-option-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.stream-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.stream-label-text {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.stream-hint {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-left: 22px;
 }
 
 .response-placeholder {
