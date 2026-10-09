@@ -17,6 +17,7 @@ use reqwest::{
     header::HeaderMap as ReqwestHeaderMap, header::HeaderName, header::HeaderValue, Client,
     Method as ReqwestMethod,
 };
+use futures_util::TryStreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
@@ -533,12 +534,18 @@ impl RouteHandler {
                     );
 
                     let ai_service = self.ai_service.as_ref().unwrap();
+                    let fallbacks = if !policy.fallback_providers.is_empty() {
+                        Some(policy.fallback_providers.as_slice())
+                    } else {
+                        None
+                    };
                     match ai_service
-                        .predict_backend(
+                        .predict_backend_with_fallbacks(
                             &req_info,
                             &backends,
                             policy.provider.as_deref(),
                             model.as_deref(),
+                            fallbacks,
                         )
                         .await
                     {
@@ -693,6 +700,33 @@ impl RouteHandler {
                                 cached_headers.push((key.as_str().to_string(), val_str.to_string()));
                             }
                         }
+                    }
+
+                    // Check if response is an SSE or chunked stream
+                    let is_sse_content_type = response
+                        .headers()
+                        .get(reqwest::header::CONTENT_TYPE)
+                        .and_then(|v| v.to_str().ok())
+                        .map(|ct| ct.contains("text/event-stream") || ct.contains("application/x-ndjson"))
+                        .unwrap_or(false);
+
+                    let is_route_streaming = route
+                        .ai_policy
+                        .as_ref()
+                        .and_then(|p| p.streaming)
+                        .unwrap_or(false);
+
+                    if is_sse_content_type || is_route_streaming {
+                        debug!("Streaming passthrough enabled for route: {}", route.external_path);
+                        builder.insert_header(("Cache-Control", "no-cache, no-transform"));
+                        builder.insert_header(("X-Accel-Buffering", "no"));
+                        builder.insert_header(("X-Streaming", "true"));
+
+                        let stream = response.bytes_stream().map_err(|e| {
+                            actix_web::error::ErrorBadGateway(format!("Upstream streaming error: {}", e))
+                        });
+
+                        return Ok(builder.streaming(stream));
                     }
 
                     if self.response_cache.is_some() {

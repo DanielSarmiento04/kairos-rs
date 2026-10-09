@@ -371,6 +371,15 @@ pub struct AiPolicy {
     
     /// Optional index of the backend to use if AI processing fails or is uncertain.
     pub fallback_backend_index: Option<usize>,
+
+    /// Fallback AI providers to try in sequence if the primary AI provider fails.
+    #[serde(default)]
+    pub fallback_providers: Vec<crate::models::settings::AiProviderConfig>,
+
+    /// Explicitly enable or disable SSE streaming passthrough optimization.
+    /// If None, streaming is automatically detected from upstream Content-Type or Transfer-Encoding.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub streaming: Option<bool>,
 }
 
 /// Configuration for HTTP route forwarding in the kairos-rs gateway.

@@ -2,6 +2,18 @@ use crate::middleware::rate_limit::RateLimitConfig;
 use crate::models::router::Router;
 use serde::{Deserialize, Serialize};
 
+/// Configuration for an individual AI provider.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct AiProviderConfig {
+    /// The AI provider name (e.g. "openai", "anthropic", "groq", "mistral", "cohere", "perplexity", "xai").
+    pub provider: String,
+    /// The model identifier (e.g. "gpt-4o", "claude-3-5-sonnet", "llama-3.3-70b-versatile").
+    pub model: String,
+    /// Optional API key for this provider. If omitted, read from environment variable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api_key: Option<String>,
+}
+
 /// Configuration for AI capabilities.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AiSettings {
@@ -12,6 +24,9 @@ pub struct AiSettings {
     /// API key for the provider. If not set, may be read from environment.
     #[serde(skip_serializing)]
     pub api_key: Option<String>,
+    /// Fallback providers to try in sequence if the primary provider fails (e.g., on 429, 5xx, or network timeout).
+    #[serde(default)]
+    pub fallback_providers: Vec<AiProviderConfig>,
 }
 
 /// JWT authentication configuration for the gateway.
