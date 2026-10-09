@@ -142,6 +142,16 @@ pub struct MetricsCollector {
     /// Current number of entries in the cache (gauge). Synced from
     /// `InMemoryCache::stats` via `sync_cache_stats`.
     pub cache_size: Arc<AtomicU64>,
+    /// Total times a coalesce primary actually executed the upstream
+    /// closure (i.e. one coalesced call replaced N incoming requests).
+    /// Synced from [`crate::services::inflight::InFlightTracker`]
+    /// via `sync_coalesce_stats`. Counters fire on the request path
+    /// inside `InFlightTracker::coalesce`.
+    pub coalesced_primary_calls_total: Arc<AtomicU64>,
+    /// Total times a coalesce request piggybacked on an existing
+    /// primary's outcome (N-1 waiters per coalesced call). Synced via
+    /// `sync_coalesce_stats`.
+    pub coalesced_waiters_total: Arc<AtomicU64>,
     /// Application start time for uptime calculations
     pub start_time: Instant,
     /// Per-route metrics, keyed by route external path (e.g. "/users/{id}").
@@ -176,6 +186,8 @@ impl Default for MetricsCollector {
             cache_misses_total: Arc::new(AtomicU64::new(0)),
             cache_evictions_total: Arc::new(AtomicU64::new(0)),
             cache_size: Arc::new(AtomicU64::new(0)),
+            coalesced_primary_calls_total: Arc::new(AtomicU64::new(0)),
+            coalesced_waiters_total: Arc::new(AtomicU64::new(0)),
             start_time: Instant::now(),
             routes: Arc::new(RwLock::new(HashMap::new())),
         }
@@ -348,6 +360,18 @@ impl MetricsCollector {
             .store(snapshot.evictions, Ordering::Relaxed);
         self.cache_size
             .store(snapshot.entries, Ordering::Relaxed);
+    }
+    /// Sync the coalesce counters from a fresh
+    /// [`crate::services::inflight::InFlightTracker`] snapshot.
+    /// Called by the `/api/cache` handler so Prometheus scrapes see
+    /// up-to-date coalesce stats. Counters in `InFlightTracker` are
+    /// updated inline on the request path; this method just copies
+    /// the totals into the Prometheus-style collector.
+    pub fn sync_coalesce_stats(&self, primary: u64, waiters: u64) {
+        self.coalesced_primary_calls_total
+            .store(primary, Ordering::Relaxed);
+        self.coalesced_waiters_total
+            .store(waiters, Ordering::Relaxed);
     }
 
     pub fn route_metrics_snapshot(&self) -> Vec<RouteMetricsSnapshot> {

@@ -336,6 +336,7 @@ mod tests {
                 enabled: true,
                 ttl_secs: 60,
                 max_size: 100,
+                coalesce: false,
             }),
         };
         assert!(!should_cache_route(&r), "must skip cache for auth_required");
@@ -362,6 +363,7 @@ mod tests {
                 enabled: true,
                 ttl_secs: 60,
                 max_size: 100,
+                coalesce: false,
             }),
         };
         assert!(should_cache_route(&r), "should cache public + enabled");
@@ -388,6 +390,7 @@ mod tests {
                 enabled: false,
                 ttl_secs: 60,
                 max_size: 100,
+                coalesce: false,
             }),
         };
         assert!(!should_cache_route(&r), "must skip when cache.enabled=false");

@@ -26,6 +26,7 @@ actix-web.workspace = true
 actix-governor.workspace = true
 regex.workspace = true
 ahash.workspace = true
+dashmap.workspace = true
 once_cell.workspace = true
 jsonwebtoken.workspace = true
 base64.workspace = true

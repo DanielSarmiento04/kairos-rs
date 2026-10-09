@@ -132,6 +132,18 @@ pub struct CacheConfig {
     /// Maximum number of cached entries for this route. Default: 1024.
     #[serde(default = "default_cache_max_size")]
     pub max_size: u64,
+    /// Whether to coalesce CONCURRENT identical upstream requests
+    /// (PR7 — single-flight). When `true` and `enabled` is also `true`,
+    /// the proxy handler deduplicates requests that arrive while an
+    /// upstream call is in flight: only the first ("primary") executes
+    /// the upstream call, the rest wait for and piggyback on its
+    /// outcome. Default: `false` (off, to keep PR6 semantics).
+    ///
+    /// Same security caveat as `enabled`: skip for `auth_required: true`
+    /// because waiters share the primary's response without
+    /// re-validating per-user context.
+    #[serde(default)]
+    pub coalesce: bool,
 }
 
 fn default_cache_ttl_secs() -> u64 {
@@ -148,6 +160,7 @@ impl Default for CacheConfig {
             enabled: false,
             ttl_secs: default_cache_ttl_secs(),
             max_size: default_cache_max_size(),
+            coalesce: false,
         }
     }
 }

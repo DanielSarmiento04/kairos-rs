@@ -941,7 +941,22 @@ pub async fn get_cache_stats(
                 // inline-update them on the request path.
                 if let Some(mc) = &metrics_collector {
                     mc.sync_cache_stats(&stats);
+                    // Sync coalesce counters the same way: `InFlightTracker`
+                    // updates them inline, we just copy into the Prometheus
+                    // collector. `None` when no `InFlightTracker` is wired.
+                    if let Some((primary, waiters)) = rh.coalesce_stats() {
+                        mc.sync_coalesce_stats(primary, waiters);
+                    }
                 }
+                let coalesce = rh
+                    .coalesce_stats()
+                    .map(|(primary, waiters)| {
+                        serde_json::json!({
+                            "primary_calls": primary,
+                            "waiters": waiters,
+                        })
+                    })
+                    .unwrap_or(serde_json::Value::Null);
                 HttpResponse::Ok().json(serde_json::json!({
                     "success": true,
                     "stats": {
@@ -950,6 +965,7 @@ pub async fn get_cache_stats(
                         "entries": stats.entries,
                         "evictions": stats.evictions,
                         "hit_rate": stats.hit_rate,
+                        "coalesce": coalesce,
                     }
                 }))
             },

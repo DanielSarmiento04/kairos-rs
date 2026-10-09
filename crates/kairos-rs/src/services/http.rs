@@ -9,6 +9,7 @@ use crate::services::cache::{
     CacheService,
     should_cache_route,
 };
+use crate::services::inflight::{CoalesceOutcome, InFlightTracker};
 use crate::services::load_balancer::{LoadBalancer, LoadBalancerFactory};
 use crate::utils::path::format_route;
 use crate::utils::route_matcher::RouteMatcher;
@@ -106,6 +107,12 @@ pub struct RouteHandler {
     /// Optional in-memory response cache (Phase 1 of Response Caching).
     /// Populated when any route in the config has `cache.enabled = true`.
     cache: Option<Arc<InMemoryCache>>,
+    /// Optional in-flight request coalescer (PR7 — single-flight).
+    /// When set, concurrent identical requests for a route with
+    /// `cache.coalesce = true` are deduplicated: only the first
+    /// request runs the upstream call, the rest piggyback on its
+    /// outcome. Wire with `RouteHandler::with_inflight_tracker`.
+    inflight: Option<Arc<InFlightTracker>>,
 }
 
 impl RouteHandler {
@@ -258,6 +265,7 @@ impl RouteHandler {
             load_balancers: Arc::new(load_balancers),
             ai_service: None,
             cache: Self::build_cache_from_routes(&routes),
+            inflight: None,
         }
     }
 
@@ -281,11 +289,66 @@ impl RouteHandler {
         self.ai_service = Some(Arc::new(ai_service));
         self
     }
+    /// Attaches an in-flight request coalescer to the route handler.
+    ///
+    /// When attached, routes with `cache.coalesce = true` will
+    /// deduplicate concurrent identical requests (PR7 — single-flight).
+    /// Without this, `cache.coalesce` is silently ignored.
+    pub fn with_inflight_tracker(mut self, tracker: Arc<InFlightTracker>) -> Self {
+        self.inflight = Some(tracker);
+        self
+    }
+    /// Convert a `CoalesceOutcome` (the result type of
+    /// [`InFlightTracker::coalesce`]) back into a
+    /// `Result<HttpResponse, ActixError>` so the caller can return
+    /// it normally. Used by the coalesce path in
+    /// `handle_request_internal`.
+    fn coalesce_outcome_to_response(
+        &self,
+        outcome: CoalesceOutcome,
+        path: &str,
+    ) -> Result<HttpResponse, ActixError> {
+        match outcome {
+            CoalesceOutcome::Response {
+                status,
+                headers,
+                body,
+            } => {
+                let status_code =
+                    StatusCode::from_u16(status).unwrap_or(StatusCode::OK);
+                let mut builder = HttpResponse::build(status_code);
+                for (name, value) in &headers {
+                    if let (Ok(n), Ok(v)) = (
+                        actix_web::http::header::HeaderName::try_from(name.as_str()),
+                        actix_web::http::header::HeaderValue::from_str(value),
+                    ) {
+                        builder.insert_header((n, v));
+                    }
+                }
+                Ok(builder.body(body))
+            }
+            CoalesceOutcome::Error(msg) => Err(GatewayError::Upstream {
+                message: msg,
+                url: path.to_string(),
+                status: None,
+            }
+            .into()),
+        }
+    }
 
     /// Snapshot of in-memory cache stats. Returns `None` when no cache is
     /// configured (i.e., no route opted in to caching).
     pub fn cache_stats(&self) -> Option<crate::services::cache::CacheStatsSnapshot> {
         self.cache.as_ref().map(|c| c.stats())
+    }
+    /// Snapshot of in-flight coalesce counters
+    /// (`(primary_calls, waiters)`). Returns `None` when no
+    /// `InFlightTracker` is wired (see
+    /// [`RouteHandler::with_inflight_tracker`]).
+    pub fn coalesce_stats(&self) -> Option<(u64, u64)> {
+        self.inflight
+            .as_ref()
+            .map(|t| (t.primary_calls(), t.waiters()))
     }
 
     /// Clear all entries from the in-memory cache. No-op when no cache is
@@ -522,23 +585,53 @@ impl RouteHandler {
             );
         }
 
-        // Validate method is allowed
-        if !route.methods.iter().any(|m| m == method.as_str()) {
-            return Err(GatewayError::MethodNotAllowed {
-                method: method.to_string(),
-                path: path.clone(),
+        // PR7: Coalesce guard. When the route has `cache.coalesce = true`
+        // AND the handler was wired with an `InFlightTracker`, wrap the
+        // remaining dispatch logic in `tracker.coalesce(...)` so that
+        // concurrent identical requests share one upstream call. The
+        // `move` closure captures all local state (route, path, method,
+        // reqwest headers, body, AI routing, etc.) and returns the
+        // final outcome as `CoalesceOutcome`, which we convert back to
+        // `Result<HttpResponse, ActixError>` after `coalesce` returns.
+        //
+        // Security: same skip rules as the cache layer (auth_required
+        // routes already bail at the `should_cache_route` guard above,
+        // so they never reach this point).
+        let should_coalesce = route.cache.as_ref().map_or(false, |c| c.coalesce);
+        // Compute the coalesce key BEFORE moving `req` into the dispatch
+        // closure — `req.query_string()` borrows `req`, and the closure
+        // takes ownership of it. For non-GET routes `should_coalesce`
+        // is still `false` at runtime (the closure's first guard rejects
+        // non-GET) so this key is only used when coalesce actually fires.
+        let pre_coalesce_key: Option<String> = if should_coalesce {
+            Some(compute_cache_key(
+                method.as_str(),
+                &path,
+                req.query_string(),
+            ))
+        } else {
+            None
+        };
+        // Clone `path` so we can still reference it after the closure
+        // moves it. The cloned copy lives inside the closure, while
+        // the original stays available for `coalesce_outcome_to_response`.
+        let path_for_closure = path.clone();
+        let dispatch = move || async move {
+            // Validate method is allowed
+            if !route.methods.iter().any(|m| m == method.as_str()) {
+                return CoalesceOutcome::err(format!(
+                    "Method {} not allowed for path_for_closure {}",
+                    method, path_for_closure
+                ));
             }
-            .into());
-        }
 
         // Get all backends for this route
         let backends = route.get_backends();
         if backends.is_empty() {
-            return Err(GatewayError::Config {
-                message: "No backends configured for route".to_string(),
-                route: path.clone(),
-            }
-            .into());
+            return CoalesceOutcome::err(format!(
+                "No backends configured for route {}",
+                path_for_closure
+            ));
         }
 
         // Get client IP for IP hash load balancing
@@ -600,7 +693,7 @@ impl RouteHandler {
 
                     let req_info = format!(
                         "Method: {}\nPath: {}\nHeaders: {}\nBody Preview: {}",
-                        method, path, headers_summary, body_preview
+                        method, path_for_closure, headers_summary, body_preview
                     );
 
                     let ai_service = self.ai_service.as_ref().unwrap();
@@ -646,12 +739,17 @@ impl RouteHandler {
                     } else if let Some(load_balancer) =
                         self.load_balancers.get(&route.external_path)
                     {
-                        load_balancer
+                        match load_balancer
                             .select_backend(&backends, client_ip.as_deref())
-                            .ok_or_else(|| GatewayError::Config {
-                                message: "Load balancer failed to select backend".to_string(),
-                                route: path.clone(),
-                            })?
+                        {
+                            Some(b) => b,
+                            None => {
+                                return CoalesceOutcome::err(format!(
+                                    "Load balancer failed to select backend for route {}",
+                                    path_for_closure
+                                ));
+                            }
+                        }
                     } else {
                         // random fallback if no LB found
                         backends[0].clone()
@@ -660,12 +758,17 @@ impl RouteHandler {
             } else if backends.len() == 1 {
                 backends[0].clone()
             } else if let Some(load_balancer) = self.load_balancers.get(&route.external_path) {
-                load_balancer
+                match load_balancer
                     .select_backend(&backends, client_ip.as_deref())
-                    .ok_or_else(|| GatewayError::Config {
-                        message: "Load balancer failed to select backend".to_string(),
-                        route: path.clone(),
-                    })?
+                {
+                    Some(b) => b,
+                    None => {
+                        return CoalesceOutcome::err(format!(
+                            "Load balancer failed to select backend for route {}",
+                            path_for_closure
+                        ));
+                    }
+                }
             } else {
                 // Fallback to first backend if no load balancer
                 backends[0].clone()
@@ -681,13 +784,15 @@ impl RouteHandler {
 
             // Get circuit breaker for this backend
             let service_key = format!("{}:{}", backend.host, backend.port);
-            let circuit_breaker =
-                self.circuit_breakers
-                    .get(&service_key)
-                    .ok_or_else(|| GatewayError::Config {
-                        message: format!("No circuit breaker found for backend: {}", service_key),
-                        route: path.clone(),
-                    })?;
+            let circuit_breaker = match self.circuit_breakers.get(&service_key) {
+                Some(cb) => cb,
+                None => {
+                    return CoalesceOutcome::err(format!(
+                        "No circuit breaker found for backend: {}",
+                        service_key
+                    ));
+                }
+            };
 
             // Prepare request
             let forwarded_req = self
@@ -789,7 +894,7 @@ impl RouteHandler {
                                         ) {
                                             let key = compute_cache_key(
                                                 req.method().as_str(),
-                                                &path,
+                                                &path_for_closure,
                                                 req.query_string(),
                                             );
                                             let cached = CachedResponse::from_response_parts(
@@ -806,13 +911,13 @@ impl RouteHandler {
                                                     ),
                                                 )
                                                 .await;
-                                            debug!("Cache STORE for {}", path);
+                                            debug!("Cache STORE for {}", path_for_closure);
                                         }
                                     }
                                 }
                             }
                             // PR4b: per-route request metrics on the
-                            // success path. Cache hits/misses are
+                            // success path_for_closure. Cache hits/misses are
                             // recorded earlier in this function.
                             if let Some(metrics) =
                                 req.app_data::<web::Data<crate::routes::metrics::MetricsCollector>>()
@@ -824,15 +929,14 @@ impl RouteHandler {
                                     200,
                                 );
                             }
-                            return Ok(builder.body(bytes));
+                            return CoalesceOutcome::ok(status_code, cache_hdrs, bytes);
                         }
                         Err(e) => {
-                            return Err(GatewayError::Upstream {
-                                message: e.to_string(),
-                                url: target_url,
-                                status: None,
-                            }
-                            .into())
+                            return CoalesceOutcome::err(format!(
+                                "Upstream response body error for {}: {}",
+                                target_url,
+                                e
+                            ));
                         }
                     }
                 }
@@ -845,10 +949,10 @@ impl RouteHandler {
                         continue;
                     }
 
-                    return Err(GatewayError::CircuitOpen {
-                        service: service_key,
-                    }
-                    .into());
+                    return CoalesceOutcome::err(format!(
+                        "Circuit breaker open for {}",
+                        service_key
+                    ));
                 }
                 Err(CircuitBreakerError::OperationFailed(gateway_error)) => {
                     // Request failed, record failure
@@ -873,18 +977,29 @@ impl RouteHandler {
                         }
                     }
 
-                    return Err(gateway_error.into());
+                    return CoalesceOutcome::err(gateway_error.to_string());
                 }
             }
         }
 
         // All retries exhausted
-        Err(GatewayError::Upstream {
-            message: format!("All {} retry attempts exhausted", max_attempts),
-            url: path,
-            status: None,
+        CoalesceOutcome::err(format!(
+            "All {} retry attempts exhausted",
+            max_attempts
+        ))
+            }; // end of `dispatch` closure
+
+        if let Some(key) = pre_coalesce_key {
+            if let Some(tracker) = &self.inflight {
+                let outcome = tracker.coalesce(key, dispatch).await;
+                return self.coalesce_outcome_to_response(outcome, &path);
+            }
         }
-        .into())
+
+        // Normal path: run the same dispatch closure without going
+        // through the coalescer. Identical outcomes, no dedup.
+        let outcome = dispatch().await;
+        self.coalesce_outcome_to_response(outcome, &path)
     }
 
     /// Efficiently converts and filters HTTP headers for upstream forwarding.

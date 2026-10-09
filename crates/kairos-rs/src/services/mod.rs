@@ -84,6 +84,7 @@ pub mod cache;
 pub mod dns;
 pub mod ftp;
 pub mod http;
+pub mod inflight;
 pub mod load_balancer;
 pub mod metrics_store;
 pub mod percentile;

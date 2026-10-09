@@ -42,6 +42,7 @@ rand = "0.8"
 # Caching
 moka = { version = "0.12", features = ["future"] }
 bytes = "1.7"
+dashmap = "6"
 
 # Protocol-specific dependencies
 tokio-tungstenite = "0.21"

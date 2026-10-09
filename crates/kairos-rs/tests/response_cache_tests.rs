@@ -44,6 +44,7 @@ fn make_router(auth_required: bool, cache_enabled: bool) -> Router {
                 enabled: true,
                 ttl_secs: 60,
                 max_size: 100,
+                coalesce: false,
             })
         } else {
             None
