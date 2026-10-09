@@ -1,9 +1,7 @@
 use crate::models::router::Backend;
 use crate::models::settings::{AiProviderConfig, AiSettings};
 use log::{debug, error, info, warn};
-use reqwest::Client as HttpClient;
-use rig::client::CompletionClient;
-use rig::completion::Prompt;
+use rig::completion::CompletionRequest;
 use rig::providers::{anthropic, cohere, groq, mistral, openai, perplexity, xai};
 use thiserror::Error;
 
@@ -16,7 +14,7 @@ pub enum AiServiceError {
     UnsupportedProvider(String),
 
     #[error(transparent)]
-    RigError(#[from] rig::completion::PromptError),
+    RigError(#[from] rig::error::ProviderError),
 
     #[error("Error from AI provider: {0}")]
     ProviderError(String),
@@ -71,63 +69,51 @@ impl AiService {
                 .ok_or_else(|| AiServiceError::ApiKeyNotFound(env_var.to_string()))
         };
 
-        macro_rules! delegate_prompt {
-            ($client:ty, $key_env:literal, $provider_name:literal, $preamble:expr) => {{
-                let key = get_key($key_env)?;
-                let client = <$client>::new(&key)
-                    .map_err(|e| AiServiceError::ProviderError(e.to_string()))?;
-                let agent = client.agent(model).preamble($preamble).build();
-                debug!("Sending prompt to {} model: {}", $provider_name, model);
-                agent
-                    .prompt(prompt)
-                    .await
-                    .map_err(AiServiceError::RigError)?
-            }};
-        }
+        let req = CompletionRequest::new(prompt).preamble(preamble);
 
         let response = match provider_lower.as_str() {
             "openai" => {
-                delegate_prompt!(
-                    openai::Client<HttpClient>,
-                    "OPENAI_API_KEY",
-                    "OpenAI",
-                    preamble
-                )
+                let key = get_key("OPENAI_API_KEY")?;
+                let client = openai::OpenAI::new(&key);
+                debug!("Sending prompt to OpenAI model: {}", model);
+                client.completion(model).call(req).await?.text()
             }
             "anthropic" => {
-                delegate_prompt!(
-                    anthropic::Client<HttpClient>,
-                    "ANTHROPIC_API_KEY",
-                    "Anthropic",
-                    preamble
-                )
+                let key = get_key("ANTHROPIC_API_KEY")?;
+                let client = anthropic::Anthropic::new(&key);
+                debug!("Sending prompt to Anthropic model: {}", model);
+                client.completion(model).call(req).await?.text()
             }
             "cohere" => {
-                delegate_prompt!(
-                    cohere::Client<HttpClient>,
-                    "COHERE_API_KEY",
-                    "Cohere",
-                    preamble
-                )
+                let key = get_key("COHERE_API_KEY")?;
+                let client = cohere::Cohere::new(&key);
+                debug!("Sending prompt to Cohere model: {}", model);
+                client.completion(model).call(req).await?.text()
             }
             "perplexity" => {
-                delegate_prompt!(
-                    perplexity::Client<HttpClient>,
-                    "PERPLEXITY_API_KEY",
-                    "Perplexity",
-                    preamble
-                )
+                let key = get_key("PERPLEXITY_API_KEY")?;
+                let client = perplexity::new(&key);
+                debug!("Sending prompt to Perplexity model: {}", model);
+                client.completion(model).call(req).await?.text()
             }
             "mistral" => {
-                delegate_prompt!(
-                    mistral::Client<HttpClient>,
-                    "MISTRAL_API_KEY",
-                    "Mistral",
-                    preamble
-                )
+                let key = get_key("MISTRAL_API_KEY")?;
+                let client = mistral::new(&key);
+                debug!("Sending prompt to Mistral model: {}", model);
+                client.completion(model).call(req).await?.text()
             }
-            "groq" => delegate_prompt!(groq::Client<HttpClient>, "GROQ_API_KEY", "Groq", preamble),
-            "xai" => delegate_prompt!(xai::Client<HttpClient>, "XAI_API_KEY", "xAI", preamble),
+            "groq" => {
+                let key = get_key("GROQ_API_KEY")?;
+                let client = groq::new(&key);
+                debug!("Sending prompt to Groq model: {}", model);
+                client.completion(model).call(req).await?.text()
+            }
+            "xai" => {
+                let key = get_key("XAI_API_KEY")?;
+                let client = xai::new(&key);
+                debug!("Sending prompt to xAI model: {}", model);
+                client.completion(model).call(req).await?.text()
+            }
             _ => {
                 let msg = format!("Unsupported AI provider: {}", provider);
                 error!("{}", msg);
@@ -357,5 +343,35 @@ mod tests {
         assert_eq!(service.settings.api_key, Some("test-key".to_string()));
         assert_eq!(service.settings.fallback_providers.len(), 1);
         assert_eq!(service.settings.fallback_providers[0].provider, "anthropic");
+    }
+
+    #[tokio::test]
+    async fn test_unsupported_provider() {
+        let settings = AiSettings {
+            provider: "unknown-vendor".to_string(),
+            model: "model-x".to_string(),
+            api_key: Some("key".to_string()),
+            fallback_providers: vec![],
+        };
+        let service = AiService::new(settings);
+        let res = service.ask("hello").await;
+        assert!(matches!(res, Err(AiServiceError::UnsupportedProvider(_))));
+    }
+
+    #[tokio::test]
+    async fn test_api_key_not_found() {
+        let settings = AiSettings {
+            provider: "openai".to_string(),
+            model: "gpt-4".to_string(),
+            api_key: None,
+            fallback_providers: vec![],
+        };
+        // Ensure env var is not set during test
+        std::env::remove_var("OPENAI_API_KEY");
+        let service = AiService::new(settings);
+        let res = service
+            .execute_single_provider("hello", "preamble", "openai", "gpt-4", None)
+            .await;
+        assert!(matches!(res, Err(AiServiceError::ApiKeyNotFound(_))));
     }
 }

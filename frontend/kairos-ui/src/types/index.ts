@@ -29,11 +29,19 @@ export type AiRoutingStrategy =
   | { anomaly_detection: Record<string, never> }
   | string;
 
+export interface AiProviderConfig {
+  provider: string;
+  model: string;
+  api_key?: string | null;
+}
+
 export interface AiPolicy {
   enabled: boolean;
   strategy: AiRoutingStrategy;
   provider?: string | null;
   fallback_backend_index?: number | null;
+  fallback_providers?: AiProviderConfig[];
+  streaming?: boolean | null;
 }
 
 export interface HeaderManipulation {
@@ -146,6 +154,7 @@ export interface AiSettings {
   provider: string;
   model: string;
   api_key?: string | null;
+  fallback_providers?: AiProviderConfig[];
 }
 
 export interface Settings {

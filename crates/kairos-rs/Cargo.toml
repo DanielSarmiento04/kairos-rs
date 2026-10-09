@@ -40,7 +40,7 @@ actix-ws = { version = "0.2" }
 hickory-proto = { version = "0.24" }
 suppaftp = { version = "5.3", features = ["async", "async-secure"] }
 hex = "0.4"
-rig-core = "0.29.0"
+rig = { package = "rig-core", version = "0.44.0", features = ["reqwest"] }
 
 [dev-dependencies]
 tempfile = "3.0"
