@@ -50,6 +50,7 @@ fn create_test_settings() -> Settings {
                 request_transformation: None,
                 response_transformation: None,
                 ai_policy: None,
+                cache: None,
             },
             // Protected route - authentication required
             Router {
@@ -71,8 +72,10 @@ fn create_test_settings() -> Settings {
                 request_transformation: None,
                 response_transformation: None,
                 ai_policy: None,
+                cache: None,
             },
         ],
+        compression: None,
     }
 }
 
@@ -210,7 +213,9 @@ async fn test_jwt_config_validation() {
             request_transformation: None,
             response_transformation: None,
             ai_policy: None,
+            cache: None,
         }],
+        compression: None,
     };
 
     // Should fail validation
@@ -253,7 +258,9 @@ async fn test_jwt_secret_validation() {
             request_transformation: None,
             response_transformation: None,
             ai_policy: None,
+            cache: None,
         }],
+        compression: None,
     };
 
     // Should fail validation due to weak secret
@@ -289,7 +296,9 @@ async fn test_jwt_secret_validation() {
             request_transformation: None,
             response_transformation: None,
             ai_policy: None,
+            cache: None,
         }],
+        compression: None,
     };
 
     // Should fail validation due to default secret

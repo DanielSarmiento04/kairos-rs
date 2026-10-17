@@ -36,7 +36,9 @@ fn create_test_settings() -> Settings {
             request_transformation: None,
             response_transformation: None,
             ai_policy: None,
+            cache: None,
         }],
+        compression: None,
     }
 }
 

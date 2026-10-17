@@ -135,6 +135,7 @@ async fn test_route_handler_cache_integration() {
         request_transformation: None,
         response_transformation: None,
         ai_policy: None,
+        cache: None,
     }];
 
     let cache = Arc::new(ResponseCache::new(100, Duration::from_secs(60)));

@@ -28,6 +28,7 @@ async fn test_real_metrics_collection() {
             request_transformation: None,
             response_transformation: None,
             ai_policy: None,
+            cache: None,
         }
     ];
     let route_handler = RouteHandler::new(routes, 30);

@@ -14,6 +14,8 @@ const routeTitle = computed(() => {
       return 'Route Management & Load Balancing';
     case 'metrics':
       return 'Metrics & Observability';
+    case 'dashboards':
+      return 'Custom Analytics Dashboards';
     case 'playground':
       return 'API & AI Route Playground';
     case 'clients':
@@ -57,6 +59,11 @@ const routeTitle = computed(() => {
         <RouterLink to="/">
           <span class="nav-icon">📊</span>
           <span>Dashboard</span>
+        </RouterLink>
+
+        <RouterLink to="/dashboards">
+          <span class="nav-icon">📉</span>
+          <span>Analytics</span>
         </RouterLink>
 
         <RouterLink to="/routes">

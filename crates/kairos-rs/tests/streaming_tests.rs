@@ -65,6 +65,7 @@ async fn test_sse_streaming_passthrough() {
             fallback_providers: Vec::new(),
             streaming: Some(true),
         }),
+        cache: None,
     }];
 
     let cache = Arc::new(ResponseCache::new(50, Duration::from_secs(60)));

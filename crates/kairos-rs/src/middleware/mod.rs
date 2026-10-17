@@ -96,6 +96,7 @@
 //! - **Configuration Management**: Dynamic security policy updates
 
 pub mod auth;
+pub mod compression;
 pub mod rate_limit;
 pub mod security;
 pub mod transform;

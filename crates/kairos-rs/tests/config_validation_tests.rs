@@ -29,6 +29,7 @@ fn create_test_router(host: &str, external_path: &str, methods: Vec<&str>) -> Ro
         request_transformation: None,
         response_transformation: None,
         ai_policy: None,
+        cache: None,
     }
 }
 
@@ -40,6 +41,7 @@ fn test_empty_configuration() {
         ai: None,
         version: 1,
         routers: vec![],
+        compression: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -62,6 +64,7 @@ fn test_security_warnings() {
             "/api/test",
             vec!["GET"],
         )],
+        compression: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -83,6 +86,7 @@ fn test_performance_warnings() {
             "/api/{a}/{b}/{c}/{d}",
             vec!["GET"],
         )],
+        compression: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -142,6 +146,7 @@ fn test_localhost_http_warnings() {
             create_test_router("http://localhost:3000", "/api/test", vec!["GET"]),
             create_test_router("http://127.0.0.1:8080", "/api/local", vec!["POST"]),
         ],
+        compression: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -160,6 +165,7 @@ fn test_overly_permissive_methods() {
             "/api/test",
             vec!["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"],
         )],
+        compression: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -195,7 +201,9 @@ fn test_path_traversal_detection() {
             request_transformation: None,
             response_transformation: None,
             ai_policy: None,
+            cache: None,
         }],
+        compression: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -217,6 +225,7 @@ fn test_duplicate_route_paths() {
             create_test_router("https://example.com", "/api/test", vec!["GET"]),
             create_test_router("https://other.com", "/api/test", vec!["POST"]),
         ],
+        compression: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -238,6 +247,7 @@ fn test_mixed_http_https_warnings() {
             create_test_router("http://example.com", "/api/insecure", vec!["GET"]),
             create_test_router("https://secure.com", "/api/secure", vec!["GET"]),
         ],
+        compression: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -263,6 +273,7 @@ fn test_all_http_routes_warning() {
             create_test_router("http://example1.com", "/api/test1", vec!["GET"]),
             create_test_router("http://example2.com", "/api/test2", vec!["POST"]),
         ],
+        compression: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -289,6 +300,7 @@ fn test_high_dynamic_routes_warning() {
         ai: None,
         version: 1,
         routers,
+        compression: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -309,6 +321,7 @@ fn test_static_route_recommendation() {
             create_test_router("https://example.com", "/api/{id}", vec!["GET"]),
             create_test_router("https://example.com", "/api/{user_id}/profile", vec!["GET"]),
         ],
+        compression: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -329,6 +342,7 @@ fn test_valid_configuration() {
             create_test_router("https://example.com", "/api/health", vec!["GET"]),
             create_test_router("https://example.com", "/api/users/{id}", vec!["GET", "PUT"]),
         ],
+        compression: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);

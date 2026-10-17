@@ -1,3 +1,4 @@
+use crate::middleware::compression::CompressionConfig;
 use crate::middleware::rate_limit::RateLimitConfig;
 use crate::models::router::Router;
 use serde::{Deserialize, Serialize};
@@ -151,6 +152,10 @@ pub struct Settings {
     #[serde(default)]
     pub ai: Option<AiSettings>,
 
+    /// Response compression configuration.
+    #[serde(default)]
+    pub compression: Option<CompressionConfig>,
+
     /// Collection of route configurations defining how requests are forwarded.
     ///
     /// Each router defines a mapping from external client requests to internal
@@ -192,6 +197,7 @@ impl Settings {
     ///     jwt: None,
     ///     rate_limit: None,
     ///     ai: None,
+    ///     compression: None,
     ///     routers: vec![
     ///         Router {
     ///             host: Some("http://localhost".to_string()),
@@ -212,6 +218,7 @@ impl Settings {
     ///             request_transformation: None,
     ///             response_transformation: None,
     ///             ai_policy: None,
+    ///             cache: None,
     ///         }
     ///     ],
     /// };

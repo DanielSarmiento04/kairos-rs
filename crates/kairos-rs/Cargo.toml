@@ -33,6 +33,9 @@ futures-util.workspace = true
 futures.workspace = true
 env_logger.workspace = true
 rand.workspace = true
+moka.workspace = true
+bytes.workspace = true
+dashmap.workspace = true
 
 # Protocol-specific dependencies
 tokio-tungstenite = { version = "0.21" }
