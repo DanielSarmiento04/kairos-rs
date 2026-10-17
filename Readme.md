@@ -560,128 +560,67 @@ RUST_LOG=info                # Log level
 ## Testing
 
 ```bash
-# Run all tests in workspace (85+ tests total)
+# Run all Rust unit, integration, and doc tests (299 tests)
 cargo test --workspace
 
-# Run gateway tests only
-cargo test --package kairos-rs
+# Run Rust documentation tests only (101 doctests)
+cargo test --doc -p kairos-rs
 
-# Run UI tests only
+# Run Frontend Vitest unit & component tests (121 tests across 14 suites)
 cd frontend/kairos-ui && npm run test:unit -- --run
 
-# Performance tests
-cargo test performance_tests -- --nocapture
-
-# Integration tests
-cargo test --test integration_tests
-
-# JWT authentication tests
-cargo test --test jwt_integration_test
-
-# Rate limiting tests  
-cargo test rate_limit
-
-# Circuit breaker tests
-cargo test circuit_breaker
+# Specific backend integration test suites
+cargo test -p kairos-rs --test ai_service_tests
+cargo test -p kairos-rs --test cache_integration_tests
+cargo test -p kairos-rs --test compression_tests
+cargo test -p kairos-rs --test percentile_endpoint_tests
+cargo test -p kairos-rs --test transform_integration_tests
+cargo test -p kairos-rs --test jwt_integration_test
+cargo test -p kairos-rs --test websocket_integration_tests
 ```
 
-Current test coverage: **85+ comprehensive tests** covering:
-- Route matching and performance
-- JWT authentication and authorization  
-- Rate limiting algorithms
-- Circuit breaker functionality
-- Configuration validation
-- Error handling scenarios
-- Documentation examples
-- UI model validation
+Current test coverage: **420 automated tests** (`198` Rust unit/integration tests + `101` Rust doctests + `121` Vitest UI tests) covering:
+- AI routing, multi-provider failover chains, and SSE token streaming (`ai_service_tests`)
+- Per-route response caching, `Vary` headers, TTL expiration, and prefix/regex invalidation (`cache_integration_tests`)
+- HTTP response compression (`gzip`, `br`, `deflate`) and threshold policies (`compression_tests`)
+- Histogram latency percentiles (`p50`/`p95`/`p99`) via REST and WebSocket (`percentile_endpoint_tests`)
+- Request/response transformations (headers, regex path rewrites, query params, status codes)
+- Route matching (`O(1)` static & cached regex dynamic routes) and load balancing
+- JWT authentication, rate limiting algorithms, and per-backend circuit breakers
+- Vue 3 + TypeScript UI components (`TimeSeriesChart`, `CachePolicyEditor`, `CacheInvalidationCard`, `DashboardView`, `MetricsView`, `RoutesView`, Pinia store, Prometheus & CSV utilities)
+- All 101 public Rust API documentation examples
 
 ## What's Next? (Roadmap)
 
-This project has completed Phase 1 (Gateway Core) and Phase 2 (Load Balancing & Advanced Routing)! Here's what's planned:
+**Recently completed (v0.4.1 - October 2026):**
+- **AI Orchestration (`rig-core` 0.44.0)** - Multi-provider automated failover chains (global and per-route) and zero-buffering SSE/chunked token streaming passthrough
+- **Per-Route Response Cache & Regex Invalidation** - Granular `CacheConfig` (`ttl_seconds`, `vary_headers`, `cache_control_respect`, `skip_if_Set_Cookie`, `max_body_bytes`) and `POST /api/cache/invalidate` with regex support
+- **HTTP Compression Middleware** - Global `gzip`, `br`, and `deflate` response compression with configurable minimum byte thresholds
+- **Latency Percentiles (`p50` / `p95` / `p99`)** - Linear CDF histogram interpolation exposed via `GET /api/metrics/percentiles` and `/ws/metrics` real-time streaming
+- **Modern Vue 3 + TypeScript + Vite 8 Admin UI** - Interactive `uPlot` time-series charts, `CachePolicyEditor`, `CacheInvalidationCard`, CSV export, and real-time SSE playground reader
+- **SSL/TLS Offloading Architecture Guide** - Production deployment blueprints for Nginx, Caddy, and Cloud ALBs
+- **420 Automated Tests** - 198 Rust unit/integration tests, 101 Rust doctests, and 121 Vitest UI tests
 
-**Recently completed (v0.2.7):**
-- **Load balancing** - 5 strategies (round-robin, least connections, random, weighted, IP hash)
-- **Retry logic** - Exponential backoff with configurable policies
-- **Route management API** - CRUD operations via REST endpoints
-- **Hot-reload API** - Manual configuration reload endpoints
-- **Per-backend circuit breakers** - Fault isolation for each backend server
-
-**Recently completed (v0.2.10 - October 2025):**
-- **Multi-Protocol Support** - WebSocket, FTP, and DNS protocol handling
-- **WebSocket Proxy** - Bidirectional message forwarding with connection upgrading
-- **Docker Multi-Platform Support** - AMD64 and ARM64 container images
-- **Automated Versioning** - Docker images tagged from Cargo.toml version
-- **Debug-Enabled Containers** - Distroless debug images with shell access for troubleshooting
-- **FTP Gateway** - File operations (list, download, upload) via HTTP API
-- **DNS Forwarding** - Query forwarding with caching and load balancing
-- **Protocol-specific routing** - Configure protocol type per route
-- **Comprehensive test coverage** - Integration tests for all protocols
-
-**Recently completed (v0.2.11 - November 2025):**
-- **Configuration Management API** - Complete REST API for gateway configuration (6 endpoints)
-- **Configuration UI** - Professional interface for JWT, rate limiting, CORS, metrics, and server settings
-- **Metrics Visualization** - Advanced metrics dashboard with 5 specialized views
-- **Real-time Monitoring** - Auto-refreshing metrics with performance insights
-- **Smart Error Analysis** - AI-powered recommendations based on error patterns
-- **Traffic Analytics** - Bandwidth visualization and request/response breakdown
-- **Circuit Breaker Monitoring** - Real-time circuit breaker status and health tracking
-
-**Current focus (Phase 3 - v0.3.0):**
-- [ ] WebSocket real-time updates (replace polling with live connections)
-- [ ] Historical metrics with time-series charts
-- [ ] Request transformation (header manipulation, path rewriting)
-- [ ] Response caching layer
-- [ ] Advanced route configuration UI (multi-backend, load balancing)
-
-**Previously completed (Phase 1 + 2 + UI Foundation):**
-- JWT authentication with configurable claims
-- Advanced rate limiting with multiple algorithms  
-- Circuit breaker pattern implementation
-- Prometheus metrics endpoint
-- Configuration validation and hot-reload
-- Comprehensive security features
-- **Web Admin UI** with real-time dashboard
-- **Workspace architecture** with modular crates
-- **Health monitoring** pages
-- **Load balancing** - 5 strategies (round-robin, least connections, random, weighted, IP hash)
-- **Retry logic** - Exponential backoff with configurable policies
+**Previously completed (v0.2.x - v0.3.x):**
+- **Multi-Protocol Support** - HTTP/HTTPS, WebSocket, FTP, and DNS protocol handling
+- **Load Balancing & Resilience** - 5 strategies (round-robin, least connections, random, weighted, IP hash), exponential backoff retry logic, and per-backend circuit breakers
+- **Security & Transformations** - JWT authentication, advanced rate limiting (token bucket, sliding window, fixed window), request/response transformations, and configuration hot-reload
 
 **Future phases:**
-- **Phase 3:** Response caching, historical metrics, distributed tracing, WebSocket UI updates
-- **Phase 4:** AI-powered routing, LLM integration, smart load balancing
-- **Phase 5:** Enterprise features (auth, RBAC, multi-gateway support)
+- **Distributed Caching & Rate Limiting** - Cross-instance Redis backend for shared cache and rate-limit state
+- **OpenTelemetry & Distributed Tracing** - W3C Trace Context propagation and OTLP spans
+- **Enterprise Access Control** - RBAC and multi-tenant gateway policies
 
-**Exciting AI Vision:**
-Kairos-rs is pioneering the integration of AI/LLM capabilities into API gateway functionality:
-- **Smart Routing**: AI-driven backend selection based on request content analysis
-- **LLM Integration**: Intelligent request/response transformation using language models
-- **Predictive Load Balancing**: ML-based routing decisions for optimal performance
-- **Behavioral Security**: AI-powered threat detection and dynamic rate limiting
-
-This makes Kairos-rs potentially the **first AI-powered open source API gateway** - combining traditional gateway reliability with cutting-edge AI capabilities.
-
-See [ROADMAP.md](ROADMAP.md) for the complete development plan.
+See [realease/RELEASE_NOTES_0.4.1.md](./realease/RELEASE_NOTES_0.4.1.md) for the complete v0.4.1 release notes.
 
 ## Contributing
 
-This project needs help! Areas where contributions would be especially valuable:
+Contributions are welcome! Areas where contributions would be especially valuable:
 
-**Code:**
-- **Backend endpoints** - Implement route management API (high priority)
-- **UI components** - Build configuration editor forms
-- Load balancing implementations
-- Request transformation middleware
-- Performance optimizations
-- Retry logic with backoff strategies
-- Historical metrics with charts
-- Documentation improvements
-
-**Other:**
-- Testing JWT authentication scenarios
-- Performance benchmarking under load
-- Docker and Kubernetes deployment guides
-- Real-world usage examples and case studies
-- UI/UX improvements and accessibility
+- Distributed Redis-backed rate limiting and response caching
+- OpenTelemetry trace export integration
+- Additional AI provider adapters and semantic caching
+- Kubernetes Helm charts and operator templates
 
 ### Development Setup
 ```bash
@@ -713,7 +652,8 @@ Current benchmarks on M1 MacBook Pro:
 
 **Gateway Performance:**
 - **Static routes**: ~450k ops/sec (hash map lookup)
-- **Dynamic routes**: ~200k ops/sec (regex matching)
+- **Dynamic routes**: ~200k ops/sec (regex matching with `match_cache`)
+- **Response cache HIT**: <0.5ms (`AHashMap` lock-optimized lookup)
 - **JWT validation**: ~50k tokens/sec  
 - **Rate limiting**: ~100k checks/sec
 - **Request latency**: P99 < 2ms for route matching
@@ -724,34 +664,10 @@ Current benchmarks on M1 MacBook Pro:
 - **CPU**: Efficient async runtime with tokio
 
 **UI Performance:**
-- **WASM bundle size**: ~500KB (gzipped)
-- **Initial page load**: <1s (server-side rendering)
-- **Time to interactive**: <2s (client hydration)
-- **Dashboard refresh**: Real-time updates every 30s
+- **Vite 8 SPA build**: ~250ms production bundle compilation
+- **Real-time telemetry**: Zero deep-reactivity overhead via `shallowRef` ring buffers and canvas-based `uPlot` charts
 
 *Note: These are micro-benchmarks and controlled load tests. Real-world performance depends on backend service latency and network conditions.*
-
-## Known Issues
-
-**Gateway:**
-- [ ] Load balancing strategies not yet implemented
-- [ ] Request transformation features in development  
-- [ ] WebSocket proxying support planned for future release
-- [ ] Distributed tracing integration pending
-
-**Admin UI:**
-- [ ] Route management needs backend API endpoints (CRUD operations)
-- [ ] Configuration editor in development
-- [ ] Historical metrics not yet implemented
-- [ ] Authentication/authorization for UI pending
-
-**Recently fixed:**
-- Configuration validation improved
-- Error messages enhanced and structured
-- Comprehensive test coverage added
-- JWT authentication fully implemented
-- Advanced rate limiting algorithms added
-- Web UI foundation completed with real-time dashboard
 
 ## License
 
@@ -779,6 +695,7 @@ Built with these excellent Rust crates:
 **Core Gateway:**
 - [Actix Web](https://actix.rs/) - Web framework
 - [Reqwest](https://docs.rs/reqwest/) - HTTP client  
+- [Rig Core](https://github.com/0xPlaygrounds/rig) - LLM orchestration (`rig-core 0.44.0`)
 - [Serde](https://serde.rs/) - Serialization
 - [Tokio](https://tokio.rs/) - Async runtime
 - [jsonwebtoken](https://docs.rs/jsonwebtoken/) - JWT validation
@@ -788,12 +705,14 @@ Built with these excellent Rust crates:
 - [Vue 3](https://vuejs.org/) - Progressive TypeScript Frontend Framework
 - [Vite 8](https://vite.dev/) - Next-generation frontend tooling
 - [Pinia](https://pinia.vuejs.org/) - State management
+- [uPlot](https://github.com/leeoniya/uPlot) - High-performance time-series charting
 - [Lucide Icons](https://lucide.dev/) - Modern UI iconography
 
 ---
 
-**Status**: Production ready with multi-protocol support (HTTP, WebSocket, FTP, DNS), comprehensive security, reliability, load balancing features, modern web admin interface with configuration management, and advanced metrics visualization  
-**Version**: 0.4.0 (October 2026)  
+**Status**: Production ready with multi-protocol support (HTTP, WebSocket, FTP, DNS), AI routing & SSE streaming (`rig-core` 0.44.0), response caching & compression, latency percentiles (`p50`/`p95`/`p99`), and Vue 3 + TypeScript admin UI  
+**Version**: 0.4.1 (October 2026)  
 **Maintainer**: [@DanielSarmiento04](https://github.com/DanielSarmiento04)  
 **Community**: Issues and PRs welcome!
+
 

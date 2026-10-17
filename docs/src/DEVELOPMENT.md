@@ -7,7 +7,7 @@ This guide provides instructions on how to set up the development environment, o
 ## Local Setup
 
 ### Prerequisites
-- **Rust Toolchain**: `1.75.0` or newer. Install via [rustup](https://rustup.rs/).
+- **Rust Toolchain**: `1.95.0` or newer (`1.99.0` recommended; required by `rig-core 0.44.0`). Install via [rustup](https://rustup.rs/).
 - **Cargo Make** (Optional but recommended): `cargo install cargo-make`
 - **Docker** and **Docker Compose**: For running test backends and end-to-end examples.
 
@@ -28,14 +28,26 @@ cargo build --bin kairos-gateway
 
 ### Running Tests
 
-We expect all core components to have a robust set of tests. To execute them:
+Kairos Gateway maintains a comprehensive test suite of **420 automated tests** (`198` Rust unit/integration tests + `101` Rust doctests + `121` Vitest UI tests):
 
 ```bash
-# Run unit and integration tests across the workspace
+# Run all unit, integration, and doc tests across the Rust workspace (299 tests)
 cargo test --workspace
 
-# Run tests mapped to specific modules (e.g. AI logic)
-cargo test -p kairos-rs -- ai_service_tests
+# Run Rust documentation tests only (101 doctests)
+cargo test --doc -p kairos-rs
+
+# Run specific integration test suites
+cargo test -p kairos-rs --test ai_service_tests
+cargo test -p kairos-rs --test cache_integration_tests
+cargo test -p kairos-rs --test compression_tests
+cargo test -p kairos-rs --test percentile_endpoint_tests
+cargo test -p kairos-rs --test transform_integration_tests
+cargo test -p kairos-rs --test jwt_integration_test
+cargo test -p kairos-rs --test websocket_integration_tests
+
+# Run Frontend Vitest unit & component tests (121 tests across 14 suites)
+cd frontend/kairos-ui && npm run test:unit -- --run
 ```
 
 ## Running the Components Locally

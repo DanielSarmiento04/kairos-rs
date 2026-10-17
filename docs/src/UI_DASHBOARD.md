@@ -73,27 +73,28 @@ npm run test:unit -- --run
 
 ### 1. Dashboard (`/`)
 - **Live KPIs**: Total requests, active connections, success rate, and uptime.
-- **Sparklines**: Rolling time-series SVG charts for request rate and concurrency.
-- **In-Memory Response Cache**: Displays current hit ratio, hits, misses, stored entries, and target latency.
+- **Interactive Time-Series Charts (`uPlot`)**: 4 live charts (Requests/sec, Active Connections, Latency p50/p95/p99, and Cache Hit/Miss Rate) backed by a 300-point rolling ring buffer.
+- **In-Memory Response Cache & Invalidation (`CacheInvalidationCard`)**: Displays current hit ratio, hits, misses, stored entries, pattern/regex cache invalidation (`POST /api/cache/invalidate`), and full purge (`POST /api/cache/clear`).
 - **High-Throughput Telemetry Log Stream**: Powered by `shallowRef` to prevent Vue deep-proxy overhead when ingesting hundreds of logs per second.
 
 ### 2. Routes (`/routes`)
-- **Route Matrix**: Visual table displaying external paths, protocols (`http`, `websocket`, `ftp`, `dns`), upstream backends, and active features (AI policies, transformations).
+- **Route Matrix**: Visual table displaying external paths, protocols (`http`, `websocket`, `ftp`, `dns`), upstream backends, and active features (AI policies, cache policies, transformations).
 - **Interactive Route Editor**:
   - **General**: External path (with `{param}` support), internal destination, protocol, allowed methods, and JWT requirement.
   - **Backends & Load Balancer**: Multi-target weighted endpoints and load-balancing strategy selection.
   - **Retry Policy**: Exponential backoff multiplier, initial/max backoff, and retryable status codes.
-  - **AI Routing Policy**: Content analysis, dynamic model selection, and fallback targets.
+  - **AI Routing Policy**: Content analysis, dynamic model selection, SSE token streaming toggle, and multi-provider fallback chains.
+  - **Cache Policy (`CachePolicyEditor`)**: Per-route cache toggle, TTL, max body size, `Vary` header tags, `Cache-Control` respect, and `Set-Cookie` skip rules.
   - **Transformations**: Request header manipulation, regex path rewriting, and response status code translations.
   - **Live Pre-Validation**: Tests route configuration against `/api/routes/validate` before saving.
 
 ### 3. Configuration (`/config`)
-- Modular cards for editing gateway subsystems: AI models, JWT secrets, Rate Limiting algorithms, Server threads, CORS rules, and Response Cache.
+- Modular cards for editing gateway subsystems: AI models & global fallback providers, JWT secrets, Rate Limiting algorithms, Server threads, CORS rules, and Response Cache.
 - **Live Hot Reload**: Triggers `POST /api/config/reload` to apply updates without service downtime.
 - **Raw JSON Display**: Syntax-highlighted view of `config.json` with one-click copy.
 
 ### 4. Interactive Playground (`/playground`)
-- Real-time route and prompt tester.
+- Real-time route and prompt tester with live **SSE Token Streaming** (`ReadableStream` + `TextDecoder`).
 - Custom HTTP method, path, request headers, Bearer authentication token, and JSON payload.
 - Detailed response inspection: Status code, duration in milliseconds, response headers, and formatted body.
 
@@ -102,5 +103,7 @@ npm run test:unit -- --run
 - Paste and inspect existing JWT tokens to view decoded header, claims, and validity status.
 
 ### 6. Metrics & Observability (`/metrics`)
-- Historical time-series query interface for `requests_total`, `requests_error`, `active_connections`, and `response_time_avg`.
+- Historical time-series query interface for `requests_total`, `requests_error`, `active_connections`, and `response_time_avg` with time-range presets (`15m`, `1h`, `6h`, `24h`), route filter, and **CSV Export**.
+- Historical p50/p95/p99 latency percentile charts (`GET /api/metrics/percentiles`).
 - Raw Prometheus exposition viewer for `/metrics`.
+

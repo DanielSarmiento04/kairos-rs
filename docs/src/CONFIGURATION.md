@@ -249,6 +249,53 @@ The gateway features a sub-millisecond, in-memory response cache for idempotent 
   ```bash
   curl -X POST http://localhost:5900/api/cache/clear
   ```
+- **Targeted Cache Invalidation (`POST /api/cache/invalidate`)**:
+  ```bash
+  # Invalidate by prefix or regular expression
+  curl -X POST http://localhost:5900/api/cache/invalidate \
+    -H "Content-Type: application/json" \
+    -d '{"pattern": "^GET:/api/users/\\d+$", "is_regex": true}'
+  ```
+
+### Per-Route Cache Policy (`cache`)
+
+You can configure fine-grained caching rules per route inside `routers`:
+
+```json
+{
+  "external_path": "/api/catalog",
+  "internal_path": "/v1/catalog",
+  "methods": ["GET"],
+  "backends": [{ "host": "http://catalog-service", "port": 8080, "weight": 1 }],
+  "cache": {
+    "enabled": true,
+    "ttl_seconds": 120,
+    "vary_headers": ["Accept-Language", "X-Tenant-Id"],
+    "cache_control_respect": true,
+    "skip_if_Set_Cookie": true,
+    "max_body_bytes": 1048576
+  }
+}
+```
+
+---
+
+## Global HTTP Response Compression (`compression`)
+
+Configure automatic response compression (`gzip`, `br`, `deflate`) at the root of `config.json`:
+
+```json
+{
+  "version": 1,
+  "compression": {
+    "enabled": true,
+    "algorithms": ["gzip", "br", "deflate"],
+    "min_bytes": 1024,
+    "level": 6
+  },
+  "routers": []
+}
+```
 
 ---
 

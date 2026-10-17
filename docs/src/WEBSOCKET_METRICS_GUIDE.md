@@ -58,6 +58,7 @@ Customize which metrics you want to receive and how often:
 - `metrics`: Array of metric names (empty array = all metrics)
 - `interval_seconds`: Update frequency in seconds (default: 1, range: 1-60)
 - `include_history`: Request historical data (default: false)
+- `subscribe_percentiles`: Receive real-time `Percentiles` latency updates (`p50`, `p95`, `p99`) on each tick (default: false)
 
 ### 4. Receive Periodic Updates
 
@@ -125,6 +126,18 @@ Historical time-series data for a specific metric.
 - `type`: "TimeSeries"
 - `metric_name`: Name of the metric
 - `data_points`: Array of {timestamp, value} objects
+
+### Percentiles Event
+
+Real-time latency percentiles computed from histogram buckets over the most recent 60-second window (emitted when `subscribe_percentiles: true`).
+
+**Fields:**
+- `type`: "Percentiles"
+- `timestamp`: ISO 8601 timestamp
+- `p50`: 50th percentile latency in milliseconds
+- `p95`: 95th percentile latency in milliseconds
+- `p99`: 99th percentile latency in milliseconds
+- `count`: Total observations in the window
 
 ### Error Event
 
