@@ -53,7 +53,8 @@ fn test_list_metrics() {
     store.record("metric3", MetricValue::Counter(3));
     
     let names = store.list_metrics();
-    assert_eq!(names.len(), 3);
+    // Includes 3 recorded metrics + 2 built-in cache metrics (cache_hits_total, cache_misses_total)
+    assert_eq!(names.len(), 5);
     assert!(names.contains(&"metric1".to_string()));
     assert!(names.contains(&"metric2".to_string()));
     assert!(names.contains(&"metric3".to_string()));
@@ -64,10 +65,11 @@ fn test_clear() {
     let store = MetricsStore::new(1000, Duration::hours(1));
     
     store.record("test", MetricValue::Counter(1));
-    assert_eq!(store.list_metrics().len(), 1);
+    assert_eq!(store.list_metrics().len(), 3);
     
     store.clear();
-    assert_eq!(store.list_metrics().len(), 0);
+    // Only the 2 built-in cache metrics remain advertised
+    assert_eq!(store.list_metrics().len(), 2);
 }
 
 #[test]

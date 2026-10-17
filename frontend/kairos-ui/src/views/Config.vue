@@ -103,9 +103,37 @@ const handleReload = async () => {
 // Open Modals
 const openAiModal = () => {
   if (config.value?.ai) {
-    aiForm.value = { ...config.value.ai, api_key: '' };
+    aiForm.value = {
+      ...config.value.ai,
+      api_key: '',
+      fallback_providers: config.value.ai.fallback_providers
+        ? JSON.parse(JSON.stringify(config.value.ai.fallback_providers))
+        : [],
+    };
+  } else {
+    aiForm.value = {
+      provider: 'openai',
+      model: 'gpt-4o',
+      api_key: '',
+      fallback_providers: [],
+    };
   }
   activeModal.value = 'ai';
+};
+
+const addAiFallback = () => {
+  if (!aiForm.value.fallback_providers) {
+    aiForm.value.fallback_providers = [];
+  }
+  aiForm.value.fallback_providers.push({
+    provider: 'anthropic',
+    model: 'claude-3-5-sonnet',
+    api_key: '',
+  });
+};
+
+const removeAiFallback = (index: number) => {
+  aiForm.value.fallback_providers?.splice(index, 1);
 };
 
 const openJwtModal = () => {
@@ -274,6 +302,14 @@ const saveMetricsConfig = async () => {
             <span class="label">API Key</span>
             <span class="value text-muted">•••••••• (Hidden for security)</span>
           </div>
+          <div v-if="config.ai?.fallback_providers && config.ai.fallback_providers.length > 0" class="config-row">
+            <span class="label">Failover Fallbacks</span>
+            <div class="value tags">
+              <span v-for="(fp, idx) in config.ai.fallback_providers" :key="idx" class="tag">
+                #{{ idx + 1 }}: {{ fp.provider }} ({{ fp.model }})
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -441,6 +477,7 @@ const saveMetricsConfig = async () => {
               <option value="groq">Groq</option>
               <option value="mistral">Mistral</option>
               <option value="perplexity">Perplexity</option>
+              <option value="xai">xAI (Grok)</option>
             </select>
           </div>
           <div class="form-group">
@@ -450,6 +487,35 @@ const saveMetricsConfig = async () => {
           <div class="form-group">
             <label>API Key (Leave empty to keep existing)</label>
             <input v-model="aiForm.api_key" type="password" placeholder="sk-..." class="form-control" />
+          </div>
+
+          <!-- Fallback Providers Section -->
+          <div class="fallback-section">
+            <div class="fallback-header">
+              <label class="fallback-title">Multi-Provider Failover Chain</label>
+              <button type="button" class="btn-fallback-add" @click="addAiFallback">+ Add Fallback</button>
+            </div>
+            <p class="fallback-desc">Secondary providers called in sequence if the primary provider hits rate limits or errors.</p>
+            <div v-if="!aiForm.fallback_providers || aiForm.fallback_providers.length === 0" class="empty-fallbacks">
+              <span>No fallback providers configured.</span>
+            </div>
+            <div v-else class="fallback-list">
+              <div v-for="(fp, idx) in aiForm.fallback_providers" :key="idx" class="fallback-item">
+                <span class="fallback-badge">#{{ idx + 1 }}</span>
+                <select v-model="fp.provider" class="form-control form-control-sm">
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="cohere">Cohere</option>
+                  <option value="groq">Groq</option>
+                  <option value="mistral">Mistral</option>
+                  <option value="perplexity">Perplexity</option>
+                  <option value="xai">xAI</option>
+                </select>
+                <input v-model="fp.model" type="text" placeholder="model name" class="form-control form-control-sm" />
+                <input v-model="fp.api_key" type="password" placeholder="API key (opt)" class="form-control form-control-sm" />
+                <button type="button" class="btn-fallback-remove" @click="removeAiFallback(idx)">✕</button>
+              </div>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -915,4 +981,83 @@ const saveMetricsConfig = async () => {
 .text-primary { color: #2563eb; }
 .text-muted { color: #94a3b8; }
 .text-small { font-size: 0.8rem; }
+
+/* Multi-Provider Fallbacks */
+.fallback-section {
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fallback-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.fallback-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.btn-fallback-add {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.fallback-desc {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.empty-fallbacks {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-style: italic;
+  padding: 8px 0;
+}
+
+.fallback-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fallback-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fallback-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  min-width: 20px;
+}
+
+.form-control-sm {
+  padding: 6px 8px;
+  font-size: 0.8rem;
+}
+
+.btn-fallback-remove {
+  background: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
 </style>

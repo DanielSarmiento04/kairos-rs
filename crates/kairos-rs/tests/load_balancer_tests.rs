@@ -71,6 +71,7 @@ fn test_router_with_backends() {
         request_transformation: None,
         response_transformation: None,
         ai_policy: None,
+        cache: None,
     };
 
     assert!(router.validate().is_ok());
@@ -97,6 +98,7 @@ fn test_router_legacy_mode() {
         request_transformation: None,
         response_transformation: None,
         ai_policy: None,
+        cache: None,
     };
 
     assert!(router.validate().is_ok());

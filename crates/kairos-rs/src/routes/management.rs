@@ -11,6 +11,8 @@ use tokio::sync::RwLock;
 
 use crate::models::router::Router;
 use crate::models::settings::{AiSettings, Settings};
+use crate::routes::metrics::MetricsCollector;
+use crate::services::http::RouteHandler;
 
 /// Shared state for route management operations.
 ///
@@ -731,6 +733,30 @@ pub async fn update_metrics_config(
     }))
 }
 
+/// Update response compression configuration (PR5 — Compression).
+///
+/// # Endpoint
+///
+/// `POST /api/config/compression`
+#[post("/api/config/compression")]
+pub async fn update_compression_config(
+    _manager: web::Data<RouteManager>,
+    compression_config: web::Json<crate::middleware::compression::CompressionConfig>,
+) -> impl Responder {
+    let cfg = compression_config.into_inner();
+    if let Err(e) = cfg.validate() {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "success": false,
+            "error": e,
+        }));
+    }
+    HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "Compression configuration received. Server restart required to apply compression settings.",
+        "config": cfg,
+    }))
+}
+
 /// Update server configuration
 ///
 /// # Endpoint
@@ -878,6 +904,76 @@ pub async fn update_ai_config(
     }))
 }
 
+/// Snapshot of in-memory cache stats, or 503 if the gateway has no cache
+/// configured (no route opted in to caching).
+#[get("/api/cache")]
+pub async fn get_route_cache_stats(
+    route_handler: Option<web::Data<RouteHandler>>,
+    metrics_collector: Option<web::Data<MetricsCollector>>,
+) -> impl Responder {
+    match route_handler {
+        Some(rh) => match rh.cache_stats() {
+            Some(stats) => {
+                if let Some(mc) = &metrics_collector {
+                    mc.sync_cache_stats(&stats);
+                    if let Some((primary, waiters)) = rh.coalesce_stats() {
+                        mc.sync_coalesce_stats(primary, waiters);
+                    }
+                }
+                let coalesce = rh
+                    .coalesce_stats()
+                    .map(|(primary, waiters)| {
+                        serde_json::json!({
+                            "primary_calls": primary,
+                            "waiters": waiters,
+                        })
+                    })
+                    .unwrap_or(serde_json::Value::Null);
+                HttpResponse::Ok().json(serde_json::json!({
+                    "success": true,
+                    "stats": {
+                        "hits": stats.hits,
+                        "misses": stats.misses,
+                        "entries": stats.entries,
+                        "evictions": stats.evictions,
+                        "hit_rate": stats.hit_rate,
+                        "coalesce": coalesce,
+                    }
+                }))
+            }
+            None => HttpResponse::Ok().json(serde_json::json!({
+                "success": true,
+                "stats": null,
+                "message": "No cache configured (no route opted in)"
+            })),
+        },
+        None => HttpResponse::ServiceUnavailable().json(serde_json::json!({
+            "success": false,
+            "error": "RouteHandler not available"
+        })),
+    }
+}
+
+/// Manually clear all entries from the in-memory cache.
+#[delete("/api/cache")]
+pub async fn delete_route_cache(
+    route_handler: Option<web::Data<RouteHandler>>,
+) -> impl Responder {
+    match route_handler {
+        Some(rh) => {
+            rh.cache_clear().await;
+            HttpResponse::Ok().json(serde_json::json!({
+                "success": true,
+                "message": "Cache cleared"
+            }))
+        }
+        None => HttpResponse::ServiceUnavailable().json(serde_json::json!({
+            "success": false,
+            "error": "RouteHandler not available"
+        })),
+    }
+}
+
 /// Get response cache statistics
 ///
 /// # Endpoint
@@ -936,8 +1032,11 @@ pub fn configure_management(cfg: &mut web::ServiceConfig) {
         .service(update_rate_limit_config)
         .service(update_cors_config)
         .service(update_metrics_config)
+        .service(update_compression_config)
         .service(update_server_config)
         .service(update_ai_config)
+        .service(get_route_cache_stats)
+        .service(delete_route_cache)
         .service(get_cache_stats)
         .service(clear_cache);
 }

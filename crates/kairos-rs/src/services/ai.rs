@@ -1,9 +1,7 @@
 use crate::models::router::Backend;
-use crate::models::settings::AiSettings;
-use log::{debug, error, info};
-use reqwest::Client as HttpClient;
-use rig::client::CompletionClient;
-use rig::completion::Prompt;
+use crate::models::settings::{AiProviderConfig, AiSettings};
+use log::{debug, error, info, warn};
+use rig::completion::CompletionRequest;
 use rig::providers::{anthropic, cohere, groq, mistral, openai, perplexity, xai};
 use thiserror::Error;
 
@@ -16,7 +14,7 @@ pub enum AiServiceError {
     UnsupportedProvider(String),
 
     #[error(transparent)]
-    RigError(#[from] rig::completion::PromptError),
+    RigError(#[from] rig::error::ProviderError),
 
     #[error("Error from AI provider: {0}")]
     ProviderError(String),
@@ -47,160 +45,184 @@ impl AiService {
 
     /// Performs a simple completion request to test the integration.
     pub async fn ask(&self, prompt: &str) -> Result<String, AiServiceError> {
-        let provider = self.settings.provider.to_lowercase();
-        let model = &self.settings.model;
-
-        // Common preamble for the agent
         let preamble = "You are a helpful AI assistant integrated into the Kairos-rs gateway.";
+        self.execute_prompt_with_fallbacks(prompt, preamble, None, None, None, None).await
+    }
+
+    /// Executes a prompt against a single specific AI provider.
+    pub async fn execute_single_provider(
+        &self,
+        prompt: &str,
+        preamble: &str,
+        provider: &str,
+        model: &str,
+        api_key_override: Option<&str>,
+    ) -> Result<String, AiServiceError> {
+        let provider_lower = provider.to_lowercase();
 
         // Helper to get API key from config or env
         let get_key = |env_var: &str| -> Result<String, AiServiceError> {
-            self.settings
-                .api_key
-                .clone()
+            api_key_override
+                .map(String::from)
+                .or_else(|| self.settings.api_key.clone())
                 .or_else(|| std::env::var(env_var).ok())
                 .ok_or_else(|| AiServiceError::ApiKeyNotFound(env_var.to_string()))
         };
 
-        let response = {
-            macro_rules! delegate_prompt {
-                ($client:ty, $key_env:literal, $provider_name:literal) => {{
-                    let key = get_key($key_env)?;
-                    let client = <$client>::new(&key)
-                        .map_err(|e| AiServiceError::ProviderError(e.to_string()))?;
-                    let agent = client.agent(model).preamble(preamble).build();
-                    info!("Sending prompt to {} model: {}", $provider_name, model);
-                    agent
-                        .prompt(prompt)
-                        .await
-                        .map_err(AiServiceError::RigError)?
-                }};
-            }
+        let req = CompletionRequest::new(prompt).preamble(preamble);
 
-            match provider.as_str() {
-                "openai" => {
-                    delegate_prompt!(openai::Client<HttpClient>, "OPENAI_API_KEY", "OpenAI")
-                }
-                "anthropic" => {
-                    delegate_prompt!(
-                        anthropic::Client<HttpClient>,
-                        "ANTHROPIC_API_KEY",
-                        "Anthropic"
-                    )
-                }
-                "cohere" => {
-                    delegate_prompt!(cohere::Client<HttpClient>, "COHERE_API_KEY", "Cohere")
-                }
-                "perplexity" => {
-                    delegate_prompt!(
-                        perplexity::Client<HttpClient>,
-                        "PERPLEXITY_API_KEY",
-                        "Perplexity"
-                    )
-                }
-                "mistral" => {
-                    delegate_prompt!(mistral::Client<HttpClient>, "MISTRAL_API_KEY", "Mistral")
-                }
-                "groq" => delegate_prompt!(groq::Client<HttpClient>, "GROQ_API_KEY", "Groq"),
-                "xai" => delegate_prompt!(xai::Client<HttpClient>, "XAI_API_KEY", "xAI"),
-                _ => {
-                    let msg = format!("Unsupported AI provider: {}", provider);
-                    error!("{}", msg);
-                    return Err(AiServiceError::UnsupportedProvider(provider));
-                }
+        let response = match provider_lower.as_str() {
+            "openai" => {
+                let key = get_key("OPENAI_API_KEY")?;
+                let client = openai::OpenAI::new(&key);
+                debug!("Sending prompt to OpenAI model: {}", model);
+                client.completion(model).call(req).await?.text()
+            }
+            "anthropic" => {
+                let key = get_key("ANTHROPIC_API_KEY")?;
+                let client = anthropic::Anthropic::new(&key);
+                debug!("Sending prompt to Anthropic model: {}", model);
+                client.completion(model).call(req).await?.text()
+            }
+            "cohere" => {
+                let key = get_key("COHERE_API_KEY")?;
+                let client = cohere::Cohere::new(&key);
+                debug!("Sending prompt to Cohere model: {}", model);
+                client.completion(model).call(req).await?.text()
+            }
+            "perplexity" => {
+                let key = get_key("PERPLEXITY_API_KEY")?;
+                let client = perplexity::new(&key);
+                debug!("Sending prompt to Perplexity model: {}", model);
+                client.completion(model).call(req).await?.text()
+            }
+            "mistral" => {
+                let key = get_key("MISTRAL_API_KEY")?;
+                let client = mistral::new(&key);
+                debug!("Sending prompt to Mistral model: {}", model);
+                client.completion(model).call(req).await?.text()
+            }
+            "groq" => {
+                let key = get_key("GROQ_API_KEY")?;
+                let client = groq::new(&key);
+                debug!("Sending prompt to Groq model: {}", model);
+                client.completion(model).call(req).await?.text()
+            }
+            "xai" => {
+                let key = get_key("XAI_API_KEY")?;
+                let client = xai::new(&key);
+                debug!("Sending prompt to xAI model: {}", model);
+                client.completion(model).call(req).await?.text()
+            }
+            _ => {
+                let msg = format!("Unsupported AI provider: {}", provider);
+                error!("{}", msg);
+                return Err(AiServiceError::UnsupportedProvider(provider.to_string()));
             }
         };
 
         Ok(response)
     }
 
-    /// Internal helper to execute a prompt against the configured provider
-    async fn execute_prompt(
+    /// Internal helper to execute a prompt against the configured provider with automatic failover.
+    pub async fn execute_prompt_with_fallbacks(
+        &self,
+        prompt: &str,
+        preamble: &str,
+        provider_override: Option<&str>,
+        model_override: Option<&str>,
+        api_key_override: Option<&str>,
+        fallback_providers: Option<&[AiProviderConfig]>,
+    ) -> Result<String, AiServiceError> {
+        let primary_provider = provider_override.unwrap_or(&self.settings.provider);
+        let primary_model = model_override.unwrap_or(&self.settings.model);
+
+        // Attempt execution with primary provider
+        match self
+            .execute_single_provider(
+                prompt,
+                preamble,
+                primary_provider,
+                primary_model,
+                api_key_override,
+            )
+            .await
+        {
+            Ok(resp) => Ok(resp),
+            Err(primary_err) => {
+                let fallbacks: Vec<AiProviderConfig> = fallback_providers
+                    .map(|f| f.to_vec())
+                    .unwrap_or_else(|| self.settings.fallback_providers.clone());
+
+                if fallbacks.is_empty() {
+                    return Err(primary_err);
+                }
+
+                warn!(
+                    "Primary AI provider '{}' ({}) failed: {}. Attempting failover across {} fallback provider(s)...",
+                    primary_provider,
+                    primary_model,
+                    primary_err,
+                    fallbacks.len()
+                );
+
+                for (idx, fallback) in fallbacks.iter().enumerate() {
+                    info!(
+                        "Executing AI failover [{}/{}] to provider '{}' (model '{}')",
+                        idx + 1,
+                        fallbacks.len(),
+                        fallback.provider,
+                        fallback.model
+                    );
+
+                    match self
+                        .execute_single_provider(
+                            prompt,
+                            preamble,
+                            &fallback.provider,
+                            &fallback.model,
+                            fallback.api_key.as_deref(),
+                        )
+                        .await
+                    {
+                        Ok(resp) => {
+                            info!(
+                                "AI failover succeeded using fallback provider '{}' (model '{}')",
+                                fallback.provider, fallback.model
+                            );
+                            return Ok(resp);
+                        }
+                        Err(fallback_err) => {
+                            warn!(
+                                "Fallback AI provider '{}' ({}) failed: {}",
+                                fallback.provider, fallback.model, fallback_err
+                            );
+                        }
+                    }
+                }
+
+                Err(primary_err)
+            }
+        }
+    }
+
+    /// Internal helper to execute a prompt against the configured provider (backward-compatible).
+    pub async fn execute_prompt(
         &self,
         prompt: &str,
         preamble: &str,
         provider_override: Option<&str>,
         model_override: Option<&str>,
     ) -> Result<String, AiServiceError> {
-        let provider = provider_override
-            .unwrap_or(&self.settings.provider)
-            .to_lowercase();
-        let model = model_override.unwrap_or(&self.settings.model);
-
-        // Helper to get API key from config or env
-        let get_key = |env_var: &str| -> Result<String, AiServiceError> {
-            self.settings
-                .api_key
-                .clone()
-                .or_else(|| std::env::var(env_var).ok())
-                .ok_or_else(|| AiServiceError::ApiKeyNotFound(env_var.to_string()))
-        };
-
-        macro_rules! delegate_prompt {
-            ($client:ty, $key_env:literal, $provider_name:literal, $preamble:expr) => {{
-                let key = get_key($key_env)?;
-                let client = <$client>::new(&key)
-                    .map_err(|e| AiServiceError::ProviderError(e.to_string()))?;
-                let agent = client.agent(model).preamble($preamble).build();
-                debug!("Sending prompt to {} model: {}", $provider_name, model);
-                agent
-                    .prompt(prompt)
-                    .await
-                    .map_err(AiServiceError::RigError)?
-            }};
-        }
-
-        let response = match provider.as_str() {
-            "openai" => {
-                delegate_prompt!(
-                    openai::Client<HttpClient>,
-                    "OPENAI_API_KEY",
-                    "OpenAI",
-                    preamble
-                )
-            }
-            "anthropic" => {
-                delegate_prompt!(
-                    anthropic::Client<HttpClient>,
-                    "ANTHROPIC_API_KEY",
-                    "Anthropic",
-                    preamble
-                )
-            }
-            "cohere" => {
-                delegate_prompt!(
-                    cohere::Client<HttpClient>,
-                    "COHERE_API_KEY",
-                    "Cohere",
-                    preamble
-                )
-            }
-            "perplexity" => {
-                delegate_prompt!(
-                    perplexity::Client<HttpClient>,
-                    "PERPLEXITY_API_KEY",
-                    "Perplexity",
-                    preamble
-                )
-            }
-            "mistral" => {
-                delegate_prompt!(
-                    mistral::Client<HttpClient>,
-                    "MISTRAL_API_KEY",
-                    "Mistral",
-                    preamble
-                )
-            }
-            "groq" => delegate_prompt!(groq::Client<HttpClient>, "GROQ_API_KEY", "Groq", preamble),
-            "xai" => delegate_prompt!(xai::Client<HttpClient>, "XAI_API_KEY", "xAI", preamble),
-            _ => {
-                let msg = format!("Unsupported AI provider: {}", provider);
-                error!("{}", msg);
-                return Err(AiServiceError::UnsupportedProvider(provider));
-            }
-        };
-
-        Ok(response)
+        self.execute_prompt_with_fallbacks(
+            prompt,
+            preamble,
+            provider_override,
+            model_override,
+            None,
+            None,
+        )
+        .await
     }
 
     /// Predicts which backend should handle the request based on content.
@@ -221,6 +243,19 @@ impl AiService {
         backends: &[Backend],
         provider: Option<&str>,
         model: Option<&str>,
+    ) -> Result<usize, PredictBackendError> {
+        self.predict_backend_with_fallbacks(request_info, backends, provider, model, None)
+            .await
+    }
+
+    /// Predicts which backend should handle the request based on content with optional fallback providers.
+    pub async fn predict_backend_with_fallbacks(
+        &self,
+        request_info: &str,
+        backends: &[Backend],
+        provider: Option<&str>,
+        model: Option<&str>,
+        fallback_providers: Option<&[AiProviderConfig]>,
     ) -> Result<usize, PredictBackendError> {
         // Format backends list
         let backends_list = backends
@@ -248,7 +283,14 @@ impl AiService {
         let preamble = "You are an intelligent API gateway routing engine. Your job is to strictly analyze request content and route it to the correct backend service.";
 
         let response = self
-            .execute_prompt(&prompt, preamble, provider, model)
+            .execute_prompt_with_fallbacks(
+                &prompt,
+                preamble,
+                provider,
+                model,
+                None,
+                fallback_providers,
+            )
             .await?;
 
         // Robust parsing using regex to find JSON or direct integer
@@ -288,11 +330,48 @@ mod tests {
             provider: "openai".to_string(),
             model: "gpt-4".to_string(),
             api_key: Some("test-key".to_string()),
+            fallback_providers: vec![AiProviderConfig {
+                provider: "anthropic".to_string(),
+                model: "claude-3-5-sonnet".to_string(),
+                api_key: Some("fallback-key".to_string()),
+            }],
         };
 
         let service = AiService::new(settings);
         assert_eq!(service.settings.provider, "openai");
         assert_eq!(service.settings.model, "gpt-4");
         assert_eq!(service.settings.api_key, Some("test-key".to_string()));
+        assert_eq!(service.settings.fallback_providers.len(), 1);
+        assert_eq!(service.settings.fallback_providers[0].provider, "anthropic");
+    }
+
+    #[tokio::test]
+    async fn test_unsupported_provider() {
+        let settings = AiSettings {
+            provider: "unknown-vendor".to_string(),
+            model: "model-x".to_string(),
+            api_key: Some("key".to_string()),
+            fallback_providers: vec![],
+        };
+        let service = AiService::new(settings);
+        let res = service.ask("hello").await;
+        assert!(matches!(res, Err(AiServiceError::UnsupportedProvider(_))));
+    }
+
+    #[tokio::test]
+    async fn test_api_key_not_found() {
+        let settings = AiSettings {
+            provider: "openai".to_string(),
+            model: "gpt-4".to_string(),
+            api_key: None,
+            fallback_providers: vec![],
+        };
+        // Ensure env var is not set during test
+        std::env::remove_var("OPENAI_API_KEY");
+        let service = AiService::new(settings);
+        let res = service
+            .execute_single_provider("hello", "preamble", "openai", "gpt-4", None)
+            .await;
+        assert!(matches!(res, Err(AiServiceError::ApiKeyNotFound(_))));
     }
 }

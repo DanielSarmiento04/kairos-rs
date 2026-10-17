@@ -2,8 +2,12 @@ use crate::models::error::GatewayError;
 use crate::models::router::{AiRoutingStrategy, Router};
 use crate::routes::metrics::MetricsCollector;
 use crate::services::ai::AiService;
-use crate::services::cache::ResponseCache;
+use crate::services::cache::{
+    compute_cache_key, etag_matches, is_cacheable, should_cache_route, CacheService,
+    CachedResponse, InMemoryCache, ResponseCache,
+};
 use crate::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
+use crate::services::inflight::{CoalesceOutcome, InFlightTracker};
 use crate::services::load_balancer::{LoadBalancer, LoadBalancerFactory};
 use crate::utils::path::format_route;
 use crate::utils::route_matcher::RouteMatcher;
@@ -12,12 +16,14 @@ use actix_web::{
     http::{Method as ActixMethod, StatusCode},
     web, Error as ActixError, HttpRequest, HttpResponse,
 };
+use futures_util::TryStreamExt;
 use log::{debug, info, warn};
 use reqwest::{
     header::HeaderMap as ReqwestHeaderMap, header::HeaderName, header::HeaderValue, Client,
     Method as ReqwestMethod,
 };
 use std::collections::HashMap;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::time::{sleep, timeout, Duration};
@@ -78,6 +84,7 @@ use tokio::time::{sleep, timeout, Duration};
 ///         request_transformation: None,
 ///         response_transformation: None,
 ///         ai_policy: None,
+///         cache: None,
 ///     }
 /// ];
 ///
@@ -99,45 +106,14 @@ pub struct RouteHandler {
     ai_service: Option<Arc<AiService>>,
     /// In-memory response cache for idempotent HTTP requests
     response_cache: Option<Arc<ResponseCache>>,
+    /// Optional per-route Moka in-memory response cache (PR6).
+    cache: Option<Arc<InMemoryCache>>,
+    /// Optional in-flight request coalescer (PR7 — single-flight).
+    inflight: Option<Arc<InFlightTracker>>,
 }
 
 impl RouteHandler {
     /// Creates a new HTTP route handler with optimized client configuration.
-    ///
-    /// This constructor sets up a high-performance HTTP client with connection
-    /// pooling, compiles all route patterns for efficient matching, and initializes
-    /// circuit breakers for upstream service protection.
-    ///
-    /// # Parameters
-    ///
-    /// * `routes` - Vector of router configurations defining request forwarding rules
-    /// * `timeout_seconds` - Maximum time in seconds to wait for upstream responses
-    ///
-    /// # Returns
-    ///
-    /// A new `RouteHandler` instance ready to process requests with full circuit breaker protection
-    ///
-    /// # HTTP Client Configuration
-    ///
-    /// The internal HTTP client is configured with:
-    /// - **Idle Timeout**: 30 seconds to keep connections alive
-    /// - **Pool Size**: Up to 32 idle connections per host
-    /// - **Connection Reuse**: Automatic connection pooling
-    ///
-    /// # Route Compilation
-    ///
-    /// All routes are pre-compiled into an optimized matcher that:
-    /// - Separates static and dynamic routes for optimal lookup performance
-    /// - Compiles regex patterns for parameterized routes
-    /// - Validates all route patterns at startup
-    ///
-    /// # Circuit Breaker Initialization
-    ///
-    /// Circuit breakers are created for each unique upstream service (host:port combination):
-    /// - **Failure Threshold**: 5 consecutive failures trigger circuit opening
-    /// - **Success Threshold**: 3 consecutive successes close an open circuit
-    /// - **Reset Timeout**: 30 seconds before transitioning from open to half-open
-    /// - **Service Isolation**: Each upstream service has independent protection
     ///
     /// # Examples
     ///
@@ -165,6 +141,7 @@ impl RouteHandler {
     ///         request_transformation: None,
     ///         response_transformation: None,
     ///         ai_policy: None,
+    ///         cache: None,
     ///     },
     ///     Router {
     ///         host: Some("http://user-service".to_string()),
@@ -185,22 +162,12 @@ impl RouteHandler {
     ///         request_transformation: None,
     ///         response_transformation: None,
     ///         ai_policy: None,
+    ///         cache: None,
     ///     }
     /// ];
     ///
     /// let handler = RouteHandler::new(routes, 30);
     /// ```
-    ///
-    /// # Panics
-    ///
-    /// Panics if:
-    /// - HTTP client creation fails (rare, indicates system resource issues)
-    /// - Route compilation fails (invalid route patterns in configuration)
-    ///
-    /// # Thread Safety
-    ///
-    /// The returned handler is safe to clone and share across multiple worker threads.
-    /// All internal state is either immutable or thread-safe.
     pub fn new(routes: Vec<Router>, timeout_seconds: u64) -> Self {
         let client = Client::builder()
             .tcp_nodelay(true)
@@ -253,7 +220,22 @@ impl RouteHandler {
             load_balancers: Arc::new(load_balancers),
             ai_service: None,
             response_cache: None,
+            cache: Self::build_cache_from_routes(&routes),
+            inflight: None,
         }
+    }
+
+    /// Build a single shared in-memory cache for the whole handler if
+    /// any route opts in to caching.
+    fn build_cache_from_routes(routes: &[Router]) -> Option<Arc<InMemoryCache>> {
+        let cfg = routes
+            .iter()
+            .filter_map(|r| r.cache.as_ref())
+            .find(|c| c.enabled)?;
+        Some(Arc::new(InMemoryCache::new(
+            cfg.max_size,
+            std::time::Duration::from_secs(cfg.ttl_secs),
+        )))
     }
 
     /// Attaches an AI service to the route handler.
@@ -271,6 +253,64 @@ impl RouteHandler {
     /// Returns a reference to the response cache if configured.
     pub fn cache(&self) -> Option<&Arc<ResponseCache>> {
         self.response_cache.as_ref()
+    }
+
+    /// Attaches an in-flight request coalescer to the route handler.
+    pub fn with_inflight_tracker(mut self, tracker: Arc<InFlightTracker>) -> Self {
+        self.inflight = Some(tracker);
+        self
+    }
+
+    /// Convert a `CoalesceOutcome` back into a `Result<HttpResponse, ActixError>`.
+    fn coalesce_outcome_to_response(
+        &self,
+        outcome: CoalesceOutcome,
+        path: &str,
+    ) -> Result<HttpResponse, ActixError> {
+        match outcome {
+            CoalesceOutcome::Response {
+                status,
+                headers,
+                body,
+            } => {
+                let status_code = StatusCode::from_u16(status).unwrap_or(StatusCode::OK);
+                let mut builder = HttpResponse::build(status_code);
+                for (name, value) in &headers {
+                    if let (Ok(n), Ok(v)) = (
+                        actix_web::http::header::HeaderName::try_from(name.as_str()),
+                        actix_web::http::header::HeaderValue::from_str(value),
+                    ) {
+                        builder.insert_header((n, v));
+                    }
+                }
+                Ok(builder.body(body))
+            }
+            CoalesceOutcome::Error(msg) => Err(GatewayError::Upstream {
+                message: msg,
+                url: path.to_string(),
+                status: None,
+            }
+            .into()),
+        }
+    }
+
+    /// Snapshot of in-memory cache stats.
+    pub fn cache_stats(&self) -> Option<crate::services::cache::CacheStatsSnapshot> {
+        self.cache.as_ref().map(|c| c.stats())
+    }
+
+    /// Snapshot of in-flight coalesce counters (`(primary_calls, waiters)`).
+    pub fn coalesce_stats(&self) -> Option<(u64, u64)> {
+        self.inflight
+            .as_ref()
+            .map(|t| (t.primary_calls(), t.waiters()))
+    }
+
+    /// Clear all entries from the in-memory cache.
+    pub async fn cache_clear(&self) {
+        if let Some(cache) = &self.cache {
+            cache.clear().await;
+        }
     }
 
     /// Processes an incoming HTTP request and forwards it to the appropriate upstream service.
@@ -419,6 +459,7 @@ impl RouteHandler {
         req: HttpRequest,
         body: web::Bytes,
     ) -> Result<HttpResponse, ActixError> {
+        let route_start = Instant::now();
         let path = req.path().to_string();
         let method = req.method().clone();
 
@@ -449,6 +490,46 @@ impl RouteHandler {
             .into());
         }
 
+        // Phase 1 per-route cache lookup (PR6): only when the matched route opted in.
+        if should_cache_route(&route) {
+            if let Some(cache) = &self.cache {
+                let key = compute_cache_key(req.method().as_str(), &path, req.query_string());
+                if let Some(hit) = cache.get(&key).await {
+                    debug!("Cache HIT for {}", path);
+                    if let Some(metrics) =
+                        req.app_data::<web::Data<crate::routes::metrics::MetricsCollector>>()
+                    {
+                        metrics.cache_hits_total.fetch_add(1, Ordering::Relaxed);
+                        metrics.record_route_cache_hit(&route.external_path);
+                    }
+                    if !hit.etag.is_empty() {
+                        if let Some(inm) =
+                            req.headers().get(actix_web::http::header::IF_NONE_MATCH)
+                        {
+                            if let Ok(inm_str) = inm.to_str() {
+                                if etag_matches(inm_str, &hit.etag) {
+                                    debug!("Cache ETag 304 for {}", path);
+                                    return Ok(HttpResponse::NotModified()
+                                        .insert_header((
+                                            actix_web::http::header::ETAG,
+                                            hit.etag.as_str(),
+                                        ))
+                                        .finish());
+                                }
+                            }
+                        }
+                    }
+                    return Ok(hit.to_response());
+                }
+                if let Some(metrics) =
+                    req.app_data::<web::Data<crate::routes::metrics::MetricsCollector>>()
+                {
+                    metrics.cache_misses_total.fetch_add(1, Ordering::Relaxed);
+                    metrics.record_route_cache_miss(&route.external_path);
+                }
+            }
+        }
+
         // Fast path: Check response cache for idempotent requests (GET / HEAD)
         if let Some(ref cache) = self.response_cache {
             if method == ActixMethod::GET || method == ActixMethod::HEAD {
@@ -468,6 +549,159 @@ impl RouteHandler {
                 route: path.clone(),
             }
             .into());
+        }
+
+        let is_route_streaming = route
+            .ai_policy
+            .as_ref()
+            .and_then(|p| p.streaming)
+            .unwrap_or(false);
+
+        // PR7: Coalesce guard for routes with `cache.coalesce = true` and `InFlightTracker` wired.
+        let should_coalesce = !is_route_streaming
+            && method == ActixMethod::GET
+            && should_cache_route(&route)
+            && route.cache.as_ref().map_or(false, |c| c.coalesce);
+
+        if should_coalesce {
+            if let Some(tracker) = &self.inflight {
+                let coalesce_key =
+                    compute_cache_key(method.as_str(), &path, req.query_string());
+                let client = self.client.clone();
+                let timeout_seconds = self.timeout_seconds;
+                let circuit_breakers = Arc::clone(&self.circuit_breakers);
+                let load_balancers = Arc::clone(&self.load_balancers);
+                let cache_arc = self.cache.clone();
+                let route_clone = route.clone();
+                let path_for_closure = path.clone();
+                let query_str = req.query_string().to_string();
+                let client_ip = req
+                    .connection_info()
+                    .realip_remote_addr()
+                    .map(|s| s.to_string());
+                let metrics_data = req
+                    .app_data::<web::Data<crate::routes::metrics::MetricsCollector>>()
+                    .cloned();
+                let reqwest_method_clone = reqwest_method.clone();
+                let reqwest_headers_clone = reqwest_headers.clone();
+                let body_clone = body.clone();
+                let transformed_path_clone = transformed_internal_path.clone();
+
+                let outcome = tracker
+                    .coalesce(coalesce_key, move || async move {
+                        let backend = if backends.len() == 1 {
+                            backends[0].clone()
+                        } else if let Some(lb) = load_balancers.get(&route_clone.external_path) {
+                            match lb.select_backend(&backends, client_ip.as_deref()) {
+                                Some(b) => b,
+                                None => {
+                                    return CoalesceOutcome::err(format!(
+                                        "Load balancer failed to select backend for route {}",
+                                        path_for_closure
+                                    ));
+                                }
+                            }
+                        } else {
+                            backends[0].clone()
+                        };
+
+                        let target_url =
+                            format_route(&backend.host, &backend.port, &transformed_path_clone);
+                        let service_key = format!("{}:{}", backend.host, backend.port);
+                        let circuit_breaker = match circuit_breakers.get(&service_key) {
+                            Some(cb) => cb,
+                            None => {
+                                return CoalesceOutcome::err(format!(
+                                    "No circuit breaker found for backend: {}",
+                                    service_key
+                                ));
+                            }
+                        };
+
+                        let forwarded_req = client
+                            .request(reqwest_method_clone, &target_url)
+                            .body(body_clone)
+                            .headers(reqwest_headers_clone);
+
+                        let result = circuit_breaker
+                            .call(async {
+                                match timeout(
+                                    Duration::from_secs(timeout_seconds),
+                                    forwarded_req.send(),
+                                )
+                                .await
+                                {
+                                    Ok(Ok(resp)) => Ok(resp),
+                                    Ok(Err(e)) => Err(GatewayError::Upstream {
+                                        message: e.to_string(),
+                                        url: target_url.clone(),
+                                        status: None,
+                                    }),
+                                    Err(_) => Err(GatewayError::Timeout {
+                                        timeout: timeout_seconds,
+                                    }),
+                                }
+                            })
+                            .await;
+
+                        match result {
+                            Ok(response) => {
+                                let status_code = response.status().as_u16();
+                                let cache_hdrs: Vec<(String, String)> = response
+                                    .headers()
+                                    .iter()
+                                    .map(|(k, v)| {
+                                        (k.to_string(), v.to_str().unwrap_or("").to_string())
+                                    })
+                                    .collect();
+                                match response.bytes().await {
+                                    Ok(bytes) => {
+                                        if let (Some(cache_cfg), Some(cache)) =
+                                            (&route_clone.cache, &cache_arc)
+                                        {
+                                            if is_cacheable("GET", status_code, &cache_hdrs) {
+                                                let key = compute_cache_key(
+                                                    "GET",
+                                                    &path_for_closure,
+                                                    &query_str,
+                                                );
+                                                let cached = CachedResponse::from_response_parts(
+                                                    status_code,
+                                                    &cache_hdrs,
+                                                    bytes.clone(),
+                                                );
+                                                cache
+                                                    .put(
+                                                        key,
+                                                        cached,
+                                                        Duration::from_secs(cache_cfg.ttl_secs),
+                                                    )
+                                                    .await;
+                                            }
+                                        }
+                                        if let Some(metrics) = &metrics_data {
+                                            metrics.record_route_request(
+                                                &route_clone.external_path,
+                                                status_code < 400,
+                                                route_start.elapsed(),
+                                                status_code,
+                                            );
+                                        }
+                                        CoalesceOutcome::ok(status_code, cache_hdrs, bytes)
+                                    }
+                                    Err(e) => CoalesceOutcome::err(format!(
+                                        "Upstream response body error for {}: {}",
+                                        target_url, e
+                                    )),
+                                }
+                            }
+                            Err(e) => CoalesceOutcome::err(format!("{:?}", e)),
+                        }
+                    })
+                    .await;
+
+                return self.coalesce_outcome_to_response(outcome, &path);
+            }
         }
 
         // Get client IP for IP hash load balancing
@@ -533,12 +767,18 @@ impl RouteHandler {
                     );
 
                     let ai_service = self.ai_service.as_ref().unwrap();
+                    let fallbacks = if !policy.fallback_providers.is_empty() {
+                        Some(policy.fallback_providers.as_slice())
+                    } else {
+                        None
+                    };
                     match ai_service
-                        .predict_backend(
+                        .predict_backend_with_fallbacks(
                             &req_info,
                             &backends,
                             policy.provider.as_deref(),
                             model.as_deref(),
+                            fallbacks,
                         )
                         .await
                     {
@@ -695,6 +935,27 @@ impl RouteHandler {
                         }
                     }
 
+                    // Check if response is an SSE or chunked stream
+                    let is_sse_content_type = response
+                        .headers()
+                        .get(reqwest::header::CONTENT_TYPE)
+                        .and_then(|v| v.to_str().ok())
+                        .map(|ct| ct.contains("text/event-stream") || ct.contains("application/x-ndjson"))
+                        .unwrap_or(false);
+
+                    if is_sse_content_type || is_route_streaming {
+                        debug!("Streaming passthrough enabled for route: {}", route.external_path);
+                        builder.insert_header(("Cache-Control", "no-cache, no-transform"));
+                        builder.insert_header(("X-Accel-Buffering", "no"));
+                        builder.insert_header(("X-Streaming", "true"));
+
+                        let stream = response.bytes_stream().map_err(|e| {
+                            actix_web::error::ErrorBadGateway(format!("Upstream streaming error: {}", e))
+                        });
+
+                        return Ok(builder.streaming(stream));
+                    }
+
                     if self.response_cache.is_some() {
                         builder.insert_header(("X-Cache", "MISS"));
                     }
@@ -702,6 +963,35 @@ impl RouteHandler {
                     // Handle the response body
                     match response.bytes().await {
                         Ok(bytes) => {
+                            if should_cache_route(&route) {
+                                if let (Some(cache_cfg), Some(cache)) = (&route.cache, &self.cache)
+                                {
+                                    if is_cacheable(
+                                        req.method().as_str(),
+                                        status_code,
+                                        &cached_headers,
+                                    ) {
+                                        let key = compute_cache_key(
+                                            req.method().as_str(),
+                                            &path,
+                                            req.query_string(),
+                                        );
+                                        let cached = CachedResponse::from_response_parts(
+                                            status_code,
+                                            &cached_headers,
+                                            bytes.clone(),
+                                        );
+                                        cache
+                                            .put(
+                                                key,
+                                                cached,
+                                                Duration::from_secs(cache_cfg.ttl_secs),
+                                            )
+                                            .await;
+                                        debug!("Cache STORE for {}", path);
+                                    }
+                                }
+                            }
                             if let Some(ref cache) = self.response_cache {
                                 let uri = req.uri().to_string();
                                 if method != ActixMethod::GET && method != ActixMethod::HEAD {
@@ -719,6 +1009,16 @@ impl RouteHandler {
                                         None,
                                     );
                                 }
+                            }
+                            if let Some(metrics) = req.app_data::<web::Data<
+                                crate::routes::metrics::MetricsCollector,
+                            >>() {
+                                metrics.record_route_request(
+                                    &route.external_path,
+                                    status_code < 400,
+                                    route_start.elapsed(),
+                                    status_code,
+                                );
                             }
                             return Ok(builder.body(bytes));
                         }

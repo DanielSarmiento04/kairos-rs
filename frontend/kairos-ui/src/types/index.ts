@@ -29,44 +29,65 @@ export type AiRoutingStrategy =
   | { anomaly_detection: Record<string, never> }
   | string;
 
+export interface AiProviderConfig {
+  provider: string;
+  model: string;
+  api_key?: string | null;
+}
+
 export interface AiPolicy {
   enabled: boolean;
   strategy: AiRoutingStrategy;
   provider?: string | null;
   fallback_backend_index?: number | null;
+  fallback_providers?: AiProviderConfig[];
+  streaming?: boolean | null;
 }
 
-export interface HeaderManipulation {
-  add?: Record<string, string>;
-  remove?: string[];
-  set?: Record<string, string>;
+// ─── Transformation (mirrors crates/kairos-rs/src/middleware/transform.rs) ───
+
+export type TransformAction = 'add' | 'set' | 'remove' | 'replace';
+
+export interface HeaderTransformation {
+  action: TransformAction;
+  name: string;
+  /** Required for action=add / set */
+  value?: string | null;
+  /** Only used for action=replace */
+  pattern?: string | null;
+  /** Only used for action=replace */
+  replacement?: string | null;
 }
 
-export interface PathRewriting {
+export interface PathTransformation {
+  /** Regex pattern, e.g. ^/api/v1/(.+)$ */
   pattern: string;
+  /** Replacement template with capture groups, e.g. /$1 */
   replacement: string;
 }
 
 export interface QueryTransformation {
-  add?: Record<string, string>;
-  remove?: string[];
-  set?: Record<string, string>;
+  action: TransformAction; // 'add' | 'set' | 'remove'
+  name: string;
+  value?: string | null;
 }
 
 export interface RequestTransformation {
-  headers?: HeaderManipulation | null;
-  path?: PathRewriting | null;
-  query?: QueryTransformation | null;
+  headers?: HeaderTransformation[] | null;
+  path?: PathTransformation | null;
+  query_params?: QueryTransformation[] | null;
 }
 
 export interface StatusCodeMapping {
-  from: number;
+  from: number; // HTTP status code (u16 in Rust, JSON number)
   to: number;
+  /** Optional condition expression (future); backend currently ignores */
+  condition?: string | null;
 }
 
 export interface ResponseTransformation {
-  headers?: HeaderManipulation | null;
-  status_code_mapping?: StatusCodeMapping[] | null;
+  headers?: HeaderTransformation[] | null;
+  status_code_mappings?: StatusCodeMapping[] | null;
 }
 
 export interface Router {
@@ -146,6 +167,7 @@ export interface AiSettings {
   provider: string;
   model: string;
   api_key?: string | null;
+  fallback_providers?: AiProviderConfig[];
 }
 
 export interface Settings {
@@ -171,6 +193,16 @@ export interface AdminMetricsSnapshot {
 export interface HistoricalMetricPoint {
   timestamp: string;
   value: number;
+}
+
+export interface MetricValueRaw {
+  type: 'Counter' | 'Gauge' | 'Histogram';
+  value: number;
+}
+
+export interface RawHistoricalMetricPoint {
+  timestamp: string;
+  value: number | MetricValueRaw;
 }
 
 export interface AggregatedMetricPoint {
@@ -240,4 +272,61 @@ export interface CacheStatsResponse {
   success: boolean;
   data?: CacheStats;
   message?: string;
+}
+
+export interface PercentilePoint {
+  timestamp: string;
+  percentiles: Record<string, number>;
+}
+
+export interface LatencyPercentileQuery {
+  name: string;
+  start: string;
+  end: string;
+  interval: AggregationInterval;
+  percentiles?: number[];
+}
+
+export type TimeRangePreset =
+  | '5m'
+  | '15m'
+  | '1h'
+  | '6h'
+  | '24h'
+  | '7d'
+  | 'custom';
+
+export interface CustomTimeRange {
+  start: string;
+  end: string;
+}
+
+export type ChartType =
+  | 'requests'
+  | 'error_rate'
+  | 'latency_percentiles'
+  | 'active_connections'
+  | 'custom';
+
+export interface ChartConfig {
+  id: string;
+  type: ChartType;
+  metricName?: string;
+  percentiles?: number[];
+  timeRange: TimeRangePreset;
+  aggregation: AggregationInterval | 'raw';
+  gridX: number;
+  gridY: number;
+  gridW: number;
+  gridH: number;
+  title?: string;
+  routeFilter?: string[];
+}
+
+export interface DashboardLayout {
+  id: string;
+  name: string;
+  charts: ChartConfig[];
+  createdAt: string;
+  updatedAt: string;
 }

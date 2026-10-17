@@ -13,9 +13,12 @@ import type {
   HistoricalMetricsQuery,
   HistoricalMetricPoint,
   AggregatedMetricPoint,
+  RawHistoricalMetricPoint,
   PlaygroundRequest,
   PlaygroundResponse,
   CacheStatsResponse,
+  LatencyPercentileQuery,
+  PercentilePoint,
 } from '../types';
 
 const API_BASE = '/api';
@@ -217,7 +220,7 @@ export const apiService = {
 
   async getHistoricalMetrics(
     query: HistoricalMetricsQuery,
-  ): Promise<HistoricalMetricPoint[] | AggregatedMetricPoint[]> {
+  ): Promise<(HistoricalMetricPoint | AggregatedMetricPoint)[]> {
     const params = new URLSearchParams({
       name: query.name,
       start: query.start,
@@ -228,13 +231,41 @@ export const apiService = {
     }
     const res = await fetch(`${API_BASE}/metrics/history?${params.toString()}`);
     if (!res.ok) throw new Error('Failed to fetch historical metrics');
-    return res.json();
+    const raw: Array<RawHistoricalMetricPoint | AggregatedMetricPoint> = await res.json();
+    return raw.map((p): HistoricalMetricPoint | AggregatedMetricPoint => {
+      if ('avg' in p) {
+        return p;
+      }
+      const v = p.value;
+      if (typeof v === 'object' && v !== null) {
+        return { timestamp: p.timestamp, value: v.value };
+      }
+      return { timestamp: p.timestamp, value: v };
+    });
   },
 
   async getRawPrometheus(): Promise<string> {
     const res = await fetch('/metrics');
     if (!res.ok) throw new Error('Failed to fetch Prometheus metrics');
     return res.text();
+  },
+
+  async getLatencyPercentiles(
+    query: LatencyPercentileQuery,
+  ): Promise<PercentilePoint[]> {
+    const params = new URLSearchParams();
+    params.set('name', query.name);
+    params.set('start', query.start);
+    params.set('end', query.end);
+    params.set('interval', query.interval);
+    if (query.percentiles && query.percentiles.length > 0) {
+      params.set('percentiles', query.percentiles.join(','));
+    }
+    const res = await fetch(
+      `${API_BASE}/metrics/latency/percentiles?${params.toString()}`,
+    );
+    if (!res.ok) throw new Error('Failed to fetch latency percentiles');
+    return res.json();
   },
 
   // Health Checks

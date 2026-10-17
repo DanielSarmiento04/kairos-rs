@@ -29,6 +29,7 @@ async fn test_simple_circuit_breaker() {
             request_transformation: None,
             response_transformation: None,
             ai_policy: None,
+            cache: None,
         }
     ];
     let route_handler = RouteHandler::new(routes, 5);

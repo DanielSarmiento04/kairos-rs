@@ -9,11 +9,13 @@
 use kairos_rs::config::settings::load_settings;
 use kairos_rs::config::validation::ConfigValidator;
 use kairos_rs::logs::logger::configure_logger;
+use kairos_rs::middleware::compression::{self as compression_mw, CompressionConfig};
 use kairos_rs::middleware::rate_limit::AdvancedRateLimit;
 use kairos_rs::middleware::security::security_headers;
 use kairos_rs::models::settings::Settings;
 use kairos_rs::routes::{auth_http, config_reload, health, management, metrics, websocket, websocket_admin};
 use kairos_rs::services::http::RouteHandler;
+use kairos_rs::services::inflight::InFlightTracker;
 use kairos_rs::services::metrics_store::MetricsStore;
 use kairos_rs::services::websocket::WebSocketHandler;
 
@@ -30,6 +32,19 @@ async fn main() -> std::io::Result<()> {
 
     // Parse configuration
     let config: Settings = load_settings().expect("Failed to load settings");
+    let compression_cfg: CompressionConfig = config.compression.clone().unwrap_or_default();
+    if let Err(e) = compression_cfg.validate() {
+        error!("Invalid compression config in settings: {}", e);
+        std::process::exit(1);
+    }
+    if compression_cfg.enabled {
+        info!(
+            "Response compression enabled (algorithms={:?}, level={}, min_size={} bytes)",
+            compression_cfg.algorithms, compression_cfg.level, compression_cfg.min_size
+        );
+    } else {
+        info!("Response compression disabled by config");
+    }
 
     info!("Starting Kairos-rs API Gateway v{}", env!("CARGO_PKG_VERSION"));
 
@@ -54,7 +69,10 @@ async fn main() -> std::io::Result<()> {
         5_000,
         std::time::Duration::from_secs(60),
     ));
-    route_handler = route_handler.with_cache(response_cache.clone());
+    let inflight_tracker = std::sync::Arc::new(InFlightTracker::new());
+    route_handler = route_handler
+        .with_cache(response_cache.clone())
+        .with_inflight_tracker(inflight_tracker);
 
     // Initialize AI Service if configured
     if let Some(ai_settings) = config.ai.clone() {
@@ -167,8 +185,17 @@ async fn main() -> std::io::Result<()> {
                 .wrap(Logger::new(
                     r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,
                 ))
-                .wrap(actix_web::middleware::Compress::default())
                 .wrap(security_headers())
+                .wrap(
+                    compression_mw::build(&compression_cfg)
+                        .map(|(c, _)| c)
+                        .unwrap_or_else(actix_web::middleware::Compress::default),
+                )
+                .wrap(
+                    compression_mw::build(&compression_cfg)
+                        .map(|(_, h)| h)
+                        .unwrap_or_else(actix_web::middleware::DefaultHeaders::new),
+                )
                 .configure(health::configure_health)
                 .configure(metrics::configure_metrics)
                 .configure(websocket_admin::configure_admin_websocket)
@@ -195,8 +222,17 @@ async fn main() -> std::io::Result<()> {
                 .wrap(Logger::new(
                     r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,
                 ))
-                .wrap(actix_web::middleware::Compress::default())
                 .wrap(security_headers())
+                .wrap(
+                    compression_mw::build(&compression_cfg)
+                        .map(|(c, _)| c)
+                        .unwrap_or_else(actix_web::middleware::Compress::default),
+                )
+                .wrap(
+                    compression_mw::build(&compression_cfg)
+                        .map(|(_, h)| h)
+                        .unwrap_or_else(actix_web::middleware::DefaultHeaders::new),
+                )
                 .configure(health::configure_health)
                 .configure(metrics::configure_metrics)
                 .configure(websocket_admin::configure_admin_websocket)

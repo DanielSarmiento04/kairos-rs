@@ -79,12 +79,14 @@
 //! ```
 
 pub mod ai;
-pub mod cache;
 pub mod circuit_breaker;
+pub mod cache;
 pub mod dns;
 pub mod ftp;
 pub mod http;
+pub mod inflight;
 pub mod load_balancer;
 pub mod metrics_store;
+pub mod percentile;
 pub mod websocket;
 pub mod websocket_metrics;

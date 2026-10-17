@@ -1,16 +1,15 @@
 # Kairos-rs Development Roadmap
 
-> **Version**: 0.4.0
-> **Last Updated**: October 6, 2026
-> **Status**: Production Ready with Intelligent AI Routing
+> **Version**: 0.4.1
+> **Last Updated**: October 9, 2026
+> **Status**: Production Ready with rig-core 0.44, SSE Streaming & Multi-Provider Failover
 
-## 🔥 Immediate Priorities (Next 2 Weeks)
+## 🔥 Current Milestone Delivered (v0.4.1)
 
-1. **Historical Metrics API** - REST endpoints for time-series data queries
-2. **Metrics Charts UI** - Time-series visualization with interactive charts
-3. **Advanced Route Configuration UI** - Multi-backend, load balancing, and retry config forms
-4. **Transformation UI** - Visual editor for request/response transformations
-5. **Plugin System** - Explore WASM-based plugins for custom logic
+1. **rig-core 0.44 Integration** - Upgraded to modern `rig-core` 0.44 provider clients (`openai`, `anthropic`, `cohere`, `groq`, `mistral`, `perplexity`, `xai`).
+2. **Server-Sent Events (SSE) Streaming Passthrough** - Low-latency chunked LLM token streaming with zero-buffering proxying, anti-buffering headers (`X-Accel-Buffering: no`), and cache bypass.
+3. **Multi-Provider Failover Chains** - Automated fallback orchestration (`fallback_providers`) across secondary providers on rate limits, timeouts, or provider 5xx errors.
+4. **Interactive SSE Playground & Config UI** - Live token stream reader with Time To First Token (TTFT) metrics, and failover chain editors in `Config.vue` & `Routes.vue`.
 
 ## 🤖 AI/LLM Gateway Vision (Partially Delivered in v0.3.0)
 
