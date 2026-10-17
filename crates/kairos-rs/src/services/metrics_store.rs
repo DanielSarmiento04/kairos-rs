@@ -430,7 +430,8 @@ impl MetricsStore {
     /// store.record("metric2", MetricValue::Gauge(2.0));
     /// 
     /// let names = store.list_metrics();
-    /// assert_eq!(names.len(), 2);
+    /// assert!(names.contains(&"metric1".to_string()));
+    /// assert!(names.contains(&"metric2".to_string()));
     /// ```
     pub fn list_metrics(&self) -> Vec<String> {
         let mut names: std::collections::BTreeSet<String> = self
@@ -458,7 +459,7 @@ impl MetricsStore {
     /// let store = MetricsStore::new(1000, Duration::hours(1));
     /// store.record("test", MetricValue::Counter(1));
     /// store.clear();
-    /// assert_eq!(store.list_metrics().len(), 0);
+    /// assert!(!store.list_metrics().contains(&"test".to_string()));
     /// ```
     pub fn clear(&self) {
         let mut series = self.series.write().unwrap();

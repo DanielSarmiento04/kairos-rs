@@ -1,9 +1,9 @@
-ARG RUST_VERSION=1.90.0
+ARG RUST_VERSION=1.99.0
 
 ################################################################################
 # Create a stage for building the application.
 
-FROM rust:${RUST_VERSION}-slim AS build
+FROM rust:${RUST_VERSION}-slim-bookworm AS build
 WORKDIR /app
 
 # Install only essential build dependencies
