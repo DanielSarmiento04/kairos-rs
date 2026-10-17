@@ -102,7 +102,7 @@ const routeTitle = computed(() => {
             {{ gatewayStore.wsConnected ? 'Backend Connected' : 'Connecting...' }}
           </span>
         </div>
-        <span class="version-label">v0.4.0 Production</span>
+        <span class="version-label">v0.4.1 Production</span>
       </div>
     </aside>
 

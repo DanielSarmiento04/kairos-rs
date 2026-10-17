@@ -15,7 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 # Local dependencies
-kairos-rs = { version = "0.4.0", path = "../kairos-rs" }
+kairos-rs = { version = "0.4.1", path = "../kairos-rs" }
 
 # Workspace dependencies
 actix-web.workspace = true
