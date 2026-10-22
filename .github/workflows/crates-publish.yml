@@ -1,0 +1,130 @@
+name: Crates Publish
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (verify packaging without actually publishing to crates.io)'
+        required: true
+        type: boolean
+        default: false
+
+concurrency:
+  group: crates-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish Crates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish workspace crates to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          DRY_RUN="${{ github.event.inputs.dry_run || 'false' }}"
+          DRY_FLAG=""
+          if [ "$DRY_RUN" = "true" ]; then
+            echo ">>> Running in DRY-RUN mode. Packages will be verified but not published."
+            DRY_FLAG="--dry-run"
+          fi
+
+          if [ -z "${CARGO_REGISTRY_TOKEN:-}" ] && [ "$DRY_RUN" != "true" ]; then
+            echo "::error::CRATES_IO_TOKEN secret is not set. Please configure it in Repository Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+          # Function to publish a crate with retries in case dependent crates are still being indexed by crates.io
+          publish_crate() {
+            local crate="$1"
+            local max_attempts=8
+            local attempt=1
+            local wait_seconds=20
+
+            echo ""
+            echo "=========================================================="
+            echo "  Publishing crate: $crate (dry_run: $DRY_RUN)"
+            echo "=========================================================="
+
+            while [ $attempt -le $max_attempts ]; do
+              echo "==> Attempt $attempt of $max_attempts for '$crate'..."
+              
+              set +e
+              OUTPUT=$(cargo publish -p "$crate" $DRY_FLAG 2>&1)
+              STATUS=$?
+              set -e
+              
+              echo "$OUTPUT"
+
+              if [ $STATUS -eq 0 ]; then
+                echo "--> Successfully processed '$crate'!"
+                return 0
+              fi
+
+              # Check if crate version is already published (skip gracefully)
+              if echo "$OUTPUT" | grep -qiE "already (uploaded|published)"; then
+                echo "--> Notice: Version for '$crate' is already published on crates.io. Skipping."
+                return 0
+              fi
+
+              # In dry run mode, dependent crates may fail to resolve because previous crates aren't on crates.io yet
+              if [ "$DRY_RUN" = "true" ]; then
+                if echo "$OUTPUT" | grep -qiE "failed to select a version"; then
+                  echo "--> [Dry-run notice]: '$crate' depends on local crates not yet indexed on crates.io. This is expected in dry-run."
+                  return 0
+                fi
+                echo "::error::Dry run failed for '$crate'"
+                return $STATUS
+              fi
+
+              echo "--> Attempt $attempt failed. Crates.io index may still be updating. Waiting ${wait_seconds}s before retry..."
+              sleep $wait_seconds
+              attempt=$((attempt + 1))
+            done
+
+            echo "::error::Failed to publish '$crate' after $max_attempts attempts."
+            return 1
+          }
+
+          # Workspace crates in topological dependency order:
+          # 1. kairos-rs (core engine, no internal dependencies)
+          publish_crate "kairos-rs"
+
+          # Wait for crates.io sparse index propagation before publishing dependents
+          if [ "$DRY_RUN" != "true" ]; then
+            echo "Waiting 30 seconds for crates.io index propagation of kairos-rs..."
+            sleep 30
+          fi
+
+          # 2. kairos-client (depends on kairos-rs)
+          publish_crate "kairos-client"
+
+          if [ "$DRY_RUN" != "true" ]; then
+            echo "Waiting 30 seconds for crates.io index propagation of kairos-client..."
+            sleep 30
+          fi
+
+          # 3. kairos-gateway (depends on kairos-rs)
+          publish_crate "kairos-gateway"
+
+          # 4. kairos-cli (depends on kairos-rs and kairos-client)
+          publish_crate "kairos-cli"
+
+          echo ""
+          echo "All crates have been successfully processed!"
