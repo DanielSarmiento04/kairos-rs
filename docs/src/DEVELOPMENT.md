@@ -114,3 +114,25 @@ Throughout the repository, we enforce Rust best practices as defined in our inte
 
 ### Conventional Commits
 We encourage using [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format for commit messages (e.g., `feat: added redis caching`, `fix: null pointer in ws handler`, `docs: updated architecture schema`). This helps automatically generate accurate release notes.
+
+## Releasing to Crates.io
+
+Kairos-rs includes an automated GitHub Actions workflow (`.github/workflows/crates-publish.yml`) to publish workspace crates in topological dependency order:
+1. `kairos-rs` (Core engine)
+2. `kairos-client` (Rust client SDK)
+3. `kairos-gateway` (Gateway server)
+4. `kairos-cli` (Command line utility)
+
+### Requirements
+
+Set a GitHub repository secret named `CRATES_IO_TOKEN`:
+1. Generate an API token at [crates.io/settings/tokens](https://crates.io/settings/tokens) with `publish-update` and `publish-new` scopes.
+2. Go to **Settings > Secrets and variables > Actions** in the GitHub repository.
+3. Add `CRATES_IO_TOKEN`.
+
+### Triggering a Release
+
+The publishing workflow triggers automatically when:
+- A new git tag matching `v*.*.*` is pushed (e.g., `git tag v0.4.1 && git push origin v0.4.1`).
+- A GitHub Release is published.
+- Manually via GitHub Actions **Run workflow** (`workflow_dispatch`), which also supports a `dry_run` mode for pre-release validation.
