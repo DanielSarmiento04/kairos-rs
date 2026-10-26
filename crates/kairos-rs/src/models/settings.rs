@@ -217,6 +217,7 @@ impl Settings {
     ///     rate_limit: None,
     ///     ai: None,
     ///     compression: None,
+    ///     admin_auth: None,
     ///     routers: vec![
     ///         Router {
     ///             host: Some("http://localhost".to_string()),

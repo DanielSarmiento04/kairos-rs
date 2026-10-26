@@ -49,6 +49,7 @@ impl RouteManager {
     ///     rate_limit: None,
     ///     ai: None,
     ///     compression: None,
+    ///     admin_auth: None,
     ///     routers: vec![],
     /// };
     /// let manager = RouteManager::new(settings, "config.json".to_string());
