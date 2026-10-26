@@ -95,6 +95,7 @@
 //! - **Error Handling**: Structured error responses for security violations
 //! - **Configuration Management**: Dynamic security policy updates
 
+pub mod admin_auth;
 pub mod auth;
 pub mod compression;
 pub mod rate_limit;

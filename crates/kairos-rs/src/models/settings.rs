@@ -1,3 +1,4 @@
+use crate::middleware::admin_auth::AdminAuthConfig;
 use crate::middleware::compression::CompressionConfig;
 use crate::middleware::rate_limit::RateLimitConfig;
 use crate::models::router::Router;
@@ -156,6 +157,10 @@ pub struct Settings {
     #[serde(default)]
     pub compression: Option<CompressionConfig>,
 
+    /// Admin control plane authentication configuration.
+    #[serde(default)]
+    pub admin_auth: Option<AdminAuthConfig>,
+
     /// Collection of route configurations defining how requests are forwarded.
     ///
     /// Each router defines a mapping from external client requests to internal
@@ -163,6 +168,20 @@ pub struct Settings {
     /// The gateway will process routes in the order they appear, with static
     /// routes taking precedence over dynamic (parameterized) routes.
     pub routers: Vec<Router>,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            version: 1,
+            jwt: None,
+            rate_limit: None,
+            ai: None,
+            compression: None,
+            admin_auth: None,
+            routers: Vec::new(),
+        }
+    }
 }
 
 impl Settings {

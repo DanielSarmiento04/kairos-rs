@@ -1020,9 +1020,56 @@ pub async fn clear_cache(
     }
 }
 
+/// Endpoint to verify admin credentials and check if admin authentication is active.
+///
+/// # Endpoint
+///
+/// `GET /api/admin/verify`
+#[get("/api/admin/verify")]
+pub async fn verify_admin_auth(manager: web::Data<RouteManager>) -> impl Responder {
+    let settings = manager.settings.read().await;
+    let auth_config = settings.admin_auth.clone().unwrap_or_default();
+    let is_active = auth_config.is_active();
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "auth_required": is_active,
+        "authenticated": true
+    }))
+}
+
+/// Update Admin Auth configuration
+///
+/// # Endpoint
+///
+/// `POST /api/config/admin-auth`
+#[post("/api/config/admin-auth")]
+pub async fn update_admin_auth_config(
+    manager: web::Data<RouteManager>,
+    auth_config: web::Json<crate::middleware::admin_auth::AdminAuthConfig>,
+) -> impl Responder {
+    let mut settings = manager.settings.write().await;
+    settings.admin_auth = Some(auth_config.into_inner());
+    drop(settings);
+
+    if let Err(e) = manager.save_to_disk().await {
+        return HttpResponse::InternalServerError().json(serde_json::json!({
+            "success": false,
+            "message": format!("Failed to save configuration: {}", e)
+        }));
+    }
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "Admin authentication configuration updated successfully."
+    }))
+}
+
 /// Configure route management endpoints
 pub fn configure_management(cfg: &mut web::ServiceConfig) {
-    cfg.service(list_routes)
+    cfg.service(verify_admin_auth)
+        .service(update_admin_auth_config)
+        .service(list_routes)
         .service(get_route)
         .service(create_route)
         .service(update_route)
