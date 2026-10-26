@@ -39,6 +39,7 @@ fn create_test_settings() -> Settings {
             cache: None,
         }],
         compression: None,
+        admin_auth: None,
     }
 }
 

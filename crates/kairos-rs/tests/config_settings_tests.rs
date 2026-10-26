@@ -44,6 +44,7 @@ fn create_test_settings() -> Settings {
             cache: None,
         }],
         compression: None,
+        admin_auth: None,
     }
 }
 
@@ -270,6 +271,7 @@ fn test_load_settings_complex_configuration() {
             },
         ],
         compression: None,
+        admin_auth: None,
     };
 
     let temp_file = create_config_file(&complex_settings);
@@ -308,6 +310,7 @@ fn test_load_settings_empty_routers() {
         ai: None,
         routers: vec![],
         compression: None,
+        admin_auth: None,
     };
 
     let temp_file = create_config_file(&empty_settings);
@@ -356,6 +359,7 @@ fn test_load_settings_unicode_content() {
             cache: None,
         }],
         compression: None,
+        admin_auth: None,
     };
 
     let temp_file = create_config_file(&unicode_settings);

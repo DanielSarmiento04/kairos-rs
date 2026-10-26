@@ -166,6 +166,9 @@ async fn main() -> std::io::Result<()> {
 
     info!("Starting server on {}:{}", host, port);
 
+    let admin_auth_cfg = config.admin_auth.clone().unwrap_or_default();
+    let admin_auth = kairos_rs::middleware::admin_auth::AdminAuth::new(admin_auth_cfg);
+
     // Create server with appropriate rate limiting middleware
     let server = if let Some(rate_limit_config) = config.rate_limit.clone() {
         info!(
@@ -181,6 +184,7 @@ async fn main() -> std::io::Result<()> {
                 .app_data(actix_web::web::Data::new(route_handler.clone()))
                 .app_data(actix_web::web::Data::new(config_manager.clone()))
                 .app_data(actix_web::web::Data::new(response_cache.clone()))
+                .wrap(admin_auth.clone())
                 .wrap(advanced_rate_limit.clone())
                 .wrap(Logger::new(
                     r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,
@@ -218,6 +222,7 @@ async fn main() -> std::io::Result<()> {
                 .app_data(actix_web::web::Data::new(route_handler.clone()))
                 .app_data(actix_web::web::Data::new(config_manager.clone()))
                 .app_data(actix_web::web::Data::new(response_cache.clone()))
+                .wrap(admin_auth.clone())
                 .wrap(Governor::new(&governor_conf))
                 .wrap(Logger::new(
                     r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,
