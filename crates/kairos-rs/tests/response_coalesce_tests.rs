@@ -288,3 +288,16 @@ async fn late_request_after_completion_becomes_new_primary() {
         "total waiters should be 2 (1 from each wave)"
     );
 }
+
+#[tokio::test]
+async fn single_request_runs_as_primary() {
+    let tracker = InFlightTracker::new();
+    let outcome = tracker
+        .coalesce("k1".to_string(), || async {
+            kairos_rs::services::inflight::CoalesceOutcome::ok(200, vec![], bytes::Bytes::from("body"))
+        })
+        .await;
+    assert!(matches!(outcome, kairos_rs::services::inflight::CoalesceOutcome::Response { status: 200, .. }));
+    assert_eq!(tracker.primary_calls(), 1);
+    assert_eq!(tracker.waiters(), 0);
+}

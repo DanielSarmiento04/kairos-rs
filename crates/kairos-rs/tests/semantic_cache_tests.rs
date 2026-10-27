@@ -248,3 +248,65 @@ fn test_cosine_similarity_edge_cases() {
     let diff_len_b = vec![1.0, 2.0, 3.0];
     assert_eq!(cosine_similarity(&diff_len_a, &diff_len_b), 0.0);
 }
+
+#[test]
+fn test_vectorize_local_similarity() {
+    let prompt1 = "How do I sort an array in Rust?";
+    let prompt2 = "how do I sort an array in rust?";
+    let prompt3 = "How can you sort a vector in Rust?";
+    let prompt_diff = "What is the capital of France and what time is it there?";
+
+    let v1 = vectorize_local(prompt1, 128);
+    let v2 = vectorize_local(prompt2, 128);
+    let v3 = vectorize_local(prompt3, 128);
+    let v_diff = vectorize_local(prompt_diff, 128);
+
+    let sim_identical = cosine_similarity(&v1, &v2);
+    let sim_paraphrase = cosine_similarity(&v1, &v3);
+    let sim_diff = cosine_similarity(&v1, &v_diff);
+
+    assert!(sim_identical > 0.95);
+    assert!(sim_paraphrase > 0.50);
+    assert!(sim_diff < sim_paraphrase);
+}
+
+#[test]
+fn test_semantic_cache_lookup_and_insert() {
+    let config = SemanticCacheConfig {
+        enabled: true,
+        similarity_threshold: 0.85,
+        ttl_seconds: 60,
+        ..Default::default()
+    };
+    let cache = SemanticCache::new(config);
+
+    let prompt = "How do I sort an array in Rust?";
+    let vector = vectorize_local(prompt, 128);
+    cache.insert(
+        prompt.to_string(),
+        vector.clone(),
+        200,
+        vec![("Content-Type".to_string(), "application/json".to_string())],
+        Bytes::from(r#"{"result": "use .sort()"}"#),
+        None,
+    );
+
+    let hit = cache.lookup(&vector, 0.85);
+    assert!(hit.is_some());
+    let (entry, sim) = hit.unwrap();
+    assert_eq!(entry.status, 200);
+    assert!(sim >= 0.99);
+
+    let stats = cache.stats();
+    assert_eq!(stats.hits, 1);
+    assert_eq!(stats.misses, 0);
+    assert_eq!(stats.current_entries, 1);
+
+    let diff_vec = vectorize_local("Where is Mount Fuji located?", 128);
+    let miss = cache.lookup(&diff_vec, 0.85);
+    assert!(miss.is_none());
+
+    let stats2 = cache.stats();
+    assert_eq!(stats2.hits, 1);
+    assert_eq!(stats2.misses, 1);
+}
