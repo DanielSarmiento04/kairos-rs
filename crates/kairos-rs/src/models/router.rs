@@ -419,6 +419,10 @@ pub struct AiPolicy {
     /// If None, streaming is automatically detected from upstream Content-Type or Transfer-Encoding.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub streaming: Option<bool>,
+
+    /// Optional semantic caching configuration for AI prompt/chat requests.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub semantic_cache: Option<crate::services::semantic_cache::SemanticCacheConfig>,
 }
 
 /// Configuration for HTTP route forwarding in the kairos-rs gateway.

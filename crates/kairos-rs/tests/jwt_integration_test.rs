@@ -76,6 +76,8 @@ fn create_test_settings() -> Settings {
             },
         ],
         compression: None,
+        admin_auth: None,
+        redis: None,
     }
 }
 
@@ -216,6 +218,8 @@ async fn test_jwt_config_validation() {
             cache: None,
         }],
         compression: None,
+        admin_auth: None,
+        redis: None,
     };
 
     // Should fail validation
@@ -261,6 +265,8 @@ async fn test_jwt_secret_validation() {
             cache: None,
         }],
         compression: None,
+        admin_auth: None,
+        redis: None,
     };
 
     // Should fail validation due to weak secret
@@ -299,6 +305,8 @@ async fn test_jwt_secret_validation() {
             cache: None,
         }],
         compression: None,
+        admin_auth: None,
+        redis: None,
     };
 
     // Should fail validation due to default secret

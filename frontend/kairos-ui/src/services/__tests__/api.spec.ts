@@ -28,7 +28,9 @@ describe('apiService', () => {
 
     const routes = await apiService.getRoutes();
     expect(routes).toEqual(mockRoutes);
-    expect(global.fetch).toHaveBeenCalledWith('/api/routes');
+    expect(global.fetch).toHaveBeenCalledWith('/api/routes', expect.objectContaining({
+      headers: expect.any(Object),
+    }));
   });
 
   it('handles route creation and errors properly', async () => {
@@ -102,7 +104,9 @@ describe('apiService', () => {
     const res = await apiService.getCacheStats();
     expect(res.success).toBe(true);
     expect(res.data?.hit_ratio).toBe(84.0);
-    expect(global.fetch).toHaveBeenCalledWith('/api/cache/stats');
+    expect(global.fetch).toHaveBeenCalledWith('/api/cache/stats', expect.objectContaining({
+      headers: expect.any(Object),
+    }));
   });
 
   it('clears response cache successfully', async () => {
@@ -113,6 +117,8 @@ describe('apiService', () => {
 
     const res = await apiService.clearCache();
     expect(res.success).toBe(true);
-    expect(global.fetch).toHaveBeenCalledWith('/api/cache/clear', { method: 'POST' });
+    expect(global.fetch).toHaveBeenCalledWith('/api/cache/clear', expect.objectContaining({
+      method: 'POST',
+    }));
   });
 });

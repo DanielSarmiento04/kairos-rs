@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, shallowRef } from 'vue';
 import type { AdminMetricsSnapshot, HealthStatus, TelemetryLog } from '../types';
 import { apiService } from '../services/api';
+import { authService } from '../services/auth';
 
 export const useGatewayStore = defineStore('gateway', () => {
   const wsConnected = ref(false);
@@ -69,7 +70,9 @@ export const useGatewayStore = defineStore('gateway', () => {
     wsError.value = null;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/admin/metrics`;
+    const key = authService.getAdminKey();
+    const query = key ? `?admin_key=${encodeURIComponent(key)}` : '';
+    const wsUrl = `${protocol}//${window.location.host}/ws/admin/metrics${query}`;
 
     try {
       socket = new WebSocket(wsUrl);

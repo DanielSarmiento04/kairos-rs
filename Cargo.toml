@@ -43,6 +43,7 @@ rand = "0.8"
 moka = { version = "0.12", features = ["future"] }
 bytes = "1.7"
 dashmap = "6"
+redis = { version = "0.27", default-features = false, features = ["tokio-comp", "connection-manager", "aio"] }
 
 # Protocol-specific dependencies
 tokio-tungstenite = "0.21"

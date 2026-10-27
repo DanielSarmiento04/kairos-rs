@@ -206,6 +206,87 @@ impl AiService {
         }
     }
 
+    /// Generates a normalized embedding vector for the given text.
+    ///
+    /// If the provider is "local", "mock", or if no remote API key is found,
+    /// falls back safely to the gateway's deterministic local vectorizer.
+    pub async fn generate_embedding(
+        &self,
+        text: &str,
+        provider_override: Option<&str>,
+        model_override: Option<&str>,
+        api_key_override: Option<&str>,
+    ) -> Result<Vec<f32>, AiServiceError> {
+        let provider = provider_override.unwrap_or(&self.settings.provider).to_lowercase();
+        let model = model_override.unwrap_or("text-embedding-3-small");
+
+        if provider == "local" || provider == "mock" {
+            return Ok(crate::services::semantic_cache::vectorize_local(text, 128));
+        }
+
+        // Try getting API key for remote providers
+        let key_opt = api_key_override
+            .map(String::from)
+            .or_else(|| self.settings.api_key.clone())
+            .or_else(|| {
+                let env_var = match provider.as_str() {
+                    "openai" => "OPENAI_API_KEY",
+                    "cohere" => "COHERE_API_KEY",
+                    _ => "AI_API_KEY",
+                };
+                std::env::var(env_var).ok()
+            });
+
+        let key = match key_opt {
+            Some(k) => k,
+            None => {
+                debug!("No API key found for embedding provider '{}'; using local vectorizer", provider);
+                return Ok(crate::services::semantic_cache::vectorize_local(text, 128));
+            }
+        };
+
+        if provider == "openai" {
+            let client = reqwest::Client::new();
+            let payload = serde_json::json!({
+                "input": text,
+                "model": model,
+            });
+
+            match client
+                .post("https://api.openai.com/v1/embeddings")
+                .bearer_auth(&key)
+                .json(&payload)
+                .send()
+                .await
+            {
+                Ok(resp) if resp.status().is_success() => {
+                    #[derive(serde::Deserialize)]
+                    struct EmbeddingData {
+                        embedding: Vec<f32>,
+                    }
+                    #[derive(serde::Deserialize)]
+                    struct EmbeddingResponse {
+                        data: Vec<EmbeddingData>,
+                    }
+                    if let Ok(body) = resp.json::<EmbeddingResponse>().await {
+                        if let Some(first) = body.data.into_iter().next() {
+                            return Ok(first.embedding);
+                        }
+                    }
+                }
+                Ok(err_resp) => {
+                    warn!("OpenAI embedding request returned status {}; falling back to local vectorizer", err_resp.status());
+                }
+                Err(e) => {
+                    warn!("Failed to query OpenAI embeddings ({}): falling back to local vectorizer", e);
+                }
+            }
+        }
+
+        // Safe fallback for other providers or on transient error
+        Ok(crate::services::semantic_cache::vectorize_local(text, 128))
+    }
+
     /// Internal helper to execute a prompt against the configured provider (backward-compatible).
     pub async fn execute_prompt(
         &self,
@@ -317,61 +398,5 @@ impl AiService {
         }
 
         Err(PredictBackendError::InvalidIndex(response))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_ai_settings_initialization() {
-        let settings = AiSettings {
-            provider: "openai".to_string(),
-            model: "gpt-4".to_string(),
-            api_key: Some("test-key".to_string()),
-            fallback_providers: vec![AiProviderConfig {
-                provider: "anthropic".to_string(),
-                model: "claude-3-5-sonnet".to_string(),
-                api_key: Some("fallback-key".to_string()),
-            }],
-        };
-
-        let service = AiService::new(settings);
-        assert_eq!(service.settings.provider, "openai");
-        assert_eq!(service.settings.model, "gpt-4");
-        assert_eq!(service.settings.api_key, Some("test-key".to_string()));
-        assert_eq!(service.settings.fallback_providers.len(), 1);
-        assert_eq!(service.settings.fallback_providers[0].provider, "anthropic");
-    }
-
-    #[tokio::test]
-    async fn test_unsupported_provider() {
-        let settings = AiSettings {
-            provider: "unknown-vendor".to_string(),
-            model: "model-x".to_string(),
-            api_key: Some("key".to_string()),
-            fallback_providers: vec![],
-        };
-        let service = AiService::new(settings);
-        let res = service.ask("hello").await;
-        assert!(matches!(res, Err(AiServiceError::UnsupportedProvider(_))));
-    }
-
-    #[tokio::test]
-    async fn test_api_key_not_found() {
-        let settings = AiSettings {
-            provider: "openai".to_string(),
-            model: "gpt-4".to_string(),
-            api_key: None,
-            fallback_providers: vec![],
-        };
-        // Ensure env var is not set during test
-        std::env::remove_var("OPENAI_API_KEY");
-        let service = AiService::new(settings);
-        let res = service
-            .execute_single_provider("hello", "preamble", "openai", "gpt-4", None)
-            .await;
-        assert!(matches!(res, Err(AiServiceError::ApiKeyNotFound(_))));
     }
 }

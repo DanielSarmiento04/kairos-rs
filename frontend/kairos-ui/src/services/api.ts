@@ -1,3 +1,4 @@
+import { authService } from './auth';
 import type {
   Settings,
   Router,
@@ -9,6 +10,8 @@ import type {
   MetricsConfig,
   ServerConfig,
   AiSettings,
+  AdminAuthConfig,
+  AdminAuthVerifyResponse,
   HealthStatus,
   HistoricalMetricsQuery,
   HistoricalMetricPoint,
@@ -23,10 +26,33 @@ import type {
 
 const API_BASE = '/api';
 
+async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const headers = authService.getAuthHeaders(init.headers);
+  const response = await fetch(input, { ...init, headers });
+  if (response.status === 401) {
+    authService.handleUnauthorized();
+  }
+  return response;
+}
+
 export const apiService = {
+  // Admin Auth
+  async verifyAdminAuth(key?: string): Promise<AdminAuthVerifyResponse> {
+    return authService.verify(key);
+  },
+
+  async updateAdminAuthConfig(config: AdminAuthConfig): Promise<{ success: boolean; message: string }> {
+    const res = await apiFetch(`${API_BASE}/config/admin-auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    return res.json();
+  },
+
   // Routes CRUD & Validation
   async getRoutes(): Promise<Router[]> {
-    const res = await fetch(`${API_BASE}/routes`);
+    const res = await apiFetch(`${API_BASE}/routes`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({ message: 'Failed to fetch routes' }));
       throw new Error(err.message || 'Failed to fetch routes');
@@ -37,7 +63,7 @@ export const apiService = {
 
   async getRoute(path: string): Promise<Router> {
     const encodedPath = encodeURIComponent(path.startsWith('/') ? path.slice(1) : path);
-    const res = await fetch(`${API_BASE}/routes/${encodedPath}`);
+    const res = await apiFetch(`${API_BASE}/routes/${encodedPath}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({ message: 'Failed to fetch route' }));
       throw new Error(err.message || 'Failed to fetch route');
@@ -48,7 +74,7 @@ export const apiService = {
   },
 
   async createRoute(route: Router): Promise<RouteResponse> {
-    const res = await fetch(`${API_BASE}/routes`, {
+    const res = await apiFetch(`${API_BASE}/routes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(route),
@@ -65,7 +91,7 @@ export const apiService = {
 
   async updateRoute(path: string, route: Router): Promise<RouteResponse> {
     const encodedPath = encodeURIComponent(path.startsWith('/') ? path.slice(1) : path);
-    const res = await fetch(`${API_BASE}/routes/${encodedPath}`, {
+    const res = await apiFetch(`${API_BASE}/routes/${encodedPath}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(route),
@@ -82,7 +108,7 @@ export const apiService = {
 
   async deleteRoute(path: string): Promise<RouteResponse> {
     const encodedPath = encodeURIComponent(path.startsWith('/') ? path.slice(1) : path);
-    const res = await fetch(`${API_BASE}/routes/${encodedPath}`, {
+    const res = await apiFetch(`${API_BASE}/routes/${encodedPath}`, {
       method: 'DELETE',
     });
     const data: RouteResponse = await res.json().catch(() => ({
@@ -96,193 +122,229 @@ export const apiService = {
   },
 
   async validateRoute(route: Router): Promise<ValidateRouteResponse> {
-    const res = await fetch(`${API_BASE}/routes/validate`, {
+    const res = await apiFetch(`${API_BASE}/routes/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ route }),
     });
     if (!res.ok) {
-      return { valid: false, error: `Validation request failed with status ${res.status}` };
+      const err = await res.json().catch(() => ({ message: 'Validation request failed' }));
+      return { valid: false, error: err.message || 'Validation request failed' };
     }
     return res.json();
   },
 
   // Configuration Management
   async getConfig(): Promise<Settings> {
-    const res = await fetch(`${API_BASE}/config`);
-    if (!res.ok) throw new Error('Failed to fetch config');
+    const res = await apiFetch(`${API_BASE}/config`);
+    if (!res.ok) throw new Error('Failed to fetch configuration');
     return res.json();
   },
 
-  async updateAiConfig(ai: AiSettings): Promise<{ success: boolean; message: string }> {
-    const res = await fetch(`${API_BASE}/config/ai`, {
+  async updateAiConfig(config: AiSettings): Promise<{ success: boolean; message: string }> {
+    const res = await apiFetch(`${API_BASE}/config/ai`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ai),
+      body: JSON.stringify(config),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Failed to update AI configuration');
-    return data;
+    return res.json();
   },
 
-  async updateJwtConfig(jwt: JwtSettings): Promise<{ success: boolean; message: string }> {
-    const res = await fetch(`${API_BASE}/config/jwt`, {
+  async updateJwtConfig(
+    config: JwtSettings
+  ): Promise<{ success: boolean; message: string }> {
+    const res = await apiFetch(`${API_BASE}/config/jwt`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(jwt),
+      body: JSON.stringify(config),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Failed to update JWT configuration');
-    return data;
+    return res.json();
   },
 
   async updateRateLimitConfig(
-    rateLimit: RateLimitConfig,
+    config: RateLimitConfig
   ): Promise<{ success: boolean; message: string }> {
-    const res = await fetch(`${API_BASE}/config/rate-limit`, {
+    const res = await apiFetch(`${API_BASE}/config/rate-limit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(rateLimit),
+      body: JSON.stringify(config),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Failed to update Rate Limit configuration');
-    return data;
+    return res.json();
   },
 
-  async updateCorsConfig(cors: CorsConfig): Promise<{ success: boolean; message: string }> {
-    const res = await fetch(`${API_BASE}/config/cors`, {
+  async updateCorsConfig(
+    config: CorsConfig
+  ): Promise<{ success: boolean; message: string }> {
+    const res = await apiFetch(`${API_BASE}/config/cors`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cors),
+      body: JSON.stringify(config),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Failed to update CORS configuration');
-    return data;
+    return res.json();
   },
 
   async updateMetricsConfig(
-    metrics: MetricsConfig,
+    config: MetricsConfig
   ): Promise<{ success: boolean; message: string }> {
-    const res = await fetch(`${API_BASE}/config/metrics`, {
+    const res = await apiFetch(`${API_BASE}/config/metrics`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(metrics),
+      body: JSON.stringify(config),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Failed to update Metrics configuration');
-    return data;
+    return res.json();
   },
 
-  async updateServerConfig(server: ServerConfig): Promise<{ success: boolean; message: string }> {
-    const res = await fetch(`${API_BASE}/config/server`, {
+  async updateServerConfig(
+    config: ServerConfig
+  ): Promise<{ success: boolean; message: string }> {
+    const res = await apiFetch(`${API_BASE}/config/server`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(server),
+      body: JSON.stringify(config),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Failed to update Server configuration');
-    return data;
+    return res.json();
   },
 
-  async triggerReload(): Promise<{ success: boolean; message: string }> {
-    const res = await fetch(`${API_BASE}/config/reload`, { method: 'POST' });
-    const data = await res.json().catch(() => ({
-      success: res.ok,
-      message: res.ok ? 'Reloaded' : 'Failed to reload',
-    }));
-    if (!res.ok) throw new Error(data.message || 'Failed to reload config');
-    return data;
+  async reloadConfig(): Promise<{ success: boolean; message: string }> {
+    const res = await apiFetch(`${API_BASE}/config/reload`, { method: 'POST' });
+    return res.json();
   },
 
-  // Response Cache Management
+  async updateRedisConfig(config: import('../types').RedisConfig): Promise<{ success: boolean; message: string }> {
+    const res = await apiFetch(`${API_BASE}/config/redis`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    return res.json();
+  },
+
+  async getRedisHealth(): Promise<import('../types').RedisHealthResponse> {
+    const res = await apiFetch(`${API_BASE}/redis/health`);
+    if (!res.ok) throw new Error('Failed to fetch Redis health');
+    return res.json();
+  },
+
+  // Cache Management
   async getCacheStats(): Promise<CacheStatsResponse> {
-    const res = await fetch(`${API_BASE}/cache/stats`);
+    const res = await apiFetch(`${API_BASE}/cache/stats`);
     if (!res.ok) throw new Error('Failed to fetch cache stats');
     return res.json();
   },
 
   async clearCache(): Promise<{ success: boolean; message: string }> {
-    const res = await fetch(`${API_BASE}/cache/clear`, { method: 'POST' });
-    const data = await res.json().catch(() => ({
-      success: res.ok,
-      message: res.ok ? 'Cache cleared' : 'Failed to clear cache',
-    }));
-    if (!res.ok) throw new Error(data.message || 'Failed to clear cache');
-    return data;
-  },
-
-  // Observability & Historical Metrics
-  async getMetricsList(): Promise<string[]> {
-    const res = await fetch(`${API_BASE}/metrics/list`);
-    if (!res.ok) throw new Error('Failed to fetch metrics list');
+    const res = await apiFetch(`${API_BASE}/cache/clear`, { method: 'POST' });
     return res.json();
   },
 
-  async getHistoricalMetrics(
-    query: HistoricalMetricsQuery,
-  ): Promise<(HistoricalMetricPoint | AggregatedMetricPoint)[]> {
+  async getSemanticCacheStats(): Promise<{ success: boolean; data?: import('../types').SemanticCacheStats; message?: string }> {
+    const res = await apiFetch(`${API_BASE}/cache/semantic/stats`);
+    if (!res.ok) throw new Error('Failed to fetch semantic cache stats');
+    return res.json();
+  },
+
+  async clearSemanticCache(): Promise<{ success: boolean; message: string }> {
+    const res = await apiFetch(`${API_BASE}/cache/semantic/clear`, { method: 'POST' });
+    return res.json();
+  },
+
+  async invalidateCache(pattern: string, is_regex = false): Promise<{ success: boolean; message: string; evicted_count?: number }> {
+    const res = await apiFetch(`${API_BASE}/cache/invalidate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pattern, is_regex }),
+    });
+    return res.json();
+  },
+
+  // Historical Metrics
+  async getMetricsList(): Promise<{ metrics: string[] }> {
+    const res = await apiFetch(`${API_BASE}/metrics/list`);
+    if (!res.ok) return { metrics: [] };
+    const data = await res.json();
+    return { metrics: data.metrics || [] };
+  },
+
+  async queryHistoricalMetrics(query: HistoricalMetricsQuery): Promise<{
+    metric_name: string;
+    points: HistoricalMetricPoint[];
+  }> {
     const params = new URLSearchParams({
-      name: query.name,
-      start: query.start,
-      end: query.end,
+      name: query.metric_name,
+      start: query.start_time,
+      end: query.end_time,
     });
-    if (query.interval) {
-      params.append('interval', query.interval);
-    }
-    const res = await fetch(`${API_BASE}/metrics/history?${params.toString()}`);
-    if (!res.ok) throw new Error('Failed to fetch historical metrics');
-    const raw: Array<RawHistoricalMetricPoint | AggregatedMetricPoint> = await res.json();
-    return raw.map((p): HistoricalMetricPoint | AggregatedMetricPoint => {
-      if ('avg' in p) {
-        return p;
+    if (query.interval) params.set('interval', query.interval);
+
+    const res = await apiFetch(`${API_BASE}/metrics/history?${params.toString()}`);
+    if (!res.ok) throw new Error('Failed to fetch metrics history');
+    const data = await res.json();
+
+    const points = (data.points || []).map(
+      (p: AggregatedMetricPoint | RawHistoricalMetricPoint) => {
+        let val = 0;
+        if ('avg' in p) {
+          val = p.avg;
+        } else if ('value' in p) {
+          val = typeof p.value === 'number' ? p.value : p.value.value;
+        }
+        return {
+          timestamp: p.timestamp,
+          value: val,
+        };
       }
-      const v = p.value;
-      if (typeof v === 'object' && v !== null) {
-        return { timestamp: p.timestamp, value: v.value };
-      }
-      return { timestamp: p.timestamp, value: v };
-    });
+    );
+
+    return {
+      metric_name: data.metric_name || query.metric_name,
+      points,
+    };
   },
 
   async getRawPrometheus(): Promise<string> {
-    const res = await fetch('/metrics');
-    if (!res.ok) throw new Error('Failed to fetch Prometheus metrics');
+    const res = await apiFetch('/metrics');
+    if (!res.ok) throw new Error('Failed to fetch raw metrics');
     return res.text();
   },
 
-  async getLatencyPercentiles(
-    query: LatencyPercentileQuery,
-  ): Promise<PercentilePoint[]> {
-    const params = new URLSearchParams();
-    params.set('name', query.name);
-    params.set('start', query.start);
-    params.set('end', query.end);
-    params.set('interval', query.interval);
-    if (query.percentiles && query.percentiles.length > 0) {
-      params.set('percentiles', query.percentiles.join(','));
+  async queryPercentiles(query: LatencyPercentileQuery): Promise<{
+    metric_name: string;
+    points: PercentilePoint[];
+  }> {
+    const params = new URLSearchParams({
+      name: query.metric_name || 'http_request_duration_ms',
+      start: query.start_time,
+      end: query.end_time,
+      percentiles: (query.percentiles || [50, 95, 99]).join(','),
+      interval: query.interval || '1m',
+    });
+
+    const res = await apiFetch(`${API_BASE}/metrics/percentiles?${params.toString()}`);
+    if (!res.ok) {
+      return { metric_name: query.metric_name, points: [] };
     }
-    const res = await fetch(
-      `${API_BASE}/metrics/latency/percentiles?${params.toString()}`,
-    );
-    if (!res.ok) throw new Error('Failed to fetch latency percentiles');
-    return res.json();
+    const data = await res.json();
+    return {
+      metric_name: data.metric_name || query.metric_name,
+      points: data.points || [],
+    };
   },
 
   // Health Checks
   async getHealth(): Promise<HealthStatus> {
-    const res = await fetch('/health');
+    const res = await apiFetch('/health');
     if (!res.ok) throw new Error('Failed to fetch health');
     return res.json();
   },
 
   async getReadiness(): Promise<{ status: string; timestamp?: string }> {
-    const res = await fetch('/ready');
+    const res = await apiFetch('/ready');
     if (!res.ok) throw new Error('Failed to fetch readiness');
     return res.json();
   },
 
   async getLiveness(): Promise<{ status: string; timestamp?: string }> {
-    const res = await fetch('/live');
+    const res = await apiFetch('/live');
     if (!res.ok) throw new Error('Failed to fetch liveness');
     return res.json();
   },

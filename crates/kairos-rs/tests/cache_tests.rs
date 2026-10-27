@@ -161,3 +161,61 @@ async fn test_route_handler_cache_integration() {
     let stats = cache.stats();
     assert_eq!(stats.hits, 1);
 }
+
+#[test]
+async fn test_cache_put_and_get() {
+    let cache = ResponseCache::new(100, Duration::from_secs(30));
+    let headers = vec![("content-type".to_string(), "application/json".to_string())];
+    let body = actix_web::web::Bytes::from_static(b"{\"ok\":true}");
+
+    cache.put("GET", "/api/users", 200, &headers, body.clone(), None);
+
+    let cached = cache.get("GET", "/api/users");
+    assert!(cached.is_some());
+    let entry = cached.unwrap();
+    assert_eq!(entry.status, 200);
+    assert_eq!(entry.body, body);
+
+    let stats = cache.stats();
+    assert_eq!(stats.hits, 1);
+    assert_eq!(stats.misses, 0);
+    assert_eq!(stats.current_entries, 1);
+}
+
+#[test]
+async fn test_non_cacheable_methods() {
+    let cache = ResponseCache::new(100, Duration::from_secs(30));
+    let body = actix_web::web::Bytes::from_static(b"created");
+
+    cache.put("POST", "/api/users", 200, &[], body, None);
+    assert!(cache.get("POST", "/api/users").is_none());
+}
+
+#[test]
+async fn test_should_cache_route_respects_auth_required() {
+    use kairos_rs::models::router::CacheConfig;
+    use kairos_rs::services::cache::should_cache_route;
+
+    let r = Router {
+        host: Some("http://x".into()),
+        port: Some(80),
+        backends: None,
+        protocol: Protocol::Http,
+        load_balancing_strategy: Default::default(),
+        external_path: "/".into(),
+        internal_path: "/".into(),
+        methods: vec!["GET".into()],
+        auth_required: true,
+        retry: None,
+        request_transformation: None,
+        response_transformation: None,
+        ai_policy: None,
+        cache: Some(CacheConfig {
+            enabled: true,
+            ttl_secs: 60,
+            max_size: 100,
+            coalesce: false,
+        }),
+    };
+    assert!(!should_cache_route(&r));
+}

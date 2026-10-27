@@ -1,10 +1,21 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { RouterLink, RouterView, useRoute } from 'vue-router';
 import { useGatewayStore } from './stores/gateway';
+import AdminAuthModal from './components/AdminAuthModal.vue';
+import {
+  authService,
+  isAuthenticated,
+  isAuthRequired,
+  showAuthModal,
+} from './services/auth';
 
 const route = useRoute();
 const gatewayStore = useGatewayStore();
+
+onMounted(async () => {
+  await authService.verify();
+});
 
 const routeTitle = computed(() => {
   switch (route.name) {
@@ -116,6 +127,17 @@ const routeTitle = computed(() => {
         </div>
 
         <div class="top-nav-actions">
+          <button
+            type="button"
+            class="nav-link-btn admin-auth-btn"
+            :class="{ 'auth-active': isAuthRequired && isAuthenticated, 'auth-warning': isAuthRequired && !isAuthenticated }"
+            @click="showAuthModal = true"
+            title="Configure or view Admin Authentication"
+          >
+            <span v-if="isAuthRequired && isAuthenticated">🛡️ Admin Authenticated</span>
+            <span v-else-if="isAuthRequired && !isAuthenticated">⚠️ Admin Auth Required</span>
+            <span v-else>🔑 Admin Key</span>
+          </button>
           <a
             href="/metrics"
             target="_blank"
@@ -139,6 +161,9 @@ const routeTitle = computed(() => {
         <RouterView />
       </div>
     </main>
+
+    <!-- Admin Authentication Modal -->
+    <AdminAuthModal />
   </div>
 </template>
 
@@ -330,11 +355,33 @@ body {
   border-radius: 6px;
   background: #f8fafc;
   transition: all 0.2s;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .nav-link-btn:hover {
   background: #e2e8f0;
   color: #0f172a;
+}
+
+.admin-auth-btn.auth-active {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: #10b981;
+  color: #059669;
+}
+
+.admin-auth-btn.auth-warning {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  color: #dc2626;
+  animation: pulse-border 2s infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: #ef4444; }
+  50% { border-color: #f87171; }
 }
 
 .page-container {

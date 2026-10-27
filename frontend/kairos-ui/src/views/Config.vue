@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { apiService } from '../services/api';
-import type { Settings, AiSettings, JwtSettings, RateLimitConfig, CorsConfig, ServerConfig, MetricsConfig, CacheStats } from '../types';
+import type { Settings, AiSettings, JwtSettings, RateLimitConfig, CorsConfig, ServerConfig, MetricsConfig, CacheStats, AdminAuthConfig, SemanticCacheStats, RedisConfig, RedisHealthResponse } from '../types';
 import hljs from 'highlight.js/lib/core';
 import json from 'highlight.js/lib/languages/json';
 import 'highlight.js/styles/vs2015.css';
@@ -10,13 +10,17 @@ hljs.registerLanguage('json', json);
 
 const config = ref<Settings | null>(null);
 const cacheStats = ref<CacheStats | null>(null);
+const semanticCacheStats = ref<SemanticCacheStats | null>(null);
 const cacheLoading = ref(false);
+const semanticCacheLoading = ref(false);
+const redisHealth = ref<RedisHealthResponse | null>(null);
+const redisHealthLoading = ref(false);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const copied = ref(false);
 
-const activeModal = ref<'ai' | 'jwt' | 'rate-limit' | 'cors' | 'server' | 'metrics' | null>(null);
+const activeModal = ref<'ai' | 'jwt' | 'rate-limit' | 'cors' | 'server' | 'metrics' | 'admin-auth' | 'redis' | null>(null);
 
 // Edit form states
 const aiForm = ref<AiSettings>({ provider: 'openai', model: 'gpt-4o', api_key: '' });
@@ -25,17 +29,21 @@ const rateLimitForm = ref<RateLimitConfig>({ strategy: 'FixedWindow', max_reques
 const corsForm = ref<CorsConfig>({ allowed_origins: ['*'], allowed_methods: ['GET', 'POST', 'PUT', 'DELETE'], allowed_headers: ['Content-Type', 'Authorization'], allow_credentials: true });
 const serverForm = ref<ServerConfig>({ host: '0.0.0.0', port: 5900, workers: 4, keep_alive: 75 });
 const metricsForm = ref<MetricsConfig>({ endpoint: '/metrics', enable_per_route_metrics: true });
+const adminAuthForm = ref<AdminAuthConfig>({ enabled: false, api_keys: [], header_name: 'X-Admin-Key' });
+const redisForm = ref<RedisConfig>({ enabled: false, url: 'redis://127.0.0.1:6379', pool_size: 16, timeout_ms: 1500, fallback_to_memory: true });
 
 const claimsInput = ref('');
 const corsOriginsInput = ref('');
 const corsMethodsInput = ref('');
 const corsHeadersInput = ref('');
+const adminKeysInput = ref('');
 
 const loadCacheStats = async () => {
   try {
     const res = await apiService.getCacheStats();
-    if (res.success && res.data) {
-      cacheStats.value = res.data;
+    if (res.success) {
+      if (res.data) cacheStats.value = res.data;
+      if (res.semantic) semanticCacheStats.value = res.semantic;
     }
   } catch (e) {
     console.debug('Cache stats unavailable:', e);
@@ -56,6 +64,31 @@ const handleFlushCache = async () => {
   }
 };
 
+const handleFlushSemanticCache = async () => {
+  try {
+    semanticCacheLoading.value = true;
+    const res = await apiService.clearSemanticCache();
+    successMessage.value = res.message || 'Semantic cache cleared successfully!';
+    await loadCacheStats();
+    setTimeout(() => { successMessage.value = null; }, 4000);
+  } catch (err: unknown) {
+    error.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    semanticCacheLoading.value = false;
+  }
+};
+
+const loadRedisHealth = async () => {
+  try {
+    redisHealthLoading.value = true;
+    redisHealth.value = await apiService.getRedisHealth();
+  } catch (e) {
+    console.debug('Redis health check unavailable:', e);
+  } finally {
+    redisHealthLoading.value = false;
+  }
+};
+
 const loadConfig = async () => {
   loading.value = true;
   error.value = null;
@@ -63,6 +96,7 @@ const loadConfig = async () => {
     const data = await apiService.getConfig();
     config.value = data;
     await loadCacheStats();
+    await loadRedisHealth();
   } catch (err: unknown) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -178,6 +212,26 @@ const openMetricsModal = () => {
   activeModal.value = 'metrics';
 };
 
+const openAdminAuthModal = () => {
+  if (config.value?.admin_auth) {
+    adminAuthForm.value = { ...config.value.admin_auth };
+    adminKeysInput.value = (config.value.admin_auth.api_keys || []).join('\n');
+  } else {
+    adminAuthForm.value = { enabled: false, api_keys: [], header_name: 'X-Admin-Key' };
+    adminKeysInput.value = '';
+  }
+  activeModal.value = 'admin-auth';
+};
+
+const openRedisModal = () => {
+  if (config.value?.redis) {
+    redisForm.value = { ...config.value.redis };
+  } else {
+    redisForm.value = { enabled: false, url: 'redis://127.0.0.1:6379', pool_size: 16, timeout_ms: 1500, fallback_to_memory: true };
+  }
+  activeModal.value = 'redis';
+};
+
 const closeModal = () => {
   activeModal.value = null;
   error.value = null;
@@ -254,6 +308,35 @@ const saveMetricsConfig = async () => {
     successMessage.value = res.message;
     closeModal();
     await loadConfig();
+    setTimeout(() => { successMessage.value = null; }, 4000);
+  } catch (err: unknown) {
+    error.value = err instanceof Error ? err.message : String(err);
+  }
+};
+
+const saveAdminAuthConfig = async () => {
+  try {
+    adminAuthForm.value.api_keys = adminKeysInput.value
+      .split('\n')
+      .map(s => s.trim())
+      .filter(Boolean);
+    const res = await apiService.updateAdminAuthConfig(adminAuthForm.value);
+    successMessage.value = res.message;
+    closeModal();
+    await loadConfig();
+    setTimeout(() => { successMessage.value = null; }, 4000);
+  } catch (err: unknown) {
+    error.value = err instanceof Error ? err.message : String(err);
+  }
+};
+
+const saveRedisConfig = async () => {
+  try {
+    const res = await apiService.updateRedisConfig(redisForm.value);
+    successMessage.value = res.message;
+    closeModal();
+    await loadConfig();
+    await loadRedisHealth();
     setTimeout(() => { successMessage.value = null; }, 4000);
   } catch (err: unknown) {
     error.value = err instanceof Error ? err.message : String(err);
@@ -417,6 +500,33 @@ const saveMetricsConfig = async () => {
         </div>
       </div>
 
+      <!-- Admin Authentication Card -->
+      <div class="config-card">
+        <div class="card-header">
+          <h3>🛡️ Admin Authentication</h3>
+          <button class="btn-card-edit" @click="openAdminAuthModal">Configure</button>
+        </div>
+        <div class="card-body">
+          <div class="config-row">
+            <span class="label">Control Plane Protection</span>
+            <span
+              class="value tag"
+              :class="config.admin_auth?.enabled ? 'enabled' : 'disabled'"
+            >
+              {{ config.admin_auth?.enabled ? 'Protected' : 'Public / Disabled' }}
+            </span>
+          </div>
+          <div class="config-row">
+            <span class="label">Header Name</span>
+            <span class="value font-mono">{{ config.admin_auth?.header_name || 'X-Admin-Key' }}</span>
+          </div>
+          <div class="config-row">
+            <span class="label">Configured Keys</span>
+            <span class="value font-mono">{{ config.admin_auth?.api_keys?.length || 0 }} key(s)</span>
+          </div>
+        </div>
+      </div>
+
       <!-- In-Memory Response Cache Card -->
       <div class="config-card">
         <div class="card-header">
@@ -441,6 +551,69 @@ const saveMetricsConfig = async () => {
           <div class="config-row">
             <span class="label">Evictions</span>
             <span class="value font-mono">{{ cacheStats?.evictions ?? 0 }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Semantic AI Cache Card -->
+      <div class="config-card">
+        <div class="card-header">
+          <h3>🧠 Semantic AI Cache</h3>
+          <button class="btn-card-edit" :disabled="semanticCacheLoading" @click="handleFlushSemanticCache">
+            {{ semanticCacheLoading ? 'Flushing...' : 'Flush Cache' }}
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="config-row">
+            <span class="label">Hit Ratio</span>
+            <span class="value font-bold text-primary">{{ semanticCacheStats ? `${semanticCacheStats.hit_ratio.toFixed(1)}%` : 'Active' }}</span>
+          </div>
+          <div class="config-row">
+            <span class="label">Hits / Misses</span>
+            <span class="value font-mono">{{ semanticCacheStats ? `${semanticCacheStats.hits} / ${semanticCacheStats.misses}` : '0 / 0' }}</span>
+          </div>
+          <div class="config-row">
+            <span class="label">Vector Entries</span>
+            <span class="value font-mono">{{ semanticCacheStats ? `${semanticCacheStats.current_entries} / ${semanticCacheStats.max_entries}` : '0 / 5,000' }}</span>
+          </div>
+          <div class="config-row">
+            <span class="label">Evictions</span>
+            <span class="value font-mono">{{ semanticCacheStats?.evictions ?? 0 }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Distributed Redis Backend Card -->
+      <div class="config-card">
+        <div class="card-header">
+          <h3>🔴 Distributed Redis Backend</h3>
+          <button class="btn-card-edit" @click="openRedisModal">Configure</button>
+        </div>
+        <div class="card-body">
+          <div class="config-row">
+            <span class="label">Status</span>
+            <span
+              class="value tag"
+              :class="{
+                enabled: redisHealth?.connected,
+                disabled: !redisHealth?.connected && !config.redis?.enabled,
+                warning: !redisHealth?.connected && config.redis?.enabled,
+              }"
+            >
+              {{ redisHealth?.connected ? 'Connected' : (config.redis?.enabled ? 'Disconnected' : 'Disabled') }}
+            </span>
+          </div>
+          <div class="config-row">
+            <span class="label">Cluster URL</span>
+            <span class="value font-mono">{{ config.redis?.url || 'redis://127.0.0.1:6379' }}</span>
+          </div>
+          <div class="config-row">
+            <span class="label">Pool Size</span>
+            <span class="value font-mono">{{ config.redis?.pool_size || 16 }} connections</span>
+          </div>
+          <div class="config-row">
+            <span class="label">Resilience Mode</span>
+            <span class="value">{{ config.redis?.fallback_to_memory !== false ? 'Graceful In-Memory Fallback' : 'Strict Redis Only' }}</span>
           </div>
         </div>
       </div>
@@ -674,6 +847,95 @@ const saveMetricsConfig = async () => {
         <div class="modal-footer">
           <button class="btn-secondary" @click="closeModal">Cancel</button>
           <button class="btn-primary" @click="saveMetricsConfig">Save Metrics Settings</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Auth Modal -->
+    <div v-if="activeModal === 'admin-auth'" class="modal-overlay" @click.self="closeModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>🛡️ Configure Admin Authentication</h2>
+          <button class="btn-close" @click="closeModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" v-model="adminAuthForm.enabled" />
+              Enable Control Plane Authentication
+            </label>
+            <p class="form-hint">Protects all management API routes and WebSocket telemetry with API keys.</p>
+          </div>
+
+          <div class="form-group">
+            <label>Header Name</label>
+            <input type="text" v-model="adminAuthForm.header_name" placeholder="X-Admin-Key" />
+            <p class="form-hint">Custom header name checked by the gateway (also supports Authorization: Bearer).</p>
+          </div>
+
+          <div class="form-group">
+            <label>Authorized API Keys (one per line)</label>
+            <textarea
+              v-model="adminKeysInput"
+              rows="4"
+              placeholder="krs_adm_secret_key_1&#10;krs_adm_secret_key_2"
+              class="font-mono"
+            ></textarea>
+            <p class="form-hint">Requests matching any of these keys or the KAIROS_ADMIN_KEY environment variable will be authorized.</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" @click="closeModal">Cancel</button>
+          <button class="btn-primary" @click="saveAdminAuthConfig">Save Admin Auth</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Redis Modal -->
+    <div v-if="activeModal === 'redis'" class="modal-overlay" @click.self="closeModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>🔴 Configure Distributed Redis Backend</h2>
+          <button class="btn-close" @click="closeModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" v-model="redisForm.enabled" />
+              Enable Distributed Redis (Multi-Node Sync)
+            </label>
+            <p class="form-hint">Enables distributed rate limiting and shared response caching across all Kairos instances.</p>
+          </div>
+
+          <div class="form-group">
+            <label>Redis Connection URL</label>
+            <input type="text" v-model="redisForm.url" placeholder="redis://127.0.0.1:6379" />
+            <p class="form-hint">Standard redis:// or rediss:// connection string.</p>
+          </div>
+
+          <div class="form-group">
+            <label>Connection Pool Size</label>
+            <input type="number" v-model.number="redisForm.pool_size" min="1" max="128" />
+            <p class="form-hint">Maximum concurrent connections per gateway node.</p>
+          </div>
+
+          <div class="form-group">
+            <label>Timeout (ms)</label>
+            <input type="number" v-model.number="redisForm.timeout_ms" min="100" max="10000" />
+            <p class="form-hint">Redis call timeout before fallback kicks in.</p>
+          </div>
+
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" v-model="redisForm.fallback_to_memory" />
+              Fallback to In-Memory if Redis is Down
+            </label>
+            <p class="form-hint">Prevents downtime by seamlessly degrading to local in-memory algorithms.</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" @click="closeModal">Cancel</button>
+          <button class="btn-primary" @click="saveRedisConfig">Save Redis Settings</button>
         </div>
       </div>
     </div>

@@ -9,10 +9,11 @@
 //! See `src/services/percentile.rs` for the algorithm and `src/services/
 //! metrics_store.rs` for the storage layer.
 
-use chrono::{Duration, Utc};
+use chrono::{Duration, TimeZone, Utc};
 use kairos_rs::services::metrics_store::{
-    AggregationInterval, MetricsStore, MetricValue,
+    AggregationInterval, MetricPoint, MetricValue, MetricsStore,
 };
+use kairos_rs::services::percentile::{compute_percentiles, percentile_key};
 
 fn bucket_at(store: &MetricsStore, name: &str, le: f64, count: u64) {
     store.record(name, MetricValue::Histogram { le, count });
@@ -342,4 +343,117 @@ fn percentile_key_renders_integers_without_decimals() {
     assert!(p.percentiles.contains_key("99.9"));
     assert!(!p.percentiles.contains_key("50.0"));
     assert!(!p.percentiles.contains_key("99.90"));
+}
+
+fn point_at(sec: i64, value: MetricValue) -> MetricPoint {
+    MetricPoint {
+        timestamp: Utc.timestamp_opt(sec, 0).unwrap(),
+        value,
+    }
+}
+
+#[test]
+fn empty_input_returns_empty() {
+    let out = compute_percentiles(&[], AggregationInterval::OneMinute, &[50.0, 95.0]);
+    assert!(out.is_empty());
+}
+
+#[test]
+fn empty_percentiles_returns_empty() {
+    let p = point_at(0, MetricValue::Histogram { le: 1.0, count: 5 });
+    let out = compute_percentiles(&[p], AggregationInterval::OneMinute, &[]);
+    assert!(out.is_empty());
+}
+
+#[test]
+fn single_bucket_returns_that_le_for_every_percentile() {
+    let p = point_at(60, MetricValue::Histogram { le: 42.0, count: 100 });
+    let out = compute_percentiles(&[p], AggregationInterval::OneMinute, &[50.0, 95.0, 99.0]);
+    assert_eq!(out.len(), 1);
+    assert_eq!(out[0].percentiles.get("50"), Some(&42.0));
+    assert_eq!(out[0].percentiles.get("95"), Some(&42.0));
+    assert_eq!(out[0].percentiles.get("99"), Some(&42.0));
+}
+
+#[test]
+fn all_buckets_zero_returns_none_for_window() {
+    let p1 = point_at(60, MetricValue::Histogram { le: 1.0, count: 0 });
+    let p2 = point_at(70, MetricValue::Histogram { le: 2.0, count: 0 });
+    let out = compute_percentiles(&[p1, p2], AggregationInterval::OneMinute, &[50.0]);
+    assert!(out.is_empty());
+}
+
+#[test]
+fn computes_p50_p95_p99_on_uniform_distribution() {
+    let points: Vec<MetricPoint> = [10.0_f64, 20.0, 30.0, 40.0]
+        .into_iter()
+        .enumerate()
+        .map(|(i, le)| {
+            point_at(60 + i as i64, MetricValue::Histogram { le, count: 25 })
+        })
+        .collect();
+    let out = compute_percentiles(&points, AggregationInterval::OneMinute, &[50.0, 95.0]);
+    assert_eq!(out.len(), 1);
+    let p = &out[0];
+    let p50 = p.percentiles.get("50").copied().unwrap();
+    assert!(p50 >= 20.0 && p50 <= 30.0, "p50={p50}");
+    let p95 = p.percentiles.get("95").copied().unwrap();
+    assert!(p95 >= 30.0 && p95 <= 40.0, "p95={p95}");
+}
+
+#[test]
+fn groups_points_into_interval_windows() {
+    let in_window = vec![
+        point_at(60, MetricValue::Histogram { le: 1.0, count: 10 }),
+        point_at(80, MetricValue::Histogram { le: 2.0, count: 10 }),
+        point_at(100, MetricValue::Histogram { le: 3.0, count: 10 }),
+    ];
+    let next_window = vec![point_at(180, MetricValue::Histogram { le: 1.0, count: 5 })];
+
+    let mut all = in_window;
+    all.extend(next_window);
+    let out = compute_percentiles(&all, AggregationInterval::OneMinute, &[50.0]);
+    assert_eq!(out.len(), 2);
+}
+
+#[test]
+fn percentile_key_strips_trailing_zeros() {
+    assert_eq!(percentile_key(50.0), "50");
+    assert_eq!(percentile_key(99.9), "99.9");
+    assert_eq!(percentile_key(99.99), "99.99");
+}
+
+#[test]
+fn clamps_when_target_exceeds_total() {
+    let points = vec![
+        point_at(60, MetricValue::Histogram { le: 1.0, count: 2 }),
+        point_at(70, MetricValue::Histogram { le: 2.0, count: 3 }),
+    ];
+    let out = compute_percentiles(&points, AggregationInterval::OneMinute, &[99.9, 100.0, 105.0]);
+    let p = &out[0];
+    let p999 = p.percentiles.get("99.9").copied().unwrap();
+    assert!((1.99..=2.0).contains(&p999));
+    assert_eq!(p.percentiles.get("100"), Some(&2.0));
+    assert_eq!(p.percentiles.get("105"), Some(&2.0));
+}
+
+#[test]
+fn supports_five_minute_aggregation_interval() {
+    let points = vec![
+        point_at(0, MetricValue::Histogram { le: 1.0, count: 5 }),
+        point_at(200, MetricValue::Histogram { le: 2.0, count: 5 }),
+    ];
+    let out = compute_percentiles(&points, AggregationInterval::FiveMinutes, &[50.0]);
+    assert_eq!(out.len(), 1);
+    let p = &out[0];
+    assert_eq!(p.percentiles.get("50"), Some(&1.0));
+    assert_eq!(p.timestamp.timestamp(), 0);
+}
+
+#[test]
+fn duration_conversion_matches_interval() {
+    assert_eq!(
+        AggregationInterval::FiveMinutes.to_duration(),
+        Duration::seconds(300)
+    );
 }

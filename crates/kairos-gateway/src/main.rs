@@ -22,7 +22,7 @@ use kairos_rs::services::websocket::WebSocketHandler;
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{middleware::Logger, App, HttpServer};
 use chrono::Duration;
-use log::{error, info};
+use log::{error, info, warn};
 use tokio::signal;
 
 #[actix_web::main]
@@ -64,14 +64,51 @@ async fn main() -> std::io::Result<()> {
 
     let mut route_handler = RouteHandler::new(config.routers.clone(), 30); // 30 second timeout
 
-    // Initialize in-memory response cache (5,000 max entries, 60s default TTL)
-    let response_cache = std::sync::Arc::new(kairos_rs::services::cache::ResponseCache::new(
+    // Initialize distributed Redis backend if configured
+    let redis_service: Option<std::sync::Arc<kairos_rs::services::redis_service::RedisService>> =
+        if let Some(redis_cfg) = config.redis.clone() {
+            if redis_cfg.enabled {
+                match kairos_rs::services::redis_service::RedisService::new(redis_cfg).await {
+                    Ok(svc) => {
+                        info!("Distributed Redis backend initialized");
+                        Some(std::sync::Arc::new(svc))
+                    }
+                    Err(e) => {
+                        warn!("Failed to initialize Redis backend ({}): falling back to in-memory mode", e);
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+    // Initialize in-memory / distributed response cache (5,000 max entries, 60s default TTL)
+    let mut response_cache_builder = kairos_rs::services::cache::ResponseCache::new(
         5_000,
         std::time::Duration::from_secs(60),
-    ));
+    );
+    if let Some(ref redis_svc) = redis_service {
+        response_cache_builder = response_cache_builder.with_redis(redis_svc.clone());
+    }
+    let response_cache = std::sync::Arc::new(response_cache_builder);
     let inflight_tracker = std::sync::Arc::new(InFlightTracker::new());
+
+    // Initialize Semantic Cache for AI/LLM requests
+    let semantic_cache_cfg = config
+        .ai
+        .as_ref()
+        .and_then(|a| a.semantic_cache.clone())
+        .unwrap_or_default();
+    let semantic_cache = std::sync::Arc::new(
+        kairos_rs::services::semantic_cache::SemanticCache::new(semantic_cache_cfg),
+    );
+
     route_handler = route_handler
         .with_cache(response_cache.clone())
+        .with_semantic_cache(semantic_cache.clone())
         .with_inflight_tracker(inflight_tracker);
 
     // Initialize AI Service if configured
@@ -166,13 +203,20 @@ async fn main() -> std::io::Result<()> {
 
     info!("Starting server on {}:{}", host, port);
 
+    let admin_auth_cfg = config.admin_auth.clone().unwrap_or_default();
+    let admin_auth = kairos_rs::middleware::admin_auth::AdminAuth::new(admin_auth_cfg);
+
     // Create server with appropriate rate limiting middleware
     let server = if let Some(rate_limit_config) = config.rate_limit.clone() {
         info!(
             "Using advanced rate limiting with strategy: {:?}",
             rate_limit_config.strategy
         );
-        let advanced_rate_limit = AdvancedRateLimit::new(rate_limit_config);
+        let mut advanced_rate_limit = AdvancedRateLimit::new(rate_limit_config);
+        if let Some(ref redis_svc) = redis_service {
+            advanced_rate_limit = advanced_rate_limit.with_redis(redis_svc.clone());
+        }
+        let redis_data = redis_service.clone();
         HttpServer::new(move || {
             App::new()
                 .app_data(actix_web::web::Data::new(metrics_collector.clone()))
@@ -181,6 +225,10 @@ async fn main() -> std::io::Result<()> {
                 .app_data(actix_web::web::Data::new(route_handler.clone()))
                 .app_data(actix_web::web::Data::new(config_manager.clone()))
                 .app_data(actix_web::web::Data::new(response_cache.clone()))
+                .app_data(actix_web::web::Data::new(semantic_cache.clone()))
+                .app_data(actix_web::web::Data::new(redis_service.clone()))
+                .app_data(actix_web::web::Data::new(redis_data.clone()))
+                .wrap(admin_auth.clone())
                 .wrap(advanced_rate_limit.clone())
                 .wrap(Logger::new(
                     r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,
@@ -218,6 +266,9 @@ async fn main() -> std::io::Result<()> {
                 .app_data(actix_web::web::Data::new(route_handler.clone()))
                 .app_data(actix_web::web::Data::new(config_manager.clone()))
                 .app_data(actix_web::web::Data::new(response_cache.clone()))
+                .app_data(actix_web::web::Data::new(semantic_cache.clone()))
+                .app_data(actix_web::web::Data::new(redis_service.clone()))
+                .wrap(admin_auth.clone())
                 .wrap(Governor::new(&governor_conf))
                 .wrap(Logger::new(
                     r#"%a "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,

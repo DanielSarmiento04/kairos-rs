@@ -89,5 +89,7 @@ pub mod inflight;
 pub mod load_balancer;
 pub mod metrics_store;
 pub mod percentile;
+pub mod redis_service;
+pub mod semantic_cache;
 pub mod websocket;
 pub mod websocket_metrics;
