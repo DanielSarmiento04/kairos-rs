@@ -9,6 +9,7 @@ use crate::services::cache::{
 use crate::services::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
 use crate::services::inflight::{CoalesceOutcome, InFlightTracker};
 use crate::services::load_balancer::{LoadBalancer, LoadBalancerFactory};
+use crate::services::semantic_cache::{extract_prompt, vectorize_local, SemanticCache};
 use crate::utils::path::format_route;
 use crate::utils::route_matcher::RouteMatcher;
 
@@ -106,6 +107,8 @@ pub struct RouteHandler {
     ai_service: Option<Arc<AiService>>,
     /// In-memory response cache for idempotent HTTP requests
     response_cache: Option<Arc<ResponseCache>>,
+    /// Semantic vector cache for AI / LLM requests
+    semantic_cache: Option<Arc<SemanticCache>>,
     /// Optional per-route Moka in-memory response cache (PR6).
     cache: Option<Arc<InMemoryCache>>,
     /// Optional in-flight request coalescer (PR7 — single-flight).
@@ -220,6 +223,7 @@ impl RouteHandler {
             load_balancers: Arc::new(load_balancers),
             ai_service: None,
             response_cache: None,
+            semantic_cache: None,
             cache: Self::build_cache_from_routes(&routes),
             inflight: None,
         }
@@ -248,6 +252,17 @@ impl RouteHandler {
     pub fn with_cache(mut self, cache: Arc<ResponseCache>) -> Self {
         self.response_cache = Some(cache);
         self
+    }
+
+    /// Attaches a semantic vector cache for AI requests.
+    pub fn with_semantic_cache(mut self, cache: Arc<SemanticCache>) -> Self {
+        self.semantic_cache = Some(cache);
+        self
+    }
+
+    /// Returns a reference to the semantic cache if configured.
+    pub fn semantic_cache(&self) -> Option<&Arc<SemanticCache>> {
+        self.semantic_cache.as_ref()
     }
 
     /// Returns a reference to the response cache if configured.
@@ -556,6 +571,56 @@ impl RouteHandler {
             .as_ref()
             .and_then(|p| p.streaming)
             .unwrap_or(false);
+
+        // Fast path: Check Semantic Cache for AI / LLM requests
+        let mut extracted_prompt_and_vector: Option<(String, Vec<f32>, u64)> = None;
+
+        let semantic_cfg = route
+            .ai_policy
+            .as_ref()
+            .and_then(|p| p.semantic_cache.clone())
+            .or_else(|| self.semantic_cache.as_ref().map(|c| c.config().clone()));
+
+        if let (Some(ref cfg), Some(ref sc)) = (&semantic_cfg, &self.semantic_cache) {
+            if cfg.enabled && !is_route_streaming {
+                if let Some(prompt_text) = extract_prompt(&body) {
+                    let vector = if let Some(ai) = &self.ai_service {
+                        ai.generate_embedding(
+                            &prompt_text,
+                            Some(&cfg.embedding_provider),
+                            Some(&cfg.embedding_model),
+                            None,
+                        )
+                        .await
+                        .unwrap_or_else(|_| vectorize_local(&prompt_text, 128))
+                    } else {
+                        vectorize_local(&prompt_text, 128)
+                    };
+
+                    if let Some((entry, sim)) = sc.lookup(&vector, cfg.similarity_threshold) {
+                        debug!(
+                            "Serving semantic cached response (sim: {:.4}) for prompt: '{}'",
+                            sim, entry.prompt
+                        );
+                        let mut builder = HttpResponse::build(
+                            StatusCode::from_u16(entry.status).unwrap_or(StatusCode::OK),
+                        );
+                        for (k, v) in &entry.headers {
+                            if !k.eq_ignore_ascii_case("connection") {
+                                builder.insert_header((k.as_str(), v.as_str()));
+                            }
+                        }
+                        builder.insert_header(("X-Cache", "HIT"));
+                        builder.insert_header(("X-Semantic-Cache", "HIT"));
+                        builder.insert_header(("X-Cache-Similarity", format!("{:.4}", sim)));
+                        return Ok(builder.body(entry.body));
+                    } else {
+                        extracted_prompt_and_vector =
+                            Some((prompt_text, vector, cfg.ttl_seconds));
+                    }
+                }
+            }
+        }
 
         // PR7: Coalesce guard for routes with `cache.coalesce = true` and `InFlightTracker` wired.
         let should_coalesce = !is_route_streaming
@@ -1009,6 +1074,23 @@ impl RouteHandler {
                                         None,
                                     );
                                 }
+                            }
+                            if let (Some(ref sc), Some((prompt_text, vector, ttl_secs))) =
+                                (&self.semantic_cache, extracted_prompt_and_vector)
+                            {
+                                if status_code < 400 {
+                                    sc.insert(
+                                        prompt_text,
+                                        vector,
+                                        status_code,
+                                        cached_headers.clone(),
+                                        bytes.clone(),
+                                        Some(Duration::from_secs(ttl_secs)),
+                                    );
+                                    builder.insert_header(("X-Semantic-Cache", "MISS"));
+                                }
+                            } else if self.semantic_cache.is_some() {
+                                builder.insert_header(("X-Semantic-Cache", "MISS"));
                             }
                             if let Some(metrics) = req.app_data::<web::Data<
                                 crate::routes::metrics::MetricsCollector,

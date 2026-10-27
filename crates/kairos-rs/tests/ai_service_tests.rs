@@ -8,6 +8,7 @@ fn test_ai_settings_initialization() {
         model: "gpt-4".to_string(),
         api_key: Some("test-key".to_string()),
         fallback_providers: Vec::new(),
+        semantic_cache: None,
     };
 
     let service = AiService::new(settings);

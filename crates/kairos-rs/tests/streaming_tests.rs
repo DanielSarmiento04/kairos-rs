@@ -64,6 +64,7 @@ async fn test_sse_streaming_passthrough() {
             fallback_backend_index: None,
             fallback_providers: Vec::new(),
             streaming: Some(true),
+            semantic_cache: None,
         }),
         cache: None,
     }];
@@ -81,7 +82,7 @@ async fn test_sse_streaming_passthrough() {
         .handle_request(req, Bytes::from_static(b"{\"prompt\":\"hi\"}"))
         .await;
 
-    assert!(resp_res.is_ok(), "Request handling failed");
+    assert!(resp_res.is_ok(), "Request handling failed: {:?}", resp_res.as_ref().err());
     let resp = resp_res.unwrap();
 
     // 4. Verify streaming headers
@@ -142,6 +143,7 @@ async fn test_ai_multi_provider_failover_structure() {
                 api_key: None,
             },
         ],
+        semantic_cache: None,
     };
 
     let service = AiService::new(settings);
@@ -179,6 +181,7 @@ fn test_ai_policy_serialization_with_streaming_and_fallbacks() {
             },
         ],
         streaming: Some(true),
+        semantic_cache: None,
     };
 
     let serialized = serde_json::to_string(&policy).expect("Failed to serialize AiPolicy");

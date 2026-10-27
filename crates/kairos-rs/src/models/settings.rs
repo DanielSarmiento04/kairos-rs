@@ -29,6 +29,9 @@ pub struct AiSettings {
     /// Fallback providers to try in sequence if the primary provider fails (e.g., on 429, 5xx, or network timeout).
     #[serde(default)]
     pub fallback_providers: Vec<AiProviderConfig>,
+    /// Optional semantic caching configuration for AI prompt/chat requests.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub semantic_cache: Option<crate::services::semantic_cache::SemanticCacheConfig>,
 }
 
 /// JWT authentication configuration for the gateway.
@@ -74,6 +77,58 @@ impl Default for JwtSettings {
             issuer: None,
             audience: None,
             required_claims: vec!["sub".to_string(), "exp".to_string()],
+        }
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_redis_url() -> String {
+    "redis://127.0.0.1:6379".to_string()
+}
+
+fn default_redis_pool_size() -> usize {
+    16
+}
+
+fn default_redis_timeout_ms() -> u64 {
+    1500
+}
+
+/// Configuration for distributed Redis rate limiting and shared response caching.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct RedisConfig {
+    /// Whether Redis integration is enabled. Default: true
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+
+    /// Connection URL (e.g., "redis://127.0.0.1:6379").
+    #[serde(default = "default_redis_url")]
+    pub url: String,
+
+    /// Maximum connection pool size. Default: 16.
+    #[serde(default = "default_redis_pool_size")]
+    pub pool_size: usize,
+
+    /// Request timeout in milliseconds. Default: 1500ms.
+    #[serde(default = "default_redis_timeout_ms")]
+    pub timeout_ms: u64,
+
+    /// If true, automatically degrades to in-memory rate limiting and cache on connection failure.
+    #[serde(default = "default_true")]
+    pub fallback_to_memory: bool,
+}
+
+impl Default for RedisConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            url: default_redis_url(),
+            pool_size: default_redis_pool_size(),
+            timeout_ms: default_redis_timeout_ms(),
+            fallback_to_memory: true,
         }
     }
 }
@@ -161,6 +216,10 @@ pub struct Settings {
     #[serde(default)]
     pub admin_auth: Option<AdminAuthConfig>,
 
+    /// Distributed Redis configuration for rate limiting and response caching.
+    #[serde(default)]
+    pub redis: Option<RedisConfig>,
+
     /// Collection of route configurations defining how requests are forwarded.
     ///
     /// Each router defines a mapping from external client requests to internal
@@ -179,6 +238,7 @@ impl Default for Settings {
             ai: None,
             compression: None,
             admin_auth: None,
+            redis: None,
             routers: Vec::new(),
         }
     }
@@ -218,6 +278,7 @@ impl Settings {
     ///     ai: None,
     ///     compression: None,
     ///     admin_auth: None,
+    ///     redis: None,
     ///     routers: vec![
     ///         Router {
     ///             host: Some("http://localhost".to_string()),

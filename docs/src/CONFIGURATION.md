@@ -20,6 +20,10 @@ The root of `config.json` encapsulates global security, rate limiting, your AI p
 ```json
 {
   "version": 1,
+  "admin_auth": {
+    "enabled": true,
+    "api_key": "your-secret-admin-api-key"
+  },
   "jwt": {
     "secret": "your-super-secure-jwt-secret-key-must-be-at-least-32-characters-long",
     "issuer": "kairos-gateway",
@@ -32,12 +36,25 @@ The root of `config.json` encapsulates global security, rate limiting, your AI p
     "window_duration": 60,
     "burst_allowance": 20,
     "window_type": "SlidingWindow",
-    "enable_redis": false,
+    "enable_redis": true,
     "redis_key_prefix": "kairos_rl"
+  },
+  "redis": {
+    "url": "redis://127.0.0.1:6379",
+    "connection_timeout_ms": 2000,
+    "max_pool_size": 32
   },
   "ai": {
     "provider": "openai",
-    "model": "gpt-4"
+    "model": "gpt-4",
+    "semantic_cache": {
+      "enabled": true,
+      "similarity_threshold": 0.88,
+      "ttl_seconds": 3600,
+      "max_entries": 10000,
+      "embedding_provider": "openai",
+      "embedding_model": "text-embedding-3-small"
+    }
   },
   "routers": [
     // Route definitions...
@@ -50,9 +67,11 @@ The root of `config.json` encapsulates global security, rate limiting, your AI p
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `version` | number | Yes | Schema version for compatibility. Should be `1`. |
+| `admin_auth` | object | No | Control plane authentication protecting `/api/*` endpoints and Web UI via `X-Admin-Key`. |
 | `jwt` | object | No | Global JWT authentication settings. Required if any router sets `auth_required: true`. |
 | `rate_limit` | object | No | Global rate limiting configuration. |
-| `ai` | object | No | Configuration for AI routing/fallback models. |
+| `redis` | object | No | Distributed Redis connection settings for rate limiting and response caching. |
+| `ai` | object | No | Configuration for AI routing/fallback models and semantic vector caching. |
 | `routers` | array | Yes | Array of route definitions. Processed in order. |
 
 ---
@@ -296,6 +315,88 @@ Configure automatic response compression (`gzip`, `br`, `deflate`) at the root o
   "routers": []
 }
 ```
+
+---
+
+## Control Plane Security (`admin_auth`)
+
+Protect administrative management endpoints (`/api/*`) and real-time WebSocket administration channels (`/ws/admin/*`) with an API key:
+
+```json
+{
+  "admin_auth": {
+    "enabled": true,
+    "api_key": "secret-admin-token-12345"
+  }
+}
+```
+
+Clients and UI dashboards authenticate using the `X-Admin-Key` header:
+
+```bash
+curl -H "X-Admin-Key: secret-admin-token-12345" http://localhost:5900/api/config/reload
+```
+
+Public health checks (`/health`, `/api/health`) and metrics endpoints remain unauthenticated for Prometheus scraping.
+
+---
+
+## Distributed Redis Backend (`redis`)
+
+Enable cluster-wide distributed sliding window rate limiting and shared response caching across multiple Kairos gateway instances:
+
+```json
+{
+  "redis": {
+    "url": "redis://127.0.0.1:6379",
+    "connection_timeout_ms": 2000,
+    "max_pool_size": 32
+  },
+  "rate_limit": {
+    "strategy": "PerIP",
+    "requests_per_window": 100,
+    "window_duration": 60,
+    "burst_allowance": 20,
+    "window_type": "SlidingWindow",
+    "enable_redis": true,
+    "redis_key_prefix": "kairos_rl"
+  }
+}
+```
+
+- **Health check**: `GET /api/redis/health` returns status, pool metrics, and ping round-trip latency.
+- **Resilient Fallback**: If Redis disconnects or is temporarily unavailable, Kairos automatically and transparently falls back to local in-memory rate limiting and caching without rejecting user requests.
+
+---
+
+## Semantic Vector Caching for AI / LLM (`semantic_cache`)
+
+Reduce LLM API costs and deliver sub-millisecond response latencies for semantically similar user prompts:
+
+```json
+{
+  "ai": {
+    "provider": "openai",
+    "model": "gpt-4",
+    "semantic_cache": {
+      "enabled": true,
+      "similarity_threshold": 0.88,
+      "ttl_seconds": 3600,
+      "max_entries": 10000,
+      "embedding_provider": "openai",
+      "embedding_model": "text-embedding-3-small"
+    }
+  }
+}
+```
+
+Semantic caching can also be overridden per-route inside `router.ai_policy.semantic_cache`.
+
+When a request matches an entry within `similarity_threshold`:
+- Status code and response body are returned immediately from the vector cache.
+- The response includes headers `X-Cache: HIT`, `X-Semantic-Cache: HIT`, and `X-Cache-Similarity: 0.9412`.
+- Query statistics are available via `GET /api/cache/semantic/stats`.
+- Purge cache via `POST /api/cache/semantic/clear` or full cache flush `POST /api/cache/clear`.
 
 ---
 

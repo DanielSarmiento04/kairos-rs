@@ -333,6 +333,7 @@ pub struct ResponseCache {
     hits: AtomicU64,
     misses: AtomicU64,
     evictions: AtomicU64,
+    redis: Option<Arc<crate::services::redis_service::RedisService>>,
 }
 
 impl ResponseCache {
@@ -354,7 +355,14 @@ impl ResponseCache {
             hits: AtomicU64::new(0),
             misses: AtomicU64::new(0),
             evictions: AtomicU64::new(0),
+            redis: None,
         }
+    }
+
+    /// Attaches a distributed Redis backend for cluster-wide caching.
+    pub fn with_redis(mut self, redis: Arc<crate::services::redis_service::RedisService>) -> Self {
+        self.redis = Some(redis);
+        self
     }
 
     #[inline]
@@ -502,12 +510,25 @@ impl ResponseCache {
         for k in keys_to_remove {
             map.remove(&k);
         }
+        if let Some(ref redis) = self.redis {
+            let redis_clone = redis.clone();
+            let prefix_clone = path_prefix.to_string();
+            tokio::spawn(async move {
+                let _ = redis_clone.invalidate_prefix(&prefix_clone).await;
+            });
+        }
         count
     }
 
     pub fn clear(&self) {
         let mut map = self.storage.write().unwrap();
         map.clear();
+        if let Some(ref redis) = self.redis {
+            let redis_clone = redis.clone();
+            tokio::spawn(async move {
+                let _ = redis_clone.clear_cache().await;
+            });
+        }
     }
 
     pub fn stats(&self) -> CacheStatsSummary {

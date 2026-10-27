@@ -210,6 +210,21 @@ export const apiService = {
     return res.json();
   },
 
+  async updateRedisConfig(config: import('../types').RedisConfig): Promise<{ success: boolean; message: string }> {
+    const res = await apiFetch(`${API_BASE}/config/redis`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    return res.json();
+  },
+
+  async getRedisHealth(): Promise<import('../types').RedisHealthResponse> {
+    const res = await apiFetch(`${API_BASE}/redis/health`);
+    if (!res.ok) throw new Error('Failed to fetch Redis health');
+    return res.json();
+  },
+
   // Cache Management
   async getCacheStats(): Promise<CacheStatsResponse> {
     const res = await apiFetch(`${API_BASE}/cache/stats`);
@@ -219,6 +234,17 @@ export const apiService = {
 
   async clearCache(): Promise<{ success: boolean; message: string }> {
     const res = await apiFetch(`${API_BASE}/cache/clear`, { method: 'POST' });
+    return res.json();
+  },
+
+  async getSemanticCacheStats(): Promise<{ success: boolean; data?: import('../types').SemanticCacheStats; message?: string }> {
+    const res = await apiFetch(`${API_BASE}/cache/semantic/stats`);
+    if (!res.ok) throw new Error('Failed to fetch semantic cache stats');
+    return res.json();
+  },
+
+  async clearSemanticCache(): Promise<{ success: boolean; message: string }> {
+    const res = await apiFetch(`${API_BASE}/cache/semantic/clear`, { method: 'POST' });
     return res.json();
   },
 

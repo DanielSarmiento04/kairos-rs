@@ -30,6 +30,7 @@ use tokio::time::interval;
 ///     ai: None,
 ///     compression: None,
 ///     admin_auth: None,
+///     redis: None,
 ///     routers: vec![],
 /// };
 /// let update = ConfigUpdate {
@@ -70,6 +71,7 @@ pub struct ConfigUpdate {
 ///     ai: None,
 ///     compression: None,
 ///     admin_auth: None,
+///     redis: None,
 ///     routers: vec![],
 /// };
 /// let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
@@ -155,6 +157,7 @@ impl ConfigWatcher {
     /// #     ai: None,
     /// #     compression: None,
     /// #     admin_auth: None,
+    /// #     redis: None,
     /// #     routers: vec![],
     /// # };
     /// # let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
@@ -185,6 +188,7 @@ impl ConfigWatcher {
     /// #     ai: None,
     /// #     compression: None,
     /// #     admin_auth: None,
+    /// #     redis: None,
     /// #     routers: vec![],
     /// # };
     /// # let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
@@ -334,6 +338,7 @@ impl ConfigWatcher {
     /// #     ai: None,
     /// #     compression: None,
     /// #     admin_auth: None,
+    /// #     redis: None,
     /// #     routers: vec![],
     /// # };
     /// # let watcher = ConfigWatcher::new(settings, "./config.json".to_string());

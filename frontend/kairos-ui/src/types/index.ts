@@ -42,6 +42,7 @@ export interface AiPolicy {
   fallback_backend_index?: number | null;
   fallback_providers?: AiProviderConfig[];
   streaming?: boolean | null;
+  semantic_cache?: SemanticCacheConfig | null;
 }
 
 // ─── Transformation (mirrors crates/kairos-rs/src/middleware/transform.rs) ───
@@ -163,11 +164,48 @@ export interface ServerConfig {
   keep_alive?: number;
 }
 
+export interface SemanticCacheConfig {
+  enabled: boolean;
+  similarity_threshold: number;
+  ttl_seconds: number;
+  embedding_provider: string;
+  embedding_model: string;
+  max_entries: number;
+}
+
+export interface SemanticCacheStats {
+  hits: number;
+  misses: number;
+  hit_ratio: number;
+  current_entries: number;
+  max_entries: number;
+  evictions: number;
+}
+
 export interface AiSettings {
   provider: string;
   model: string;
   api_key?: string | null;
   fallback_providers?: AiProviderConfig[];
+  semantic_cache?: SemanticCacheConfig | null;
+}
+
+export interface RedisConfig {
+  enabled: boolean;
+  url: string;
+  pool_size: number;
+  timeout_ms: number;
+  fallback_to_memory: boolean;
+}
+
+export interface RedisHealthResponse {
+  success: boolean;
+  connected: boolean;
+  latency_ms?: number;
+  url?: string;
+  pool_size?: number;
+  fallback_to_memory?: boolean;
+  message?: string;
 }
 
 export interface AdminAuthConfig {
@@ -191,6 +229,7 @@ export interface Settings {
   server?: ServerConfig | null;
   ai?: AiSettings | null;
   admin_auth?: AdminAuthConfig | null;
+  redis?: RedisConfig | null;
   routers: Router[];
 }
 
@@ -284,6 +323,7 @@ export interface CacheStats {
 export interface CacheStatsResponse {
   success: boolean;
   data?: CacheStats;
+  semantic?: SemanticCacheStats;
   message?: string;
 }
 

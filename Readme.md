@@ -12,6 +12,9 @@ A production-ready HTTP gateway and reverse proxy built with Rust, featuring a *
 
 Kairos-rs is a production-ready multi-protocol gateway with modern web UI that:
 - ✅ **AI-Powered Capabilities** - Integrated with `rig-core` supporting multiple LLM providers (OpenAI, Anthropic, Cohere, etc.)
+- ✅ **Semantic Vector Caching** - Cosine similarity fast-path for LLM requests with OpenAI embeddings and zero-dep local vectorizer
+- ✅ **Distributed Redis Backend** - Cluster-wide atomic sliding window rate limiting and distributed response caching with automatic graceful fallback
+- ✅ **Control Plane Security** - Admin API Key middleware (`X-Admin-Key`) securing `/api/*` management endpoints and Web UI
 - ✅ **Multi-Protocol Support** - WebSocket, FTP, and DNS proxying
 - ✅ **Basic HTTP request routing** with regex pattern matching
 - ✅ **WebSocket**: Real-time bidirectional communication with connection upgrading and message forwarding
@@ -594,12 +597,20 @@ Current test coverage: **420 automated tests** (`198` Rust unit/integration test
 
 **Recently completed (v0.4.1 - October 2026):**
 - **AI Orchestration (`rig-core` 0.44.0)** - Multi-provider automated failover chains (global and per-route) and zero-buffering SSE/chunked token streaming passthrough
+**Completed in v0.4.2:**
+- **Control Plane Security & Web UI Authentication** - Admin API Key middleware (`X-Admin-Key`) safeguarding `/api/*` endpoints, persistent Vue 3 modal, and dynamic configuration hot-reloading
+- **Semantic Caching for AI / LLM Requests** - Vector cosine similarity fast-path with sub-millisecond responses, OpenAI embeddings with deterministic local fallback, and prompt extraction
+- **Distributed Redis Backend** - Cluster-wide sliding window rate limiting via atomic Lua scripts and shared response caching with resilient automatic in-memory fallback
+- **Automated Crates.io Publishing** - GitHub Actions release workflow publishing crates topologically on git tag push
+
+**Completed in v0.4.1:**
+- **AI Orchestration & Automated Failover** - Integrated `rig-core` 0.44.0 with multi-provider failover chains across OpenAI, Anthropic, Cohere, Perplexity, Mistral, Groq, and xAI
+- **Real-Time SSE Streaming** - Zero-buffering chunked streaming passthrough for `text/event-stream` and `application/x-ndjson`
 - **Per-Route Response Cache & Regex Invalidation** - Granular `CacheConfig` (`ttl_seconds`, `vary_headers`, `cache_control_respect`, `skip_if_Set_Cookie`, `max_body_bytes`) and `POST /api/cache/invalidate` with regex support
 - **HTTP Compression Middleware** - Global `gzip`, `br`, and `deflate` response compression with configurable minimum byte thresholds
 - **Latency Percentiles (`p50` / `p95` / `p99`)** - Linear CDF histogram interpolation exposed via `GET /api/metrics/percentiles` and `/ws/metrics` real-time streaming
 - **Modern Vue 3 + TypeScript + Vite 8 Admin UI** - Interactive `uPlot` time-series charts, `CachePolicyEditor`, `CacheInvalidationCard`, CSV export, and real-time SSE playground reader
-- **SSL/TLS Offloading Architecture Guide** - Production deployment blueprints for Nginx, Caddy, and Cloud ALBs
-- **420 Automated Tests** - 198 Rust unit/integration tests, 101 Rust doctests, and 121 Vitest UI tests
+- **428 Automated Tests** - 206 Rust unit/integration tests, 101 Rust doctests, and 121 Vitest UI tests
 
 **Previously completed (v0.2.x - v0.3.x):**
 - **Multi-Protocol Support** - HTTP/HTTPS, WebSocket, FTP, and DNS protocol handling
@@ -607,19 +618,17 @@ Current test coverage: **420 automated tests** (`198` Rust unit/integration test
 - **Security & Transformations** - JWT authentication, advanced rate limiting (token bucket, sliding window, fixed window), request/response transformations, and configuration hot-reload
 
 **Future phases:**
-- **Distributed Caching & Rate Limiting** - Cross-instance Redis backend for shared cache and rate-limit state
 - **OpenTelemetry & Distributed Tracing** - W3C Trace Context propagation and OTLP spans
 - **Enterprise Access Control** - RBAC and multi-tenant gateway policies
 
-See [realease/RELEASE_NOTES_0.4.1.md](./realease/RELEASE_NOTES_0.4.1.md) for the complete v0.4.1 release notes.
+See [realease/RELEASE_NOTES_0.4.2.md](./realease/RELEASE_NOTES_0.4.2.md) for the complete v0.4.2 release notes.
 
 ## Contributing
 
 Contributions are welcome! Areas where contributions would be especially valuable:
 
-- Distributed Redis-backed rate limiting and response caching
 - OpenTelemetry trace export integration
-- Additional AI provider adapters and semantic caching
+- Additional AI provider adapters and specialized vector databases
 - Kubernetes Helm charts and operator templates
 
 ### Development Setup

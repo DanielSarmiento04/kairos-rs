@@ -976,7 +976,7 @@ pub async fn delete_route_cache(
     }
 }
 
-/// Get response cache statistics
+/// Get response and semantic cache statistics
 ///
 /// # Endpoint
 ///
@@ -984,6 +984,60 @@ pub async fn delete_route_cache(
 #[get("/api/cache/stats")]
 pub async fn get_cache_stats(
     cache: Option<web::Data<Arc<crate::services::cache::ResponseCache>>>,
+    semantic_cache: Option<web::Data<Arc<crate::services::semantic_cache::SemanticCache>>>,
+) -> impl Responder {
+    let mut resp = serde_json::json!({
+        "success": true,
+    });
+    if let Some(c) = cache {
+        resp["data"] = serde_json::to_value(c.stats()).unwrap_or_default();
+    }
+    if let Some(sc) = semantic_cache {
+        resp["semantic"] = serde_json::to_value(sc.stats()).unwrap_or_default();
+    }
+    HttpResponse::Ok().json(resp)
+}
+
+/// Invalidate / clear response and semantic cache
+///
+/// # Endpoint
+///
+/// `POST /api/cache/clear`
+#[post("/api/cache/clear")]
+pub async fn clear_cache(
+    cache: Option<web::Data<Arc<crate::services::cache::ResponseCache>>>,
+    semantic_cache: Option<web::Data<Arc<crate::services::semantic_cache::SemanticCache>>>,
+) -> impl Responder {
+    let mut cleared = false;
+    if let Some(c) = cache {
+        c.clear();
+        cleared = true;
+    }
+    if let Some(sc) = semantic_cache {
+        sc.clear();
+        cleared = true;
+    }
+    if cleared {
+        HttpResponse::Ok().json(serde_json::json!({
+            "success": true,
+            "message": "Response and semantic caches cleared successfully"
+        }))
+    } else {
+        HttpResponse::BadRequest().json(serde_json::json!({
+            "success": false,
+            "message": "No cache is enabled"
+        }))
+    }
+}
+
+/// Get semantic cache statistics
+///
+/// # Endpoint
+///
+/// `GET /api/cache/semantic/stats`
+#[get("/api/cache/semantic/stats")]
+pub async fn get_semantic_cache_stats(
+    cache: Option<web::Data<Arc<crate::services::semantic_cache::SemanticCache>>>,
 ) -> impl Responder {
     if let Some(c) = cache {
         HttpResponse::Ok().json(serde_json::json!({
@@ -993,30 +1047,30 @@ pub async fn get_cache_stats(
     } else {
         HttpResponse::Ok().json(serde_json::json!({
             "success": false,
-            "message": "Response cache is not enabled"
+            "message": "Semantic cache is not enabled"
         }))
     }
 }
 
-/// Invalidate / clear response cache
+/// Clear semantic cache
 ///
 /// # Endpoint
 ///
-/// `POST /api/cache/clear`
-#[post("/api/cache/clear")]
-pub async fn clear_cache(
-    cache: Option<web::Data<Arc<crate::services::cache::ResponseCache>>>,
+/// `POST /api/cache/semantic/clear`
+#[post("/api/cache/semantic/clear")]
+pub async fn clear_semantic_cache(
+    cache: Option<web::Data<Arc<crate::services::semantic_cache::SemanticCache>>>,
 ) -> impl Responder {
     if let Some(c) = cache {
         c.clear();
         HttpResponse::Ok().json(serde_json::json!({
             "success": true,
-            "message": "Response cache cleared successfully"
+            "message": "Semantic cache cleared successfully"
         }))
     } else {
         HttpResponse::BadRequest().json(serde_json::json!({
             "success": false,
-            "message": "Response cache is not enabled"
+            "message": "Semantic cache is not enabled"
         }))
     }
 }
@@ -1066,6 +1120,67 @@ pub async fn update_admin_auth_config(
     }))
 }
 
+/// Update Redis distributed backend configuration
+///
+/// # Endpoint
+///
+/// `POST /api/config/redis`
+#[post("/api/config/redis")]
+pub async fn update_redis_config(
+    manager: web::Data<RouteManager>,
+    redis_config: web::Json<crate::models::settings::RedisConfig>,
+) -> impl Responder {
+    let mut settings = manager.settings.write().await;
+    settings.redis = Some(redis_config.into_inner());
+
+    // Save to disk
+    drop(settings);
+    if let Err(e) = manager.save_to_disk().await {
+        return HttpResponse::InternalServerError().json(serde_json::json!({
+            "success": false,
+            "message": format!("Failed to save configuration: {}", e)
+        }));
+    }
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "Redis configuration updated successfully. Restart required for changes to take effect."
+    }))
+}
+
+/// Check Redis connectivity health
+///
+/// # Endpoint
+///
+/// `GET /api/redis/health`
+#[get("/api/redis/health")]
+pub async fn get_redis_health(
+    redis_service: Option<web::Data<Option<std::sync::Arc<crate::services::redis_service::RedisService>>>>,
+) -> impl Responder {
+    if let Some(wrapper) = redis_service {
+        if let Some(ref svc) = **wrapper {
+            let start = std::time::Instant::now();
+            let is_alive = svc.ping().await;
+            let latency_ms = start.elapsed().as_millis() as u64;
+
+            return HttpResponse::Ok().json(serde_json::json!({
+                "success": true,
+                "connected": is_alive,
+                "latency_ms": latency_ms,
+                "url": svc.config().url,
+                "pool_size": svc.config().pool_size,
+                "fallback_to_memory": svc.config().fallback_to_memory,
+            }));
+        }
+    }
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "connected": false,
+        "message": "Redis service is not configured or disabled"
+    }))
+}
+
 /// Configure route management endpoints
 pub fn configure_management(cfg: &mut web::ServiceConfig) {
     cfg.service(verify_admin_auth)
@@ -1084,8 +1199,12 @@ pub fn configure_management(cfg: &mut web::ServiceConfig) {
         .service(update_compression_config)
         .service(update_server_config)
         .service(update_ai_config)
+        .service(update_redis_config)
+        .service(get_redis_health)
         .service(get_route_cache_stats)
         .service(delete_route_cache)
         .service(get_cache_stats)
-        .service(clear_cache);
+        .service(clear_cache)
+        .service(get_semantic_cache_stats)
+        .service(clear_semantic_cache);
 }

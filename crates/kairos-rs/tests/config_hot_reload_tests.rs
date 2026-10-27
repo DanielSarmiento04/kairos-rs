@@ -40,6 +40,7 @@ fn create_test_settings() -> Settings {
         }],
         compression: None,
         admin_auth: None,
+        redis: None,
     }
 }
 

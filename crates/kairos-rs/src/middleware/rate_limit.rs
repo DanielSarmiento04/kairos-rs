@@ -312,38 +312,23 @@ impl RateLimitStore {
 pub struct AdvancedRateLimit {
     config: RateLimitConfig,
     store: Arc<RateLimitStore>,
+    redis: Option<Arc<crate::services::redis_service::RedisService>>,
 }
 
 impl AdvancedRateLimit {
     /// Creates a new advanced rate limiting middleware with the specified configuration.
-    ///
-    /// # Parameters
-    ///
-    /// * `config` - Rate limiting configuration defining strategy and limits
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use kairos_rs::middleware::rate_limit::{AdvancedRateLimit, RateLimitConfig, LimitStrategy, WindowType};
-    /// use std::time::Duration;
-    ///
-    /// let config = RateLimitConfig {
-    ///     strategy: LimitStrategy::PerIPAndRoute,
-    ///     requests_per_window: 60,
-    ///     window_duration: Duration::from_secs(60),
-    ///     burst_allowance: 10,
-    ///     window_type: WindowType::SlidingWindow,
-    ///     enable_redis: false,
-    ///     redis_key_prefix: "kairos".to_string(),
-    /// };
-    ///
-    /// let middleware = AdvancedRateLimit::new(config);
-    /// ```
     pub fn new(config: RateLimitConfig) -> Self {
         Self {
             config,
             store: Arc::new(RateLimitStore::new()),
+            redis: None,
         }
+    }
+
+    /// Attaches a distributed Redis backend to the rate limiter.
+    pub fn with_redis(mut self, redis: Arc<crate::services::redis_service::RedisService>) -> Self {
+        self.redis = Some(redis);
+        self
     }
 
     /// Extracts the rate limiting key based on the configured strategy.
@@ -417,6 +402,7 @@ where
             service: Arc::new(service),
             config: self.config.clone(),
             store: self.store.clone(),
+            redis: self.redis.clone(),
         }))
     }
 }
@@ -429,6 +415,7 @@ pub struct AdvancedRateLimitMiddleware<S> {
     service: Arc<S>,
     config: RateLimitConfig,
     store: Arc<RateLimitStore>,
+    redis: Option<Arc<crate::services::redis_service::RedisService>>,
 }
 
 impl<S, B> Service<ServiceRequest> for AdvancedRateLimitMiddleware<S>
@@ -449,12 +436,14 @@ where
         let service = self.service.clone();
         let config = self.config.clone();
         let store = self.store.clone();
+        let redis = self.redis.clone();
 
         Box::pin(async move {
             // Create a temporary instance to extract the key
             let temp_limiter = AdvancedRateLimit {
                 config: config.clone(),
                 store: store.clone(),
+                redis: redis.clone(),
             };
 
             // Extract rate limiting key
@@ -467,8 +456,32 @@ where
                 }
             };
 
-            // Check rate limit
-            match store.check_rate_limit(&key, &config) {
+            // Check rate limit: try Redis first if enabled
+            let limit_result = if config.enable_redis {
+                if let Some(ref redis_svc) = redis {
+                    let redis_key = format!("{}:{}", config.redis_key_prefix, key);
+                    let limit_total = config.requests_per_window + config.burst_allowance;
+                    match redis_svc
+                        .check_sliding_window(&redis_key, config.window_duration, limit_total)
+                        .await
+                    {
+                        Ok(allowed) => Ok(allowed),
+                        Err(redis_err) => {
+                            warn!(
+                                "Redis rate limit check failed ({}); gracefully falling back to in-memory store",
+                                redis_err
+                            );
+                            store.check_rate_limit(&key, &config)
+                        }
+                    }
+                } else {
+                    store.check_rate_limit(&key, &config)
+                }
+            } else {
+                store.check_rate_limit(&key, &config)
+            };
+
+            match limit_result {
                 Ok(true) => {
                     debug!("Rate limit check passed for key: {}", key);
                     service.call(req).await

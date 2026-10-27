@@ -43,6 +43,7 @@ fn test_empty_configuration() {
         routers: vec![],
         compression: None,
         admin_auth: None,
+        redis: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -67,6 +68,7 @@ fn test_security_warnings() {
         )],
         compression: None,
         admin_auth: None,
+        redis: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -90,6 +92,7 @@ fn test_performance_warnings() {
         )],
         compression: None,
         admin_auth: None,
+        redis: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -151,6 +154,7 @@ fn test_localhost_http_warnings() {
         ],
         compression: None,
         admin_auth: None,
+        redis: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -171,6 +175,7 @@ fn test_overly_permissive_methods() {
         )],
         compression: None,
         admin_auth: None,
+        redis: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -210,6 +215,7 @@ fn test_path_traversal_detection() {
         }],
         compression: None,
         admin_auth: None,
+        redis: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -233,6 +239,7 @@ fn test_duplicate_route_paths() {
         ],
         compression: None,
         admin_auth: None,
+        redis: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -256,6 +263,7 @@ fn test_mixed_http_https_warnings() {
         ],
         compression: None,
         admin_auth: None,
+        redis: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -283,6 +291,7 @@ fn test_all_http_routes_warning() {
         ],
         compression: None,
         admin_auth: None,
+        redis: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -311,6 +320,7 @@ fn test_high_dynamic_routes_warning() {
         routers,
         compression: None,
         admin_auth: None,
+        redis: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -333,6 +343,7 @@ fn test_static_route_recommendation() {
         ],
         compression: None,
         admin_auth: None,
+        redis: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
@@ -355,6 +366,7 @@ fn test_valid_configuration() {
         ],
         compression: None,
         admin_auth: None,
+        redis: None,
     };
 
     let result = ConfigValidator::validate_comprehensive(&settings);
