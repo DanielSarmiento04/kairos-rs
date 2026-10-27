@@ -170,6 +170,18 @@ export interface AiSettings {
   fallback_providers?: AiProviderConfig[];
 }
 
+export interface AdminAuthConfig {
+  enabled: boolean;
+  api_keys: string[];
+  header_name: string;
+}
+
+export interface AdminAuthVerifyResponse {
+  success: boolean;
+  auth_required: boolean;
+  authenticated: boolean;
+}
+
 export interface Settings {
   version: number;
   jwt?: JwtSettings | null;
@@ -178,6 +190,7 @@ export interface Settings {
   metrics?: MetricsConfig | null;
   server?: ServerConfig | null;
   ai?: AiSettings | null;
+  admin_auth?: AdminAuthConfig | null;
   routers: Router[];
 }
 
