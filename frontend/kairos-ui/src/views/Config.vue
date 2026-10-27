@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { apiService } from '../services/api';
-import type { Settings, AiSettings, JwtSettings, RateLimitConfig, CorsConfig, ServerConfig, MetricsConfig, CacheStats } from '../types';
+import type { Settings, AiSettings, JwtSettings, RateLimitConfig, CorsConfig, ServerConfig, MetricsConfig, CacheStats, AdminAuthConfig } from '../types';
 import hljs from 'highlight.js/lib/core';
 import json from 'highlight.js/lib/languages/json';
 import 'highlight.js/styles/vs2015.css';
@@ -16,7 +16,7 @@ const error = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const copied = ref(false);
 
-const activeModal = ref<'ai' | 'jwt' | 'rate-limit' | 'cors' | 'server' | 'metrics' | null>(null);
+const activeModal = ref<'ai' | 'jwt' | 'rate-limit' | 'cors' | 'server' | 'metrics' | 'admin-auth' | null>(null);
 
 // Edit form states
 const aiForm = ref<AiSettings>({ provider: 'openai', model: 'gpt-4o', api_key: '' });
@@ -25,11 +25,13 @@ const rateLimitForm = ref<RateLimitConfig>({ strategy: 'FixedWindow', max_reques
 const corsForm = ref<CorsConfig>({ allowed_origins: ['*'], allowed_methods: ['GET', 'POST', 'PUT', 'DELETE'], allowed_headers: ['Content-Type', 'Authorization'], allow_credentials: true });
 const serverForm = ref<ServerConfig>({ host: '0.0.0.0', port: 5900, workers: 4, keep_alive: 75 });
 const metricsForm = ref<MetricsConfig>({ endpoint: '/metrics', enable_per_route_metrics: true });
+const adminAuthForm = ref<AdminAuthConfig>({ enabled: false, api_keys: [], header_name: 'X-Admin-Key' });
 
 const claimsInput = ref('');
 const corsOriginsInput = ref('');
 const corsMethodsInput = ref('');
 const corsHeadersInput = ref('');
+const adminKeysInput = ref('');
 
 const loadCacheStats = async () => {
   try {
@@ -178,6 +180,17 @@ const openMetricsModal = () => {
   activeModal.value = 'metrics';
 };
 
+const openAdminAuthModal = () => {
+  if (config.value?.admin_auth) {
+    adminAuthForm.value = { ...config.value.admin_auth };
+    adminKeysInput.value = (config.value.admin_auth.api_keys || []).join('\n');
+  } else {
+    adminAuthForm.value = { enabled: false, api_keys: [], header_name: 'X-Admin-Key' };
+    adminKeysInput.value = '';
+  }
+  activeModal.value = 'admin-auth';
+};
+
 const closeModal = () => {
   activeModal.value = null;
   error.value = null;
@@ -251,6 +264,22 @@ const saveServerConfig = async () => {
 const saveMetricsConfig = async () => {
   try {
     const res = await apiService.updateMetricsConfig(metricsForm.value);
+    successMessage.value = res.message;
+    closeModal();
+    await loadConfig();
+    setTimeout(() => { successMessage.value = null; }, 4000);
+  } catch (err: unknown) {
+    error.value = err instanceof Error ? err.message : String(err);
+  }
+};
+
+const saveAdminAuthConfig = async () => {
+  try {
+    adminAuthForm.value.api_keys = adminKeysInput.value
+      .split('\n')
+      .map(s => s.trim())
+      .filter(Boolean);
+    const res = await apiService.updateAdminAuthConfig(adminAuthForm.value);
     successMessage.value = res.message;
     closeModal();
     await loadConfig();
