@@ -154,6 +154,7 @@ async fn test_admin_cache_stats_endpoint_returns_snapshot() {
             max_size: 16,
             coalesce: false,
         }),
+        mcp_tool: None,
     }];
     let handler = RouteHandler::new(routes, 30);
 

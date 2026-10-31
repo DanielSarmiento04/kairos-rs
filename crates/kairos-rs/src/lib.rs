@@ -143,3 +143,6 @@ pub mod models;
 pub mod routes;
 pub mod services;
 pub mod utils;
+
+/// Re-export of the official Model Context Protocol crate `rmcp`.
+pub use rmcp;

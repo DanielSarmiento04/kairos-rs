@@ -45,6 +45,7 @@
 //!     response_transformation: None,
 //!     ai_policy: None,
 //!     cache: None,
+//!     mcp_tool: None,
 //! };
 //! 
 //! // Validate the configuration
@@ -57,5 +58,6 @@
 //! ```
 
 pub mod error;
+pub mod mcp;
 pub mod router;
 pub mod settings;

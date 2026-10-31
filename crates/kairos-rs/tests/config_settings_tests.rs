@@ -42,10 +42,12 @@ fn create_test_settings() -> Settings {
             response_transformation: None,
             ai_policy: None,
             cache: None,
+            mcp_tool: None,
         }],
         compression: None,
         admin_auth: None,
         redis: None,
+        mcp: None,
     }
 }
 
@@ -227,6 +229,7 @@ fn test_load_settings_complex_configuration() {
                 response_transformation: None,
                 ai_policy: None,
                 cache: None,
+            mcp_tool: None,
             },
             Router {
                 host: Some("http://internal-service".to_string()),
@@ -248,6 +251,7 @@ fn test_load_settings_complex_configuration() {
                 response_transformation: None,
                 ai_policy: None,
                 cache: None,
+            mcp_tool: None,
             },
             Router {
                 host: Some("https://auth.example.com".to_string()),
@@ -269,11 +273,13 @@ fn test_load_settings_complex_configuration() {
                 response_transformation: None,
                 ai_policy: None,
                 cache: None,
+            mcp_tool: None,
             },
         ],
         compression: None,
         admin_auth: None,
         redis: None,
+        mcp: None,
     };
 
     let temp_file = create_config_file(&complex_settings);
@@ -314,6 +320,7 @@ fn test_load_settings_empty_routers() {
         compression: None,
         admin_auth: None,
         redis: None,
+        mcp: None,
     };
 
     let temp_file = create_config_file(&empty_settings);
@@ -360,10 +367,12 @@ fn test_load_settings_unicode_content() {
             response_transformation: None,
             ai_policy: None,
             cache: None,
+            mcp_tool: None,
         }],
         compression: None,
         admin_auth: None,
         redis: None,
+        mcp: None,
     };
 
     let temp_file = create_config_file(&unicode_settings);

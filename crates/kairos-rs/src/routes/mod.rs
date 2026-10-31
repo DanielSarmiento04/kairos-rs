@@ -94,3 +94,4 @@ pub mod websocket;
 pub mod websocket_admin;
 pub mod ftp;
 pub mod dns;
+pub mod mcp;

@@ -133,6 +133,59 @@ impl Default for RedisConfig {
     }
 }
 
+/// Model Context Protocol (MCP) server configuration.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct McpConfig {
+    /// Whether the MCP server endpoints (`/mcp/sse`, `/mcp/messages`) are enabled. Default: true
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+
+    /// Server name announced during MCP initialization handshake. Default: "kairos-gateway"
+    #[serde(default = "default_mcp_server_name")]
+    pub server_name: String,
+
+    /// Server version announced during MCP initialization handshake. Default: "0.43.0"
+    #[serde(default = "default_mcp_server_version")]
+    pub server_version: String,
+
+    /// Whether MCP endpoints require administrative authentication (`X-Admin-Key` or Bearer token). Default: false
+    #[serde(default)]
+    pub auth_required: bool,
+
+    /// Whether native Kairos gateway diagnostic & management tools are automatically exposed. Default: true
+    #[serde(default = "default_true")]
+    pub expose_native_tools: bool,
+
+    /// Session inactivity timeout in seconds. Default: 3600 (1 hour).
+    #[serde(default = "default_mcp_session_timeout")]
+    pub session_timeout_seconds: u64,
+}
+
+fn default_mcp_server_name() -> String {
+    "kairos-gateway".to_string()
+}
+
+fn default_mcp_server_version() -> String {
+    "0.43.0".to_string()
+}
+
+fn default_mcp_session_timeout() -> u64 {
+    3600
+}
+
+impl Default for McpConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            server_name: default_mcp_server_name(),
+            server_version: default_mcp_server_version(),
+            auth_required: false,
+            expose_native_tools: true,
+            session_timeout_seconds: default_mcp_session_timeout(),
+        }
+    }
+}
+
 /// Application configuration settings for the kairos-rs gateway.
 ///
 /// This structure contains the complete configuration needed to run the gateway,
@@ -220,6 +273,10 @@ pub struct Settings {
     #[serde(default)]
     pub redis: Option<RedisConfig>,
 
+    /// Model Context Protocol (MCP) server configuration.
+    #[serde(default)]
+    pub mcp: Option<McpConfig>,
+
     /// Collection of route configurations defining how requests are forwarded.
     ///
     /// Each router defines a mapping from external client requests to internal
@@ -239,6 +296,7 @@ impl Default for Settings {
             compression: None,
             admin_auth: None,
             redis: None,
+            mcp: None,
             routers: Vec::new(),
         }
     }
@@ -279,6 +337,7 @@ impl Settings {
     ///     compression: None,
     ///     admin_auth: None,
     ///     redis: None,
+    ///     mcp: None,
     ///     routers: vec![
     ///         Router {
     ///             host: Some("http://localhost".to_string()),
@@ -300,6 +359,7 @@ impl Settings {
     ///             response_transformation: None,
     ///             ai_policy: None,
     ///             cache: None,
+    ///             mcp_tool: None,
     ///         }
     ///     ],
     /// };

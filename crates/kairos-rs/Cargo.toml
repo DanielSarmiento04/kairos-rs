@@ -1,6 +1,6 @@
 [package]
 name = "kairos-rs"
-version = "0.4.2"
+version = "0.4.3"
 edition = "2021"
 description = "A Rust library for interacting with the Kairos Api Gateway"
 license = "MIT"
@@ -45,6 +45,7 @@ hickory-proto = { version = "0.24" }
 suppaftp = { version = "5.3", features = ["async", "async-secure"] }
 hex = "0.4"
 rig = { package = "rig-core", version = "0.44.0", features = ["reqwest"] }
+rmcp = { version = "3.8.0", features = ["server"] }
 
 [dev-dependencies]
 tempfile = "3.0"

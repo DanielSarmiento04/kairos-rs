@@ -112,6 +112,7 @@ pub struct CompiledRoute {
 ///         response_transformation: None,
 ///         ai_policy: None,
 ///         cache: None,
+///         mcp_tool: None,
 ///     },
 ///     Router {
 ///         host: Some("http://api".to_string()),
@@ -133,6 +134,7 @@ pub struct CompiledRoute {
 ///         response_transformation: None,
 ///         ai_policy: None,
 ///         cache: None,
+///         mcp_tool: None,
 ///     },
 /// ];
 ///
@@ -217,6 +219,7 @@ impl RouteMatcher {
     ///         response_transformation: None,
     ///         ai_policy: None,
     ///         cache: None,
+    ///         mcp_tool: None,
     ///     },
     ///     Router {
     ///         host: Some("http://localhost".to_string()),
@@ -238,6 +241,7 @@ impl RouteMatcher {
     ///         response_transformation: None,
     ///         ai_policy: None,
     ///         cache: None,
+    ///         mcp_tool: None,
     ///     },
     /// ];
     ///
@@ -340,6 +344,7 @@ impl RouteMatcher {
     /// #         response_transformation: None,
     /// #         ai_policy: None,
     /// #         cache: None,
+    /// #         mcp_tool: None,
     /// #     },
     /// #     Router {
     /// #         host: Some("http://localhost".to_string()),
@@ -361,6 +366,7 @@ impl RouteMatcher {
     /// #         response_transformation: None,
     /// #         ai_policy: None,
     /// #         cache: None,
+    /// #         mcp_tool: None,
     /// #     }
     /// # ];
     /// # let matcher = RouteMatcher::new(routes)?;

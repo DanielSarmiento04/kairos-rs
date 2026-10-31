@@ -30,6 +30,7 @@ async fn test_simple_circuit_breaker() {
             response_transformation: None,
             ai_policy: None,
             cache: None,
+            mcp_tool: None,
         }
     ];
     let route_handler = RouteHandler::new(routes, 5);

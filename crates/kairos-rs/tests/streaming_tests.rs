@@ -67,6 +67,7 @@ async fn test_sse_streaming_passthrough() {
             semantic_cache: None,
         }),
         cache: None,
+        mcp_tool: None,
     }];
 
     let cache = Arc::new(ResponseCache::new(50, Duration::from_secs(60)));

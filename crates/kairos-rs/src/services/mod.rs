@@ -70,6 +70,7 @@
 //!         response_transformation: None,
 //!         ai_policy: None,
 //!         cache: None,
+//!         mcp_tool: None,
 //!     }
 //! ];
 //!
@@ -87,6 +88,7 @@ pub mod ftp;
 pub mod http;
 pub mod inflight;
 pub mod load_balancer;
+pub mod mcp_server;
 pub mod metrics_store;
 pub mod percentile;
 pub mod redis_service;

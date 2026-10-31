@@ -86,6 +86,7 @@ use tokio::time::{sleep, timeout, Duration};
 ///         response_transformation: None,
 ///         ai_policy: None,
 ///         cache: None,
+///         mcp_tool: None,
 ///     }
 /// ];
 ///
@@ -145,6 +146,7 @@ impl RouteHandler {
     ///         response_transformation: None,
     ///         ai_policy: None,
     ///         cache: None,
+    ///         mcp_tool: None,
     ///     },
     ///     Router {
     ///         host: Some("http://user-service".to_string()),
@@ -166,6 +168,7 @@ impl RouteHandler {
     ///         response_transformation: None,
     ///         ai_policy: None,
     ///         cache: None,
+    ///         mcp_tool: None,
     ///     }
     /// ];
     ///

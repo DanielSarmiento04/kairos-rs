@@ -174,6 +174,7 @@ async fn test_route_handler_semantic_cache_fast_path() {
             semantic_cache: Some(cache_cfg),
         }),
         cache: None,
+        mcp_tool: None,
     };
 
     let handler = RouteHandler::new(vec![route], 5).with_semantic_cache(semantic_cache.clone());

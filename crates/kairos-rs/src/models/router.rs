@@ -571,6 +571,49 @@ pub struct Router {
     /// subsequent identical requests. See [`CacheConfig`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache: Option<CacheConfig>,
+
+    /// Model Context Protocol (MCP) tool exposure configuration.
+    /// When set and `enabled = true`, this route is automatically exposed
+    /// as a callable tool for AI models connected via `/mcp/sse`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mcp_tool: Option<McpToolConfig>,
+}
+
+/// Declarative configuration to expose an existing HTTP route as an MCP tool.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct McpToolConfig {
+    /// Whether this route is exposed as an MCP tool. Default: true
+    #[serde(default = "default_mcp_tool_enabled")]
+    pub enabled: bool,
+
+    /// Optional explicit tool name (e.g., "get_user_profile").
+    /// If not specified, a snake_case name is automatically derived from the HTTP method and path.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+
+    /// Human/LLM-readable tool description explaining its purpose.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    /// Custom JSON Schema describing the input parameters.
+    /// If not specified, schema is inferred from dynamic path parameters.
+    #[serde(default, rename = "inputSchema", skip_serializing_if = "Option::is_none")]
+    pub input_schema: Option<serde_json::Value>,
+}
+
+fn default_mcp_tool_enabled() -> bool {
+    true
+}
+
+impl Default for McpToolConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            name: None,
+            description: None,
+            input_schema: None,
+        }
+    }
 }
 
 impl Router {
@@ -611,6 +654,7 @@ impl Router {
     ///     response_transformation: None,
     ///     ai_policy: None,
     ///     cache: None,
+    ///     mcp_tool: None,
     /// };
     /// 
     /// assert!(router.validate().is_ok());

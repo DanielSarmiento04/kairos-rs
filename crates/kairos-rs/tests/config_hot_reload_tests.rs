@@ -37,10 +37,12 @@ fn create_test_settings() -> Settings {
             response_transformation: None,
             ai_policy: None,
             cache: None,
+            mcp_tool: None,
         }],
         compression: None,
         admin_auth: None,
         redis: None,
+        mcp: None,
     }
 }
 
