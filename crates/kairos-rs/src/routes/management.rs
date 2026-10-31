@@ -51,6 +51,7 @@ impl RouteManager {
     ///     compression: None,
     ///     admin_auth: None,
     ///     redis: None,
+    ///     mcp: None,
     ///     routers: vec![],
     /// };
     /// let manager = RouteManager::new(settings, "config.json".to_string());
@@ -83,6 +84,16 @@ impl RouteManager {
             .map_err(|e| format!("Failed to write config file: {}", e))?;
 
         Ok(())
+    }
+
+    /// Returns a clone of all configured routers.
+    pub async fn get_routers(&self) -> Vec<Router> {
+        self.settings.read().await.routers.clone()
+    }
+
+    /// Returns a clone of the current settings.
+    pub async fn get_settings(&self) -> Settings {
+        self.settings.read().await.clone()
     }
 }
 

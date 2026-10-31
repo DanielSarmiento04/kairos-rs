@@ -13,9 +13,10 @@ use kairos_rs::middleware::compression::{self as compression_mw, CompressionConf
 use kairos_rs::middleware::rate_limit::AdvancedRateLimit;
 use kairos_rs::middleware::security::security_headers;
 use kairos_rs::models::settings::Settings;
-use kairos_rs::routes::{auth_http, config_reload, health, management, metrics, websocket, websocket_admin};
+use kairos_rs::routes::{auth_http, config_reload, health, management, mcp, metrics, websocket, websocket_admin};
 use kairos_rs::services::http::RouteHandler;
 use kairos_rs::services::inflight::InFlightTracker;
+use kairos_rs::services::mcp_server::McpServer;
 use kairos_rs::services::metrics_store::MetricsStore;
 use kairos_rs::services::websocket::WebSocketHandler;
 
@@ -206,6 +207,19 @@ async fn main() -> std::io::Result<()> {
     let admin_auth_cfg = config.admin_auth.clone().unwrap_or_default();
     let admin_auth = kairos_rs::middleware::admin_auth::AdminAuth::new(admin_auth_cfg);
 
+    // Initialize Model Context Protocol (MCP) server
+    let mcp_config = config.mcp.clone().unwrap_or_default();
+    let mcp_server = McpServer::new(mcp_config)
+        .with_route_manager(std::sync::Arc::new(route_manager.clone()))
+        .with_route_handler(std::sync::Arc::new(route_handler.clone()))
+        .with_metrics(actix_web::web::Data::new(metrics_collector.clone()))
+        .with_response_cache(response_cache.clone())
+        .with_semantic_cache(semantic_cache.clone());
+    info!(
+        "MCP Server initialized successfully (enabled={})",
+        mcp_server.config().enabled
+    );
+
     // Create server with appropriate rate limiting middleware
     let server = if let Some(rate_limit_config) = config.rate_limit.clone() {
         info!(
@@ -228,6 +242,7 @@ async fn main() -> std::io::Result<()> {
                 .app_data(actix_web::web::Data::new(semantic_cache.clone()))
                 .app_data(actix_web::web::Data::new(redis_service.clone()))
                 .app_data(actix_web::web::Data::new(redis_data.clone()))
+                .app_data(actix_web::web::Data::new(mcp_server.clone()))
                 .wrap(admin_auth.clone())
                 .wrap(advanced_rate_limit.clone())
                 .wrap(Logger::new(
@@ -248,6 +263,7 @@ async fn main() -> std::io::Result<()> {
                 .configure(metrics::configure_metrics)
                 .configure(websocket_admin::configure_admin_websocket)
                 .configure(management::configure_management)
+                .configure(mcp::configure_mcp)
                 .configure(config_reload::configure_config_reload)
                 .configure(|cfg| websocket::configure_websocket(cfg, websocket_handler.clone()))
                 .configure(|cfg| {
@@ -268,6 +284,7 @@ async fn main() -> std::io::Result<()> {
                 .app_data(actix_web::web::Data::new(response_cache.clone()))
                 .app_data(actix_web::web::Data::new(semantic_cache.clone()))
                 .app_data(actix_web::web::Data::new(redis_service.clone()))
+                .app_data(actix_web::web::Data::new(mcp_server.clone()))
                 .wrap(admin_auth.clone())
                 .wrap(Governor::new(&governor_conf))
                 .wrap(Logger::new(
@@ -288,6 +305,7 @@ async fn main() -> std::io::Result<()> {
                 .configure(metrics::configure_metrics)
                 .configure(websocket_admin::configure_admin_websocket)
                 .configure(management::configure_management)
+                .configure(mcp::configure_mcp)
                 .configure(config_reload::configure_config_reload)
                 .configure(|cfg| websocket::configure_websocket(cfg, websocket_handler.clone()))
                 .configure(|cfg| {

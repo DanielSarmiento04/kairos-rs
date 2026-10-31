@@ -63,6 +63,7 @@
 //!         response_transformation: None,
 //!         ai_policy: None,
 //!         cache: None,
+//!         mcp_tool: None,
 //!     }
 //! ];
 //! let matcher = RouteMatcher::new(routes)?;

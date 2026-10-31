@@ -72,6 +72,7 @@ fn test_router_with_backends() {
         response_transformation: None,
         ai_policy: None,
         cache: None,
+        mcp_tool: None,
     };
 
     assert!(router.validate().is_ok());
@@ -99,6 +100,7 @@ fn test_router_legacy_mode() {
         response_transformation: None,
         ai_policy: None,
         cache: None,
+        mcp_tool: None,
     };
 
     assert!(router.validate().is_ok());

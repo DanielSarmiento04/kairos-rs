@@ -136,6 +136,7 @@ async fn test_route_handler_cache_integration() {
         response_transformation: None,
         ai_policy: None,
         cache: None,
+        mcp_tool: None,
     }];
 
     let cache = Arc::new(ResponseCache::new(100, Duration::from_secs(60)));
@@ -216,6 +217,7 @@ async fn test_should_cache_route_respects_auth_required() {
             max_size: 100,
             coalesce: false,
         }),
+        mcp_tool: None,
     };
     assert!(!should_cache_route(&r));
 }

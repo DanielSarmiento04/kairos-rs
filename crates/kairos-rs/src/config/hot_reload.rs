@@ -31,6 +31,7 @@ use tokio::time::interval;
 ///     compression: None,
 ///     admin_auth: None,
 ///     redis: None,
+///     mcp: None,
 ///     routers: vec![],
 /// };
 /// let update = ConfigUpdate {
@@ -72,6 +73,7 @@ pub struct ConfigUpdate {
 ///     compression: None,
 ///     admin_auth: None,
 ///     redis: None,
+///     mcp: None,
 ///     routers: vec![],
 /// };
 /// let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
@@ -118,6 +120,7 @@ impl ConfigWatcher {
     ///     compression: None,
     ///     admin_auth: None,
     ///     redis: None,
+///     mcp: None,
     ///     routers: vec![],
     /// };
     /// let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
@@ -159,6 +162,7 @@ impl ConfigWatcher {
     /// #     compression: None,
     /// #     admin_auth: None,
     /// #     redis: None,
+    /// #     mcp: None,
     /// #     routers: vec![],
     /// # };
     /// # let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
@@ -190,6 +194,7 @@ impl ConfigWatcher {
     /// #     compression: None,
     /// #     admin_auth: None,
     /// #     redis: None,
+    /// #     mcp: None,
     /// #     routers: vec![],
     /// # };
     /// # let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
@@ -224,6 +229,7 @@ impl ConfigWatcher {
     ///     compression: None,
     ///     admin_auth: None,
     ///     redis: None,
+///     mcp: None,
     ///     routers: vec![],
     /// };
     /// let watcher = ConfigWatcher::new(settings, "./config.json".to_string());
@@ -341,6 +347,7 @@ impl ConfigWatcher {
     /// #     compression: None,
     /// #     admin_auth: None,
     /// #     redis: None,
+    /// #     mcp: None,
     /// #     routers: vec![],
     /// # };
     /// # let watcher = ConfigWatcher::new(settings, "./config.json".to_string());

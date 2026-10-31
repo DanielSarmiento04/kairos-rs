@@ -46,6 +46,7 @@ fn make_route(coalesce: bool, auth_required: bool) -> Router {
             max_size: 100,
             coalesce,
         }),
+        mcp_tool: None,
     }
 }
 
